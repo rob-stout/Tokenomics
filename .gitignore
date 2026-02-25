@@ -1,0 +1,26 @@
+# Xcode
+.build/
+Build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+
+# XcodeGen output (regenerated from project.yml)
+Tokenomics.xcodeproj/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Distribution artifacts
+*.dmg
+/tmp/
+
+# SPM
+.swiftpm/xcode/
+Packages/
+
+# Secrets
+.env

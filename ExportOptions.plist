@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Distribute outside the Mac App Store via Developer ID -->
+	<key>method</key>
+	<string>developer-id</string>
+
+	<key>teamID</key>
+	<string>RPDDQP7KZ5</string>
+
+	<!-- Let Xcode manage provisioning automatically -->
+	<key>signingStyle</key>
+	<string>automatic</string>
+</dict>
+</plist>

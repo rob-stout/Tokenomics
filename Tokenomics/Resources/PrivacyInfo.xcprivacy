@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	Apple Privacy Manifest — required for Mac App Store submission (Xcode 15.2+).
+	Tokenomics is a read-only utility that surfaces Claude API usage data.
+	It does not collect, track, or transmit any user data beyond the API call
+	to api.anthropic.com (which uses the user's own OAuth token).
+
+	Required-reason API declarations:
+	  Keychain access is NOT on Apple's required-reason API list, so no entry
+	  is needed for it here. If UserDefaults is added in the future for
+	  preferences (e.g. Launch at Login toggle state), add an entry for
+	  NSPrivacyAccessedAPICategoryUserDefaults at that time.
+	-->
+
+	<!-- Declares that this app does NOT track users -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- No tracking domains — app only contacts api.anthropic.com for usage data -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- No data types are collected from users -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!-- No required-reason APIs used — Keychain is not on Apple's required-reason list -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

@@ -1,0 +1,50 @@
+name: Tokenomics
+options:
+  bundleIdPrefix: com.robstout
+  deploymentTarget:
+    macOS: "13.0"
+  xcodeVersion: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+targets:
+  Tokenomics:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tokenomics
+        excludes:
+          - Resources
+      - path: Tokenomics/Resources/Assets.xcassets
+        buildPhase: resources
+      - path: Tokenomics/Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    info:
+      path: Tokenomics/Resources/Info.plist
+      properties:
+        CFBundleIconFile: AppIcon
+        CFBundleIconName: AppIcon
+        LSUIElement: true
+    entitlements:
+      path: Tokenomics/Resources/Tokenomics.entitlements
+      properties:
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics
+        PRODUCT_NAME: Tokenomics
+        INFOPLIST_FILE: Tokenomics/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Tokenomics/Resources/Tokenomics.entitlements
+        SWIFT_STRICT_CONCURRENCY: complete
+      configs:
+        debug:
+          # Personal team for local builds
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: VJKRVGGNXV
+          CODE_SIGN_IDENTITY: "Apple Development"
+        release:
+          # Manual signing for Developer ID distribution
+          CODE_SIGN_STYLE: Manual
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
+          CODE_SIGN_IDENTITY: "Developer ID Application"
