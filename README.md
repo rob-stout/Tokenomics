@@ -2,7 +2,8 @@
 
 A macOS menu bar app that shows your Claude Code API usage at a glance — built for developers who want to know how much quota they have left without opening a browser.
 
-![Tokenomics menu bar screenshot](docs/screenshot.png)
+<img width="330" height="313" alt="image" src="https://github.com/user-attachments/assets/87938acc-e2d9-4bce-9ee7-a0ef1a66a44b" />
+
 
 ---
 
