@@ -25,6 +25,14 @@
             </item>
         -->
         <item>
+            <title>1.1</title>
+            <pubDate>Wed, 25 Feb 2026 21:57:50 -0700</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v1.1/Tokenomics-1.1.dmg" length="1382386" type="application/octet-stream" sparkle:edSignature="OZ0b2ieynqIgO9FbbubKrHRpe0VkQBBJnOO76t3MuG4q86kRvoCIxVKJhXBahj9ufQlWBQ7MsU0suTUR9KOqBw=="/>
+        </item>
+        <item>
             <title>1.0</title>
             <pubDate>Wed, 25 Feb 2026 21:40:15 -0700</pubDate>
             <sparkle:version>1</sparkle:version>
