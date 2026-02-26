@@ -1,0 +1,28 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+    <channel>
+        <title>Tokenomics</title>
+        <link>https://github.com/robstout/Tokenomics</link>
+        <description>Tokenomics update feed</description>
+        <language>en</language>
+        <!--
+            Each release gets an <item> block. The distribute.sh script
+            will generate these using Sparkle's generate_appcast tool.
+
+            Example:
+            <item>
+                <title>Version 1.1</title>
+                <sparkle:version>2</sparkle:version>
+                <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+                <description><![CDATA[<ul><li>Bug fixes and improvements</li></ul>]]></description>
+                <pubDate>Mon, 01 Jan 2026 00:00:00 +0000</pubDate>
+                <enclosure
+                    url="https://github.com/robstout/Tokenomics/releases/download/v1.1/Tokenomics-1.1.dmg"
+                    type="application/octet-stream"
+                    sparkle:edSignature="..."
+                    length="..."
+                />
+            </item>
+        -->
+    </channel>
+</rss>

@@ -24,5 +24,9 @@
 	<string>1</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/robstout/Tokenomics/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=</string>
 </dict>
 </plist>

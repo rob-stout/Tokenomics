@@ -189,6 +189,39 @@ xcrun stapler staple "$DMG_OUTPUT"
 xcrun stapler validate "$DMG_OUTPUT"
 
 # ---------------------------------------------------------------------------
+# Step 11: Generate Sparkle appcast
+# ---------------------------------------------------------------------------
+
+step "Updating Sparkle appcast"
+
+# Sparkle's generate_appcast tool scans a directory of DMGs and produces
+# (or updates) an appcast.xml with EdDSA signatures and version info.
+# The key was generated with Sparkle's generate_keys and lives in Keychain.
+SPARKLE_BIN=$(find "$HOME/Library/Developer/Xcode/DerivedData" \
+    -path "*/Tokenomics*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast" \
+    -print -quit 2>/dev/null)
+
+if [[ -n "$SPARKLE_BIN" ]]; then
+    # generate_appcast expects a directory containing the DMG(s)
+    APPCAST_DIR="$BUILD_DIR/appcast-staging"
+    mkdir -p "$APPCAST_DIR"
+    cp "$DMG_OUTPUT" "$APPCAST_DIR/"
+
+    # If an existing appcast exists, copy it so generate_appcast can update it
+    [[ -f "$PROJECT_ROOT/appcast.xml" ]] && cp "$PROJECT_ROOT/appcast.xml" "$APPCAST_DIR/"
+
+    "$SPARKLE_BIN" "$APPCAST_DIR" \
+        --download-url-prefix "https://github.com/robstout/Tokenomics/releases/download/v${APP_VERSION}/"
+
+    # Copy the updated appcast back to the project root
+    cp "$APPCAST_DIR/appcast.xml" "$PROJECT_ROOT/appcast.xml"
+    echo "Appcast updated at $PROJECT_ROOT/appcast.xml"
+else
+    echo "WARNING: Sparkle generate_appcast not found — skipping appcast generation."
+    echo "Build the project in Xcode first to download Sparkle, then re-run."
+fi
+
+# ---------------------------------------------------------------------------
 # Done
 # ---------------------------------------------------------------------------
 
@@ -196,5 +229,9 @@ echo ""
 echo "Done. Distributable DMG:"
 echo "  $DMG_OUTPUT"
 echo ""
-echo "Verify with Gatekeeper before shipping:"
-echo "  spctl -a -t open --context context:primary-signature -v \"$DMG_OUTPUT\""
+echo "Next steps:"
+echo "  1. Verify with Gatekeeper:"
+echo "       spctl -a -t open --context context:primary-signature -v \"$DMG_OUTPUT\""
+echo "  2. Create a GitHub Release tagged v${APP_VERSION}"
+echo "  3. Upload $DMG_NAME to the release"
+echo "  4. Commit and push the updated appcast.xml"

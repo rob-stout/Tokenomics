@@ -3,10 +3,11 @@ import SwiftUI
 @main
 struct TokenomicsApp: App {
     @StateObject private var viewModel = UsageViewModel()
+    @StateObject private var updaterService = UpdaterService()
 
     var body: some Scene {
         MenuBarExtra {
-            PopoverView(viewModel: viewModel)
+            PopoverView(viewModel: viewModel, updaterService: updaterService)
                 .frame(width: 320)
         } label: {
             MenuBarLabel(

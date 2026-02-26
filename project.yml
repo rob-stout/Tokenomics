@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     macOS: "13.0"
   xcodeVersion: "16.0"
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -12,6 +16,9 @@ targets:
   Tokenomics:
     type: application
     platform: macOS
+    dependencies:
+      - package: Sparkle
+        product: Sparkle
     sources:
       - path: Tokenomics
         excludes:
@@ -26,6 +33,8 @@ targets:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
         LSUIElement: true
+        SUFeedURL: https://raw.githubusercontent.com/robstout/Tokenomics/main/appcast.xml
+        SUPublicEDKey: iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=
     entitlements:
       path: Tokenomics/Resources/Tokenomics.entitlements
       properties:

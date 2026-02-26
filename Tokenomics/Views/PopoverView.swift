@@ -4,6 +4,7 @@ import ServiceManagement
 /// Main popover content shown when clicking the menu bar icon
 struct PopoverView: View {
     @ObservedObject var viewModel: UsageViewModel
+    @ObservedObject var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
     @State private var settingsExpanded = false
@@ -65,6 +66,15 @@ struct PopoverView: View {
                                 LaunchAtLoginService.setEnabled(newValue)
                                 launchAtLogin = LaunchAtLoginService.isEnabled
                             }
+
+                        Divider()
+
+                        Button("Check for Updates") { updaterService.checkForUpdates() }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
+                            .disabled(!updaterService.canCheckForUpdates)
 
                         Divider()
 
