@@ -30,13 +30,16 @@ let imgW = CGFloat(cgImage.width)   // 312
 let imgH = CGFloat(cgImage.height)  // 240
 
 let colorSpace = CGColorSpaceCreateDeviceRGB()
-let ctx = CGContext(
+guard let ctx = CGContext(
     data: nil,
     width: canvasW, height: canvasH,
     bitsPerComponent: 8, bytesPerRow: 0,
     space: colorSpace,
     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-)!
+) else {
+    print("ERROR: Could not create CGContext")
+    exit(1)
+}
 
 // --- Layer 1: #DCD3C0 background ---
 ctx.setFillColor(red: 220/255, green: 211/255, blue: 192/255, alpha: 1)
@@ -65,10 +68,21 @@ let imgY = iconCenterY_fromBottom - arrowCenterFromBottom  // align arrow center
 ctx.draw(cgImage, in: CGRect(x: imgX, y: imgY, width: imgW, height: imgH))
 
 // --- Save ---
-let outputImage = ctx.makeImage()!
+guard let outputImage = ctx.makeImage() else {
+    print("ERROR: Could not create output image")
+    exit(1)
+}
 let rep = NSBitmapImageRep(cgImage: outputImage)
 rep.size = NSSize(width: canvasW / 2, height: canvasH / 2) // @2x
-let pngData = rep.representation(using: .png, properties: [:])!
+guard let pngData = rep.representation(using: .png, properties: [:]) else {
+    print("ERROR: Could not encode PNG")
+    exit(1)
+}
 
-try! pngData.write(to: URL(fileURLWithPath: outputPath))
+do {
+    try pngData.write(to: URL(fileURLWithPath: outputPath))
+} catch {
+    print("ERROR: Could not write file — \(error)")
+    exit(1)
+}
 print("Saved DMG background to \(outputPath)")

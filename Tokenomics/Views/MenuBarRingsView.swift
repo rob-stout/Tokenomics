@@ -43,7 +43,7 @@ enum MenuBarRingsRenderer {
         fiveHourPace: Double,
         sevenDayPace: Double
     ) -> NSBitmapImageRep {
-        let rep = NSBitmapImageRep(
+        guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: Int(pxWidth),
             pixelsHigh: Int(pxHeight),
@@ -54,12 +54,17 @@ enum MenuBarRingsRenderer {
             colorSpaceName: .deviceRGB,
             bytesPerRow: 0,
             bitsPerPixel: 0
-        )!
+        ) else {
+            return NSBitmapImageRep()
+        }
         rep.size = NSSize(width: ptWidth, height: ptHeight)
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        let ctx = NSGraphicsContext.current!.cgContext
+        guard let ctx = NSGraphicsContext.current?.cgContext else {
+            NSGraphicsContext.restoreGraphicsState()
+            return rep
+        }
 
         // Drawing in pt — CG scales to @2x pixels via the rep's size/pixel ratio.
         // Figma values halved: 44px → 22pt, r=18 → 9, r=11 → 5.5, stroke=6 → 3

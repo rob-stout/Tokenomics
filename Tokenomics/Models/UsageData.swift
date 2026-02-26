@@ -41,6 +41,12 @@ struct UsagePeriod: Decodable, Sendable {
         case resetsAt = "resets_at"
     }
 
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter
+    }()
+
     /// Formatted time remaining until reset
     var timeUntilReset: String {
         let interval = resetsAt.timeIntervalSinceNow
@@ -49,10 +55,8 @@ struct UsagePeriod: Decodable, Sendable {
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
 
-        if hours > 24 {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE"
-            return "Resets \(formatter.string(from: resetsAt))"
+        if hours >= 24 {
+            return "Resets \(Self.dayFormatter.string(from: resetsAt))"
         } else if hours > 0 {
             return "Resets in \(hours)h \(minutes)m"
         } else {
@@ -112,17 +116,4 @@ enum UsageState {
         default: self = .depleted
         }
     }
-
-    var color: Color {
-        switch self {
-        case .healthy: return .secondary
-        case .caution: return .orange
-        case .warning, .depleted: return .red
-        case .error: return .red
-        case .loading: return .secondary
-        case .unauthenticated: return .secondary
-        }
-    }
 }
-
-import SwiftUI

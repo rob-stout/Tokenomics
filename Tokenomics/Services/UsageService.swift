@@ -2,7 +2,8 @@ import Foundation
 
 /// Fetches usage data from the Anthropic API
 actor UsageService {
-    private let baseURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
+    // Compile-time constant — URL(string:) only fails on malformed strings
+    private let baseURL = URL(string: "https://api.anthropic.com/api/oauth/usage")! // swiftlint:disable:this force_unwrapping
 
     private lazy var decoder: JSONDecoder = {
         let decoder = JSONDecoder()

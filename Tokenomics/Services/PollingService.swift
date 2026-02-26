@@ -32,9 +32,4 @@ actor PollingService {
         task?.cancel()
         task = nil
     }
-
-    /// Force an immediate refresh outside the normal interval
-    func refreshNow(action: @escaping @Sendable () async -> Void) {
-        Task { await action() }
-    }
 }

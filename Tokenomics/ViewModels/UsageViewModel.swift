@@ -128,8 +128,11 @@ final class UsageViewModel: ObservableObject {
                 await pollingService.stop()
             }
             self.error = appError
-        } catch {
+        } catch let urlError as URLError where urlError.code == .notConnectedToInternet
+            || urlError.code == .networkConnectionLost {
             self.error = .networkUnavailable
+        } catch {
+            self.error = .unexpectedError(underlying: error)
         }
 
         isLoading = false

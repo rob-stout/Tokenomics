@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Footer showing last sync time and refresh button
+/// Footer showing last sync time, refresh button, and settings gear
 struct SyncFooterView: View {
     let lastSynced: Date?
     let isLoading: Bool
     let onRefresh: () -> Void
+    @Binding var settingsExpanded: Bool
 
     private var syncText: String {
         guard let lastSynced else { return "Not yet synced" }
@@ -12,20 +13,19 @@ struct SyncFooterView: View {
 
         if interval < 60 {
             return "Just synced"
-        } else if interval < 3600 {
+        } else {
             let minutes = Int(interval / 60)
             return "Synced \(minutes)m ago"
-        } else {
-            let hours = Int(interval / 3600)
-            return "Synced \(hours)h ago"
         }
     }
 
     var body: some View {
         HStack {
-            Text(syncText)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            TimelineView(.periodic(from: .now, by: 60)) { _ in
+                Text(syncText)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
 
             Spacer()
 
@@ -41,6 +41,13 @@ struct SyncFooterView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .disabled(isLoading)
+
+            Button(action: { settingsExpanded.toggle() }) {
+                Image(systemName: "gearshape")
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(settingsExpanded ? .primary : .secondary)
         }
     }
 }

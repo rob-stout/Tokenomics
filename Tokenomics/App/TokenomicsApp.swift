@@ -16,6 +16,9 @@ struct TokenomicsApp: App {
                 sevenDayPace: viewModel.sevenDayPace,
                 state: viewModel.usageState
             )
+            .onAppear {
+                viewModel.startPolling()
+            }
         }
         .menuBarExtraStyle(.window)
     }
@@ -31,6 +34,19 @@ struct MenuBarLabel: View {
     let fiveHourPace: Double
     let sevenDayPace: Double
     let state: UsageState
+
+    private var helpText: String {
+        switch state {
+        case .unauthenticated:
+            return "Tokenomics — not signed in"
+        case .error:
+            return "Tokenomics — connection error"
+        case .loading:
+            return "Tokenomics — loading..."
+        default:
+            return "5-hour: \(Int(fiveHourUtilization))%  |  7-day: \(Int(sevenDayUtilization))%"
+        }
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -69,10 +85,12 @@ struct MenuBarLabel: View {
                 Text("\(Int(fiveHourUtilization))%")
                     .font(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(state.color)
+                    .foregroundStyle(Color.secondary)
                     .padding(.leading, 6)
             }
         }
-        .help("5-hour: \(Int(fiveHourUtilization))%  |  7-day: \(Int(sevenDayUtilization))%")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(helpText)
+        .help(helpText)
     }
 }

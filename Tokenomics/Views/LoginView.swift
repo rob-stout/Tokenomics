@@ -13,15 +13,19 @@ struct LoginView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Text("Sign in to Claude Code first, then relaunch Tokenomics.")
+            Text("Sign in to Claude Code first, then click Refresh.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
 
-            Link("Open Claude Code Docs", destination: URL(string: "https://code.claude.com/docs/en/setup")!)
-                .font(.caption)
+            if let docsURL = URL(string: "https://code.claude.com/docs/en/setup") {
+                Link("Open Claude Code Docs", destination: docsURL)
+                    .font(.caption)
+            }
         }
         .padding()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Sign in required. Sign in to Claude Code first, then click Refresh.")
     }
 }
 

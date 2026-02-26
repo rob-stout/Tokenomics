@@ -7,6 +7,7 @@ enum AppError: Error, LocalizedError {
     case networkUnavailable
     case decodingFailed(underlying: Error)
     case httpError(statusCode: Int)
+    case unexpectedError(underlying: Error)
 
     /// True only for the token-expired case, used to tailor recovery UI.
     var isTokenExpired: Bool {
@@ -29,6 +30,8 @@ enum AppError: Error, LocalizedError {
             return "Couldn't read usage data"
         case .httpError(let code):
             return "Server error (\(code))"
+        case .unexpectedError:
+            return "Something went wrong — try again"
         }
     }
 }
