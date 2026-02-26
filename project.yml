@@ -33,7 +33,7 @@ targets:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
         LSUIElement: true
-        SUFeedURL: https://raw.githubusercontent.com/robstout/Tokenomics/main/appcast.xml
+        SUFeedURL: https://raw.githubusercontent.com/rob-stout/Tokenomics/main/appcast.xml
         SUPublicEDKey: iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=
     entitlements:
       path: Tokenomics/Resources/Tokenomics.entitlements

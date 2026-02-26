@@ -211,7 +211,7 @@ if [[ -n "$SPARKLE_BIN" ]]; then
     [[ -f "$PROJECT_ROOT/appcast.xml" ]] && cp "$PROJECT_ROOT/appcast.xml" "$APPCAST_DIR/"
 
     "$SPARKLE_BIN" "$APPCAST_DIR" \
-        --download-url-prefix "https://github.com/robstout/Tokenomics/releases/download/v${APP_VERSION}/"
+        --download-url-prefix "https://github.com/rob-stout/Tokenomics/releases/download/v${APP_VERSION}/"
 
     # Copy the updated appcast back to the project root
     cp "$APPCAST_DIR/appcast.xml" "$PROJECT_ROOT/appcast.xml"
