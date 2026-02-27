@@ -120,12 +120,24 @@ final class UsageViewModel: ObservableObject {
             self.lastSynced = Date()
         } catch let appError as AppError {
             if case .tokenExpired = appError {
-                // Cached token is invalid — discard it and halt the poll loop.
-                // Hammering the API every 5 min with a dead token wastes quota
-                // and could trigger rate-limiting. User must manually refresh
-                // after re-authenticating via `claude` in the terminal.
+                // The cached token is stale — Claude Code rotates OAuth tokens
+                // silently in the background (e.g. during sleep/wake). Before
+                // giving up, re-read the Keychain: a fresh token may already be
+                // there. Only stop polling and show the login prompt if the
+                // Keychain is also empty, meaning the user truly needs to
+                // re-authenticate via `claude` in the terminal.
                 cachedToken = nil
-                await pollingService.stop()
+                cachedToken = KeychainService.readAccessToken()
+
+                if cachedToken != nil {
+                    // Fresh token found — retry this fetch immediately rather
+                    // than waiting for the next poll interval.
+                    await fetchUsage()
+                    return
+                } else {
+                    // Keychain is empty — no point hammering the API.
+                    await pollingService.stop()
+                }
             }
             self.error = appError
         } catch let urlError as URLError where urlError.code == .notConnectedToInternet
