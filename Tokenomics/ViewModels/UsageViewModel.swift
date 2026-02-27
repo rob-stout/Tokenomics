@@ -35,10 +35,13 @@ final class UsageViewModel: ObservableObject {
     }
 
     /// How far through the 7-day window we are (0–1).
+    /// `remaining` is capped to `totalWindow` so that if the API returns a
+    /// `resetsAt` slightly beyond 7 days (e.g. fixed weekly anchor time),
+    /// elapsed never goes negative and the pace dot never disappears.
     var sevenDayPace: Double {
         guard let data = usageData else { return 0 }
         let totalWindow: TimeInterval = 7 * 24 * 3600
-        let remaining = max(data.sevenDay.resetsAt.timeIntervalSinceNow, 0)
+        let remaining = min(max(data.sevenDay.resetsAt.timeIntervalSinceNow, 0), totalWindow)
         let elapsed = totalWindow - remaining
         return min(max(elapsed / totalWindow, 0), 1)
     }

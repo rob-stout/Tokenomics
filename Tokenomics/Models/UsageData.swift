@@ -56,7 +56,14 @@ struct UsagePeriod: Decodable, Sendable {
         let minutes = (Int(interval) % 3600) / 60
 
         if hours >= 24 {
-            return "Resets \(Self.dayFormatter.string(from: resetsAt))"
+            let calendar = Calendar.current
+            if calendar.isDateInToday(resetsAt) {
+                return "Resets today"
+            } else if calendar.isDateInTomorrow(resetsAt) {
+                return "Resets tomorrow"
+            } else {
+                return "Resets \(Self.dayFormatter.string(from: resetsAt))"
+            }
         } else if hours > 0 {
             return "Resets in \(hours)h \(minutes)m"
         } else {
