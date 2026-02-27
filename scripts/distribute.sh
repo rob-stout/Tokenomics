@@ -31,11 +31,6 @@ SCHEME="Tokenomics"
 CONFIGURATION="Release"
 NOTARIZE_PROFILE="tokenomics-notarize"
 
-# Pull the version from Info.plist so the DMG name stays in sync
-APP_VERSION=$(defaults read "$PROJECT_ROOT/Tokenomics/Resources/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "1.0")
-DMG_NAME="Tokenomics-${APP_VERSION}.dmg"
-DMG_OUTPUT="$PROJECT_ROOT/$DMG_NAME"
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -70,6 +65,12 @@ xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" >/dev/null 2>&1 
 step "Generating Xcode project with XcodeGen"
 cd "$PROJECT_ROOT"
 xcodegen generate
+
+# Read the version AFTER xcodegen runs — xcodegen overwrites Info.plist from
+# project.yml, so reading before this step would get the previous release's value.
+APP_VERSION=$(defaults read "$PROJECT_ROOT/Tokenomics/Resources/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "1.0")
+DMG_NAME="Tokenomics-${APP_VERSION}.dmg"
+DMG_OUTPUT="$PROJECT_ROOT/$DMG_NAME"
 
 # ---------------------------------------------------------------------------
 # Step 2: Clean build directory
