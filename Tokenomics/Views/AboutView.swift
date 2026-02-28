@@ -47,7 +47,7 @@ struct AboutView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Tokenomics shows your Claude Code API usage at a glance from the menu bar.")
+                    Text("Tokenomics shows your AI coding tool usage at a glance from the menu bar. Supports Claude Code and Codex CLI.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 

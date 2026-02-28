@@ -10,48 +10,23 @@ struct TokenomicsApp: App {
             PopoverView(viewModel: viewModel, updaterService: updaterService)
                 .frame(width: 320)
         } label: {
-            MenuBarLabel(
-                fiveHourUtilization: viewModel.fiveHourUtilization,
-                sevenDayUtilization: viewModel.sevenDayUtilization,
-                fiveHourPace: viewModel.fiveHourPace,
-                sevenDayPace: viewModel.sevenDayPace,
-                state: viewModel.usageState
-            )
-            .onAppear {
-                viewModel.startPolling()
-            }
+            MenuBarLabel(viewModel: viewModel)
+                .onAppear {
+                    viewModel.startPolling()
+                }
         }
         .menuBarExtraStyle(.window)
     }
 }
 
-/// The menu bar label — two concentric rings + 5-hour percentage text.
-///
-/// Error and unauthenticated states fall back to SF Symbols (no rings) because
-/// there's no meaningful utilization data to visualize.
+/// The menu bar label — supports Smart mode (single worst-of-N ring set)
+/// and Individual mode (one ring set per pinned provider with initial letter).
 struct MenuBarLabel: View {
-    let fiveHourUtilization: Double
-    let sevenDayUtilization: Double
-    let fiveHourPace: Double
-    let sevenDayPace: Double
-    let state: UsageState
-
-    private var helpText: String {
-        switch state {
-        case .unauthenticated:
-            return "Tokenomics — not signed in"
-        case .error:
-            return "Tokenomics — connection error"
-        case .loading:
-            return "Tokenomics — loading..."
-        default:
-            return "5-hour: \(Int(fiveHourUtilization))%  |  7-day: \(Int(sevenDayUtilization))%"
-        }
-    }
+    @ObservedObject var viewModel: UsageViewModel
 
     var body: some View {
         HStack(spacing: 0) {
-            switch state {
+            switch viewModel.menuBarState {
             case .error:
                 Image(systemName: "exclamationmark.triangle")
                     .symbolRenderingMode(.hierarchical)
@@ -63,35 +38,88 @@ struct MenuBarLabel: View {
                     .foregroundStyle(Color.secondary)
 
             default:
-                Image(nsImage: MenuBarRingsRenderer.image(
-                    fiveHourFraction: fiveHourUtilization / 100,
-                    sevenDayFraction: sevenDayUtilization / 100,
-                    fiveHourPace: fiveHourPace,
-                    sevenDayPace: sevenDayPace
-                ))
-            }
-
-            // Percentage text next to the rings — the primary at-a-glance number.
-            // Hidden for error/unauthenticated since the icon alone communicates state.
-            switch state {
-            case .error, .unauthenticated:
-                EmptyView()
-            case .loading:
-                Text("—")
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(Color.secondary)
-                    .padding(.leading, 6)
-            default:
-                Text("\(Int(fiveHourUtilization))%")
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(Color.secondary)
-                    .padding(.leading, 6)
+                if viewModel.isSmartMode || viewModel.pinnedProviders.isEmpty {
+                    smartModeLabel
+                } else {
+                    individualModeLabel
+                }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(helpText)
-        .help(helpText)
+        .accessibilityLabel(viewModel.menuBarTooltip)
+        .help(viewModel.menuBarTooltip)
+    }
+
+    // MARK: - Smart Mode (worst-of-N, single ring set)
+
+    @ViewBuilder
+    private var smartModeLabel: some View {
+        if let usage = viewModel.worstOfNUsage() {
+            Image(nsImage: MenuBarRingsRenderer.image(
+                fiveHourFraction: usage.shortWindow.utilization / 100,
+                sevenDayFraction: usage.longWindow.utilization / 100,
+                fiveHourPace: usage.shortWindow.pace,
+                sevenDayPace: usage.longWindow.pace
+            ))
+
+            Text("\(Int(usage.shortWindow.utilization))%")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.secondary)
+                .padding(.leading, 6)
+        } else {
+            Text("—")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.secondary)
+                .padding(.leading, 6)
+        }
+    }
+
+    // MARK: - Individual Mode (one ring set per pinned provider)
+
+    @ViewBuilder
+    private var individualModeLabel: some View {
+        let pinned = ProviderId.allCases.filter { viewModel.isPinned($0) }
+
+        ForEach(Array(pinned.enumerated()), id: \.element) { index, provider in
+            if index > 0 {
+                Spacer().frame(width: 8)
+            }
+
+            providerRingSet(provider)
+        }
+    }
+
+    @ViewBuilder
+    private func providerRingSet(_ provider: ProviderId) -> some View {
+        if let ringData = viewModel.menuBarRingData(for: provider) {
+            // Initial letter
+            Text(provider.shortLabel)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Color.secondary)
+
+            Image(nsImage: MenuBarRingsRenderer.image(
+                fiveHourFraction: ringData.fiveHour / 100,
+                sevenDayFraction: ringData.sevenDay / 100,
+                fiveHourPace: ringData.fiveHourPace,
+                sevenDayPace: ringData.sevenDayPace
+            ))
+
+            Text("\(Int(ringData.fiveHour))%")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.secondary)
+                .padding(.leading, 2)
+        } else {
+            // Auth error — show initial + warning glyph
+            Text(provider.shortLabel)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Color.secondary)
+
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 10))
+                .foregroundStyle(Color.orange)
+        }
     }
 }
