@@ -18,10 +18,9 @@ enum AppError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
-            return "Not signed in to Claude"
+            return "Not signed in"
         case .tokenExpired:
-            // Give the user a concrete next step, not just a status message.
-            return "Session expired — run `claude` in your terminal to re-authenticate, then click Refresh."
+            return "Session expired — re-authenticate in your terminal, then click Refresh."
         case .rateLimited:
             return "Too many requests — trying again shortly"
         case .networkUnavailable:

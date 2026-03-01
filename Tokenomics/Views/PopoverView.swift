@@ -7,8 +7,6 @@ struct PopoverView: View {
     @ObservedObject var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
-    @State private var settingsExpanded = false
-    @State private var showAbout = false
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -16,96 +14,20 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if showAbout {
-                // About replaces the main content inline
-                AboutView(onDismiss: { showAbout = false })
+            if viewModel.showAbout {
+                AboutView(onDismiss: { viewModel.showAbout = false })
+            } else if viewModel.showAIConnections {
+                AIConnectionsView(viewModel: viewModel)
+            } else if viewModel.showSettings {
+                settingsView
+            } else if !viewModel.hasCompletedOnboarding {
+                OnboardingView(viewModel: viewModel)
             } else {
-                // Header
-                header
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
-
-                Divider()
-
-                if !viewModel.isAuthenticated {
-                    LoginView()
-                } else if viewModel.isLoading && viewModel.usageData == nil {
-                    loadingView
-                } else if let error = viewModel.error, viewModel.usageData == nil {
-                    errorView(error)
-                } else if let data = viewModel.usageData {
-                    usageContent(data)
-                }
-
-                Divider()
-
-                // Footer with sync status, refresh, and settings gear
-                SyncFooterView(
-                    lastSynced: viewModel.lastSynced,
-                    isLoading: viewModel.isLoading,
-                    onRefresh: { viewModel.refresh() },
-                    settingsExpanded: $settingsExpanded
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-
-                // Collapsible settings section
-                if settingsExpanded {
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        Toggle("Launch at Login", isOn: $launchAtLogin)
-                            .toggleStyle(.switch)
-                            .controlSize(.mini)
-                            .font(.caption)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
-                            // Single-argument onChange for macOS 13 compatibility
-                            .onChange(of: launchAtLogin) { newValue in
-                                LaunchAtLoginService.setEnabled(newValue)
-                                launchAtLogin = LaunchAtLoginService.isEnabled
-                            }
-
-                        Divider()
-
-                        Button("Check for Updates") { updaterService.checkForUpdates() }
-                            .buttonStyle(.plain)
-                            .font(.caption)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
-                            .disabled(!updaterService.canCheckForUpdates)
-
-                        Divider()
-
-                        Button("About Tokenomics") { showAbout = true }
-                            .buttonStyle(.plain)
-                            .font(.caption)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
-
-                        Divider()
-
-                        HStack {
-                            Button("Quit Tokenomics") {
-                                NSApplication.shared.terminate(nil)
-                            }
-                            .buttonStyle(.plain)
-                            .font(.caption)
-
-                            Spacer()
-
-                            Text("v\(appVersion)")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                    }
-                }
+                mainContent
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: settingsExpanded)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showSettings)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showAIConnections)
         .background {
             // Hidden buttons to register keyboard shortcuts within the popover
             VStack {
@@ -119,6 +41,50 @@ struct PopoverView: View {
         }
     }
 
+    // MARK: - Main Content (Tabs + Usage)
+
+    @ViewBuilder
+    private var mainContent: some View {
+        // Header
+        header
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+        // Tabs (only if multiple providers)
+        if viewModel.showTabs {
+            ProviderTabView(
+                providers: viewModel.visibleProviders,
+                selection: $viewModel.selectedTab
+            )
+        }
+
+        Divider()
+
+        // Content for selected provider
+        if let state = viewModel.currentProviderState {
+            providerContent(state)
+        } else if !viewModel.isAuthenticated {
+            LoginView(viewModel: viewModel)
+        } else {
+            loadingView
+        }
+
+        Divider()
+
+        // Footer
+        SyncFooterView(
+            lastSynced: viewModel.lastSynced,
+            isLoading: viewModel.isLoading,
+            onRefresh: { viewModel.refresh() },
+            onSettings: { viewModel.showSettings = true },
+            showDisplayMode: viewModel.connectedProviders.count > 1,
+            viewModel: viewModel
+        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
     // MARK: - Header
 
     private var header: some View {
@@ -129,35 +95,68 @@ struct PopoverView: View {
 
             Spacer()
 
-            PlanBadgeView(label: viewModel.planLabel)
+            if let state = viewModel.currentProviderState,
+               let usage = state.usage {
+                PlanBadgeView(label: usage.planLabel)
+            }
         }
     }
 
-    // MARK: - Usage Content
+    // MARK: - Provider Content
 
     @ViewBuilder
-    private func usageContent(_ data: UsageData) -> some View {
+    private func providerContent(_ state: ProviderState) -> some View {
+        if state.isLoading && state.usage == nil {
+            loadingView
+        } else if case .authExpired = state.connection {
+            authExpiredView(for: viewModel.selectedTab ?? .claude)
+        } else if let error = state.error, state.usage == nil {
+            errorView(error)
+        } else if let usage = state.usage {
+            usageContent(usage)
+        } else {
+            loadingView
+        }
+    }
+
+    @ViewBuilder
+    private func usageContent(_ usage: ProviderUsageSnapshot) -> some View {
         VStack(spacing: 12) {
             UsageBarView(
-                label: "5-Hour Window",
-                utilization: data.fiveHour.utilization,
-                pace: viewModel.fiveHourPace,
-                sublabel: data.fiveHour.timeUntilReset
+                label: usage.shortWindow.label,
+                utilization: usage.shortWindow.utilization,
+                pace: usage.shortWindow.pace,
+                sublabel: usage.shortWindow.timeUntilReset
             )
 
             Divider()
 
             UsageBarView(
-                label: "7-Day Window",
-                utilization: data.sevenDay.utilization,
-                pace: viewModel.sevenDayPace,
-                sublabel: data.sevenDay.timeUntilReset
+                label: usage.longWindow.label,
+                utilization: usage.longWindow.utilization,
+                pace: usage.longWindow.pace,
+                sublabel: usage.longWindow.timeUntilReset
             )
 
-            // Extra usage section
-            if let extra = data.extraUsage, extra.isEnabled {
+            // Extra usage (Claude Max)
+            if let extra = usage.extraUsage, extra.isEnabled {
                 Divider()
                 extraUsageSection(extra)
+            }
+
+            // Credits balance (Codex)
+            if let balance = usage.creditsBalance {
+                Divider()
+                HStack {
+                    Text("Credits Balance")
+                        .font(.subheadline)
+                    Spacer()
+                    Text("$\(balance)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -194,6 +193,53 @@ struct PopoverView: View {
         }
     }
 
+    // MARK: - Auth Expired
+
+    private func authExpiredView(for provider: ProviderId) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.title2)
+                .foregroundStyle(.orange)
+
+            Text("\(provider.displayName) authentication expired")
+                .font(.caption)
+                .fontWeight(.semibold)
+
+            Text("Run this in your terminal to reconnect:")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                Text(provider.loginCommand)
+                    .font(.system(.caption, design: .monospaced))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(nsColor: .windowBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+
+                Button(action: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(provider.loginCommand, forType: .string)
+                }) {
+                    Text("Copy")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text("Tokenomics will detect it automatically.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+        }
+        .padding(24)
+    }
+
     // MARK: - Loading & Error States
 
     private var loadingView: some View {
@@ -217,8 +263,6 @@ struct PopoverView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            // Label mirrors the recovery instruction in the error message so
-            // the user's eye lands on the exact action they need to take next.
             Button(error.isTokenExpired ? "Refresh" : "Try Again") {
                 viewModel.refresh()
             }
@@ -226,5 +270,123 @@ struct PopoverView: View {
             .controlSize(.small)
         }
         .padding(24)
+    }
+
+    // MARK: - Settings
+
+    private var settingsView: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button(action: { viewModel.showSettings = false }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }
+                    .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text("Settings")
+                    .font(.headline)
+                    .fontWeight(.medium)
+
+                Spacer()
+
+                // Invisible balance for centering
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                    Text("Back")
+                }
+                .font(.caption)
+                .hidden()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 0) {
+                // Launch at Login
+                HStack {
+                    Text("Launch at Login")
+                        .font(.caption)
+                    Spacer()
+                    Toggle("", isOn: $launchAtLogin)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .onChange(of: launchAtLogin) { newValue in
+                            LaunchAtLoginService.setEnabled(newValue)
+                            launchAtLogin = LaunchAtLoginService.isEnabled
+                        }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+                Divider()
+
+                // AI Connections
+                Button(action: { viewModel.showAIConnections = true }) {
+                    HStack {
+                        Text("AI Connections")
+                            .font(.caption)
+                        Spacer()
+                        Text("\(viewModel.connectedProviders.count) connected")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+                Divider()
+
+                // Check for Updates
+                Button("Check for Updates") { updaterService.checkForUpdates() }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .disabled(!updaterService.canCheckForUpdates)
+
+                Divider()
+
+                // About
+                Button("About Tokenomics") { viewModel.showAbout = true }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                Divider()
+
+                // Quit
+                HStack {
+                    Button("Quit Tokenomics") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+
+                    Spacer()
+
+                    Text("v\(appVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
+        }
     }
 }
