@@ -84,7 +84,8 @@ struct OnboardingView: View {
 
             Spacer()
 
-            if case .notInstalled = connection {
+            switch connection {
+            case .notInstalled:
                 if let url = provider.installURL {
                     Link("Install", destination: url)
                         .font(.caption2)
@@ -95,6 +96,21 @@ struct OnboardingView: View {
                                 .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                         )
                 }
+            case .installedNoAuth:
+                Button("Sign In") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(provider.loginCommand, forType: .string)
+                }
+                .font(.caption2)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+                .buttonStyle(.plain)
+            default:
+                EmptyView()
             }
         }
         .padding(.vertical, 10)

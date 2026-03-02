@@ -113,7 +113,7 @@ struct AIConnectionsView: View {
 
             Spacer()
 
-            // Action buttons for error states
+            // Action buttons for non-connected states
             switch connection {
             case .notInstalled:
                 if let url = provider.installURL {
@@ -127,9 +127,8 @@ struct AIConnectionsView: View {
                                 .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                         )
                 }
-            case .authExpired:
-                Button("Fix") {
-                    // Copy login command to clipboard
+            case .installedNoAuth:
+                Button("Sign In") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(provider.loginCommand, forType: .string)
                 }
@@ -142,6 +141,22 @@ struct AIConnectionsView: View {
                         .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                 )
                 .buttonStyle(.plain)
+                .help("Copies \(provider.loginCommand) to clipboard")
+            case .authExpired:
+                Button("Fix") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(provider.loginCommand, forType: .string)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+                .buttonStyle(.plain)
+                .help("Copies \(provider.loginCommand) to clipboard")
             default:
                 EmptyView()
             }
