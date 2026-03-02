@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 
 // MARK: - Provider Identity
 
@@ -35,6 +38,35 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .gemini: return "gemini login"
         }
     }
+
+    #if os(macOS)
+    /// Opens Terminal and runs the login/auth command for this provider
+    func openLoginInTerminal() {
+        let script = """
+        #!/bin/zsh
+        [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"
+        [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"
+        export PATH="$HOME/.claude/bin:$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
+        echo "Signing in to \(displayName)..."
+        echo ""
+        \(loginCommand)
+        """
+        let scriptFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tokenomics-\(rawValue)-login.command")
+        do {
+            try script.write(to: scriptFile, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o755],
+                ofItemAtPath: scriptFile.path
+            )
+            NSWorkspace.shared.open(scriptFile)
+        } catch {
+            // Fallback: copy command to clipboard
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(loginCommand, forType: .string)
+        }
+    }
+    #endif
 
     /// Install instructions URL
     var installURL: URL? {

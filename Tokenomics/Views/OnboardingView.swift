@@ -98,8 +98,7 @@ struct OnboardingView: View {
                 }
             case .installedNoAuth:
                 Button("Sign In") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(provider.loginCommand, forType: .string)
+                    provider.openLoginInTerminal()
                 }
                 .font(.caption2)
                 .padding(.horizontal, 10)

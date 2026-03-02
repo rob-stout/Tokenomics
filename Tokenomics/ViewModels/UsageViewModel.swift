@@ -228,6 +228,15 @@ final class UsageViewModel: ObservableObject {
         pinnedProviders.removeAll()
     }
 
+    // MARK: - Popover Lifecycle
+
+    /// Resets navigation to the home/usage view
+    func resetNavigation() {
+        showSettings = false
+        showAIConnections = false
+        showAbout = false
+    }
+
     // MARK: - Private
 
     /// Stable iteration order so detection/fetching is deterministic

@@ -129,8 +129,7 @@ struct AIConnectionsView: View {
                 }
             case .installedNoAuth:
                 Button("Sign In") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(provider.loginCommand, forType: .string)
+                    provider.openLoginInTerminal()
                 }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -141,11 +140,10 @@ struct AIConnectionsView: View {
                         .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                 )
                 .buttonStyle(.plain)
-                .help("Copies \(provider.loginCommand) to clipboard")
+                .help("Opens Terminal to sign in")
             case .authExpired:
                 Button("Fix") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(provider.loginCommand, forType: .string)
+                    provider.openLoginInTerminal()
                 }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -156,7 +154,7 @@ struct AIConnectionsView: View {
                         .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                 )
                 .buttonStyle(.plain)
-                .help("Copies \(provider.loginCommand) to clipboard")
+                .help("Opens Terminal to reconnect")
             default:
                 EmptyView()
             }

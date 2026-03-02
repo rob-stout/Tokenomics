@@ -7,7 +7,6 @@ struct PopoverView: View {
     @ObservedObject var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
-
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
@@ -38,6 +37,10 @@ struct PopoverView: View {
             }
             .frame(width: 0, height: 0)
             .opacity(0)
+        }
+        // Reset to home view when popover closes
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            viewModel.resetNavigation()
         }
     }
 
@@ -99,6 +102,16 @@ struct PopoverView: View {
                let usage = state.usage {
                 PlanBadgeView(label: usage.planLabel)
             }
+
+            ShareLink(
+                item: URL(string: "https://github.com/rob-stout/Tokenomics")!,
+                message: Text("I'm tracking my AI coding tool usage with Tokenomics!")
+            ) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -205,37 +218,16 @@ struct PopoverView: View {
                 .font(.caption)
                 .fontWeight(.semibold)
 
-            Text("Run this in your terminal to reconnect:")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack {
-                Text(provider.loginCommand)
-                    .font(.system(.caption, design: .monospaced))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color(nsColor: .windowBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-
-                Button(action: {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(provider.loginCommand, forType: .string)
-                }) {
-                    Text("Copy")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
+            Button("Sign In") {
+                provider.openLoginInTerminal()
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
 
-            Text("Tokenomics will detect it automatically.")
+            Text("Opens Terminal to reconnect.\nTokenomics will detect it automatically.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .padding(.top, 4)
+                .multilineTextAlignment(.center)
         }
         .padding(24)
     }

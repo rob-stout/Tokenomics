@@ -6,6 +6,9 @@ struct DisplayModeMenuView: View {
 
     var body: some View {
         Menu {
+            // Header
+            Text("Menu Bar Display")
+
             // Smart mode
             Button(action: { viewModel.setSmartMode() }) {
                 HStack {
