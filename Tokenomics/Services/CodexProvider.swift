@@ -200,12 +200,26 @@ private struct CodexAuth: Decodable {
     }
 }
 
-/// A single line in a Codex session JSONL file
+/// A single line in a Codex session JSONL file.
+/// Rate limits are nested: `{ "type": "event_msg", "payload": { "rate_limits": { ... } } }`
 private struct CodexSessionEvent: Decodable {
     let rateLimits: CodexRateLimits?
 
-    enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
+        case payload
+    }
+
+    private enum PayloadKeys: String, CodingKey {
         case rateLimits = "rate_limits"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let payload = try? container.nestedContainer(keyedBy: PayloadKeys.self, forKey: .payload) {
+            self.rateLimits = try? payload.decode(CodexRateLimits.self, forKey: .rateLimits)
+        } else {
+            self.rateLimits = nil
+        }
     }
 }
 

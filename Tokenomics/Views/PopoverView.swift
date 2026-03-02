@@ -64,9 +64,11 @@ struct PopoverView: View {
                 providers: viewModel.visibleProviders,
                 selection: $viewModel.selectedTab
             )
-        }
 
-        Divider()
+            Spacer().frame(height: 4)
+        } else {
+            Divider()
+        }
 
         // Content for selected provider
         if let state = viewModel.currentProviderState {

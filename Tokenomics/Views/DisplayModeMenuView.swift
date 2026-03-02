@@ -36,15 +36,16 @@ struct DisplayModeMenuView: View {
                 }
             }
         } label: {
-            HStack(spacing: 3) {
+            HStack(spacing: 2) {
                 Image(systemName: "circle.circle")
                     .font(.caption)
+                    .foregroundStyle(.secondary)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 7))
+                    .font(.system(size: 6, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .foregroundStyle(.secondary)
     }
 }

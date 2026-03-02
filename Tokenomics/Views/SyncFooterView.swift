@@ -35,6 +35,7 @@ struct SyncFooterView: View {
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
                     .font(.caption)
+                    .frame(height: 16)
                     .rotationEffect(.degrees(isLoading ? 360 : 0))
                     .animation(
                         isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default,
@@ -48,18 +49,20 @@ struct SyncFooterView: View {
             // Display mode dropdown (only with multiple providers)
             if showDisplayMode {
                 Divider()
-                    .frame(height: 14)
+                    .frame(height: 12)
 
                 DisplayModeMenuView(viewModel: viewModel)
+                    .frame(height: 16)
             }
 
             Divider()
-                .frame(height: 14)
+                .frame(height: 12)
 
             // Settings gear
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
                     .font(.caption)
+                    .frame(height: 16)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)

@@ -2,7 +2,8 @@ import Foundation
 
 /// Persists user preferences for multi-provider configuration
 enum SettingsService {
-    private static let defaults = UserDefaults.standard
+    // UserDefaults.standard is documented as thread-safe by Apple
+    nonisolated(unsafe) private static let defaults = UserDefaults.standard
 
     // MARK: - Onboarding
 
