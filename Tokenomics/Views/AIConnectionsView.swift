@@ -116,17 +116,19 @@ struct AIConnectionsView: View {
             // Action buttons for non-connected states
             switch connection {
             case .notInstalled:
-                if let url = provider.installURL {
-                    Link("Install", destination: url)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 3)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                        )
+                Button("Install") {
+                    provider.openInstallInTerminal()
                 }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+                .buttonStyle(.plain)
+                .help("Opens Terminal to install \(provider.displayName)")
             case .installedNoAuth:
                 Button("Sign In") {
                     provider.openLoginInTerminal()

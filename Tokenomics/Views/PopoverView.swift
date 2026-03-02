@@ -38,6 +38,10 @@ struct PopoverView: View {
             .frame(width: 0, height: 0)
             .opacity(0)
         }
+        // Re-detect providers when popover opens (user may have signed in externally)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            viewModel.redetectProviders()
+        }
         // Reset to home view when popover closes
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
             viewModel.resetNavigation()
@@ -81,7 +85,7 @@ struct PopoverView: View {
             isLoading: viewModel.isLoading,
             onRefresh: { viewModel.refresh() },
             onSettings: { viewModel.showSettings = true },
-            showDisplayMode: viewModel.connectedProviders.count > 1,
+            showDisplayMode: viewModel.installedProviders.count > 1,
             viewModel: viewModel
         )
         .padding(.horizontal, 16)
@@ -119,10 +123,13 @@ struct PopoverView: View {
 
     @ViewBuilder
     private func providerContent(_ state: ProviderState) -> some View {
+        let currentTab = viewModel.selectedTab ?? .claude
         if state.isLoading && state.usage == nil {
             loadingView
         } else if case .authExpired = state.connection {
-            authExpiredView(for: viewModel.selectedTab ?? .claude)
+            authExpiredView(for: currentTab)
+        } else if !currentTab.supportsUsageTracking {
+            comingSoonView(for: currentTab)
         } else if let error = state.error, state.usage == nil {
             errorView(error)
         } else if let usage = state.usage {
@@ -225,6 +232,26 @@ struct PopoverView: View {
             .controlSize(.small)
 
             Text("Opens Terminal to reconnect.\nTokenomics will detect it automatically.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(24)
+    }
+
+    // MARK: - Coming Soon
+
+    private func comingSoonView(for provider: ProviderId) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+
+            Text("Usage tracking coming soon")
+                .font(.caption)
+                .fontWeight(.semibold)
+
+            Text("\(provider.displayName) doesn't expose rate-limit data yet. We'll add support as soon as it's available.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -68,14 +68,61 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     }
     #endif
 
-    /// Install instructions URL
-    var installURL: URL? {
+    /// Whether this provider exposes rate-limit / usage data
+    var supportsUsageTracking: Bool {
         switch self {
-        case .claude: return URL(string: "https://code.claude.com/docs/en/setup")
-        case .codex: return URL(string: "https://github.com/openai/codex")
-        case .gemini: return URL(string: "https://github.com/google-gemini/gemini-cli")
+        case .claude, .codex: return true
+        case .gemini: return false
         }
     }
+
+    /// npm package name used to install the CLI
+    var installCommand: String {
+        switch self {
+        case .claude: return "npm install -g @anthropic-ai/claude-code"
+        case .codex: return "npm install -g @openai/codex"
+        case .gemini: return "npm install -g @google/gemini-cli"
+        }
+    }
+
+    #if os(macOS)
+    /// Opens Terminal and runs the install command for this provider
+    func openInstallInTerminal() {
+        let script = """
+        #!/bin/zsh
+        [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"
+        [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"
+        export PATH="$HOME/.claude/bin:$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
+
+        # Prefer npm if available, fall back to brew
+        if command -v npm &>/dev/null; then
+            echo "Installing \(displayName)..."
+            echo ""
+            \(installCommand)
+        elif command -v brew &>/dev/null; then
+            echo "npm not found — installing Node.js via Homebrew first..."
+            brew install node && \(installCommand)
+        else
+            echo "Error: npm and brew not found."
+            echo "Install Node.js from https://nodejs.org first, then run:"
+            echo "  \(installCommand)"
+        fi
+        """
+        let scriptFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tokenomics-\(rawValue)-install.command")
+        do {
+            try script.write(to: scriptFile, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o755],
+                ofItemAtPath: scriptFile.path
+            )
+            NSWorkspace.shared.open(scriptFile)
+        } catch {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(installCommand, forType: .string)
+        }
+    }
+    #endif
 }
 
 // MARK: - Connection State

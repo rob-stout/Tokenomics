@@ -32,7 +32,8 @@ final class UsageViewModel: ObservableObject {
 
     private let providers: [ProviderId: any UsageProvider] = [
         .claude: ClaudeProvider(),
-        .codex: CodexProvider()
+        .codex: CodexProvider(),
+        .gemini: GeminiProvider()
     ]
 
     private let pollingService = PollingService()
@@ -44,6 +45,14 @@ final class UsageViewModel: ObservableObject {
         ProviderId.allCases.filter { id in
             guard let state = providerStates[id] else { return false }
             return state.connection.isConnected
+        }
+    }
+
+    /// Providers that are at least installed (not .notInstalled)
+    var installedProviders: [ProviderId] {
+        ProviderId.allCases.filter { id in
+            guard let state = providerStates[id] else { return false }
+            return state.connection != .notInstalled
         }
     }
 
@@ -258,16 +267,33 @@ final class UsageViewModel: ObservableObject {
                 isLoading: false
             )
         }
+    }
 
-        // Add Gemini as not-installed placeholder
-        if providerStates[.gemini] == nil {
-            providerStates[.gemini] = ProviderState(
-                connection: .notInstalled,
-                usage: nil,
-                error: nil,
-                lastSynced: nil,
-                isLoading: false
-            )
+    /// Re-checks only non-connected providers (called when popover opens)
+    func redetectProviders() {
+        Task {
+            for (id, provider) in providerOrder {
+                let current = providerStates[id]?.connection ?? .notInstalled
+                // Skip already-connected providers — no need to re-check
+                guard !current.isConnected else { continue }
+
+                let connection = await provider.checkConnection()
+                if connection != current {
+                    let existing = providerStates[id] ?? .empty
+                    providerStates[id] = ProviderState(
+                        connection: connection,
+                        usage: existing.usage,
+                        error: existing.error,
+                        lastSynced: existing.lastSynced,
+                        isLoading: false
+                    )
+                }
+            }
+
+            // Update selected tab if needed
+            if selectedTab == nil || !visibleProviders.contains(selectedTab ?? .claude) {
+                selectedTab = visibleProviders.first ?? .claude
+            }
         }
     }
 

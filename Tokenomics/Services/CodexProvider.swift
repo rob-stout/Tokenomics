@@ -181,11 +181,22 @@ private enum CodexError: Error {
     case noSessionData
 }
 
+/// Codex auth.json nests the token: `{ "tokens": { "access_token": "..." } }`
 private struct CodexAuth: Decodable {
     let accessToken: String
 
-    enum CodingKeys: String, CodingKey {
+    private enum RootKeys: String, CodingKey {
+        case tokens
+    }
+
+    private enum TokenKeys: String, CodingKey {
         case accessToken = "access_token"
+    }
+
+    init(from decoder: Decoder) throws {
+        let root = try decoder.container(keyedBy: RootKeys.self)
+        let tokens = try root.nestedContainer(keyedBy: TokenKeys.self, forKey: .tokens)
+        self.accessToken = try tokens.decode(String.self, forKey: .accessToken)
     }
 }
 
