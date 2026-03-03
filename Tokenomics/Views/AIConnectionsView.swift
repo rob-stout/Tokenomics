@@ -3,6 +3,7 @@ import SwiftUI
 /// Settings sub-screen showing all providers with pin toggles
 struct AIConnectionsView: View {
     @ObservedObject var viewModel: UsageViewModel
+    @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,18 +52,14 @@ struct AIConnectionsView: View {
                 // Hint text
                 VStack(spacing: 0) {
                     Spacer().frame(height: 16)
-                    Text("Tap a letter to show its rings in the menu bar. When none are selected, Smart mode shows the most urgent.")
+                    Text("Tap a letter to pin it to the menu bar. Tap again to return to Smart mode, which shows the most urgent.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(nsColor: .windowBackgroundColor))
+                        .background(Color.white.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                        )
                 }
             }
             .padding(.horizontal, 16)
@@ -88,6 +85,7 @@ struct AIConnectionsView: View {
                     .font(.caption)
                     .fontWeight(.semibold)
                     .frame(width: 26, height: 26)
+                    .contentShape(Rectangle())
                     .background(iconBackground(connected: isConnected, pinned: isPinned))
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
@@ -109,6 +107,35 @@ struct AIConnectionsView: View {
                 Text(connection.statusText)
                     .font(.caption2)
                     .foregroundStyle(statusColor(connection))
+
+                if provider == .gemini && isConnected {
+                    HStack(spacing: 2) {
+                        ForEach(GeminiPlan.allCases, id: \.self) { plan in
+                            let isActive = geminiPlan == plan
+                            Button(action: {
+                                geminiPlan = plan
+                                SettingsService.geminiPlan = plan
+                                viewModel.refresh()
+                            }) {
+                                Text(plan.displayLabel)
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 8)
+                                    .frame(maxWidth: .infinity)
+                                    .contentShape(Rectangle())
+                                    .background(isActive ? Color.white.opacity(0.1) : .clear)
+                                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                                    .foregroundStyle(isActive ? .primary : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(2)
+                    .background(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                    .padding(.top, 4)
+                }
             }
 
             Spacer()

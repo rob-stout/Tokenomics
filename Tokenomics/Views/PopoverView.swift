@@ -7,6 +7,7 @@ struct PopoverView: View {
     @ObservedObject var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
+    @State private var showingGeminiPlanSetup = false
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
@@ -70,9 +71,10 @@ struct PopoverView: View {
             Divider()
         }
 
-        // Content for selected provider
+        // Content for selected provider (keyed on tab to reset animation state)
         if let state = viewModel.currentProviderState {
             providerContent(state)
+                .id(viewModel.selectedTab)
         } else if !viewModel.isAuthenticated {
             LoginView(viewModel: viewModel)
         } else {
@@ -106,7 +108,12 @@ struct PopoverView: View {
 
             if let state = viewModel.currentProviderState,
                let usage = state.usage {
-                PlanBadgeView(label: usage.planLabel)
+                PlanBadgeView(
+                    label: usage.planLabel,
+                    onTap: viewModel.selectedTab == .gemini
+                        ? { showingGeminiPlanSetup = true }
+                        : nil
+                )
             }
 
             ShareLink(
@@ -130,6 +137,18 @@ struct PopoverView: View {
             loadingView
         } else if case .authExpired = state.connection {
             authExpiredView(for: currentTab)
+        } else if currentTab == .gemini && (SettingsService.geminiPlan == nil || showingGeminiPlanSetup) {
+            GeminiPlanSetupView(
+                currentPlan: SettingsService.geminiPlan,
+                onConfirm: { plan in
+                    SettingsService.geminiPlan = plan
+                    showingGeminiPlanSetup = false
+                    viewModel.refresh()
+                },
+                onCancel: SettingsService.geminiPlan != nil
+                    ? { showingGeminiPlanSetup = false }
+                    : nil
+            )
         } else if !currentTab.supportsUsageTracking {
             comingSoonView(for: currentTab)
         } else if let error = state.error, state.usage == nil {
@@ -379,6 +398,19 @@ struct PopoverView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .disabled(!updaterService.canCheckForUpdates)
+
+                Divider()
+
+                // Feedback
+                Button("Report Bugs / Feedback") {
+                    if let url = URL(string: "https://github.com/rob-stout/Tokenomics/issues") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
 
                 Divider()
 

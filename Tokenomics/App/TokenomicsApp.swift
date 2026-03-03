@@ -19,8 +19,8 @@ struct TokenomicsApp: App {
     }
 }
 
-/// The menu bar label — supports Smart mode (single worst-of-N ring set)
-/// and Individual mode (one ring set per pinned provider with initial letter).
+/// The menu bar label — shows ring + percentage for one provider.
+/// Smart mode picks the worst-of-N; pinned mode shows the user's choice.
 struct MenuBarLabel: View {
     @ObservedObject var viewModel: UsageViewModel
 
@@ -38,11 +38,7 @@ struct MenuBarLabel: View {
                     .foregroundStyle(Color.secondary)
 
             default:
-                if viewModel.isSmartMode || viewModel.pinnedProviders.isEmpty {
-                    smartModeLabel
-                } else {
-                    individualModeLabel
-                }
+                ringLabel
             }
         }
         .accessibilityElement(children: .ignore)
@@ -50,11 +46,11 @@ struct MenuBarLabel: View {
         .help(viewModel.menuBarTooltip)
     }
 
-    // MARK: - Smart Mode (worst-of-N, single ring set)
+    // MARK: - Ring + Percentage
 
     @ViewBuilder
-    private var smartModeLabel: some View {
-        if let usage = viewModel.worstOfNUsage() {
+    private var ringLabel: some View {
+        if let usage = activeUsage {
             Image(nsImage: MenuBarRingsRenderer.image(
                 fiveHourFraction: usage.shortWindow.utilization / 100,
                 sevenDayFraction: usage.longWindow.utilization / 100,
@@ -76,50 +72,12 @@ struct MenuBarLabel: View {
         }
     }
 
-    // MARK: - Individual Mode (one ring set per pinned provider)
-
-    @ViewBuilder
-    private var individualModeLabel: some View {
-        let pinned = ProviderId.allCases.filter { viewModel.isPinned($0) }
-
-        ForEach(Array(pinned.enumerated()), id: \.element) { index, provider in
-            if index > 0 {
-                Spacer().frame(width: 8)
-            }
-
-            providerRingSet(provider)
+    /// The usage snapshot to display: pinned provider if set, otherwise worst-of-N.
+    private var activeUsage: ProviderUsageSnapshot? {
+        if let pinned = viewModel.pinnedProviders.first,
+           let usage = viewModel.providerStates[pinned]?.usage {
+            return usage
         }
-    }
-
-    @ViewBuilder
-    private func providerRingSet(_ provider: ProviderId) -> some View {
-        if let ringData = viewModel.menuBarRingData(for: provider) {
-            // Initial letter
-            Text(provider.shortLabel)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(Color.secondary)
-
-            Image(nsImage: MenuBarRingsRenderer.image(
-                fiveHourFraction: ringData.fiveHour / 100,
-                sevenDayFraction: ringData.sevenDay / 100,
-                fiveHourPace: ringData.fiveHourPace,
-                sevenDayPace: ringData.sevenDayPace
-            ))
-
-            Text("\(Int(ringData.fiveHour))%")
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(Color.secondary)
-                .padding(.leading, 2)
-        } else {
-            // Auth error — show initial + warning glyph
-            Text(provider.shortLabel)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(Color.secondary)
-
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 10))
-                .foregroundStyle(Color.orange)
-        }
+        return viewModel.worstOfNUsage()
     }
 }

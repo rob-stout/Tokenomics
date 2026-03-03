@@ -62,8 +62,8 @@ struct UsageBarView: View {
                         .frame(width: barWidth * animatedValue, height: Self.barHeight)
                         .animation(.easeOut(duration: 0.5), value: animatedValue)
 
-                    // Pace marker — circle matching bar diameter
-                    if clampedPace > 0.01 && clampedPace < 0.99 {
+                    // Pace marker — only shown when there's actual usage to pace against
+                    if clampedTarget > 0 && clampedPace > 0.01 && clampedPace < 0.99 {
                         Circle()
                             .fill(Color.white)
                             .frame(width: Self.barHeight, height: Self.barHeight)

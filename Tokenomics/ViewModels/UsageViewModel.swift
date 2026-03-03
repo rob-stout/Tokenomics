@@ -219,9 +219,11 @@ final class UsageViewModel: ObservableObject {
 
     func togglePin(for provider: ProviderId) {
         if pinnedProviders.contains(provider) {
-            pinnedProviders.remove(provider)
+            // Unpin → back to smart mode
+            pinnedProviders.removeAll()
         } else {
-            pinnedProviders.insert(provider)
+            // Pin this one exclusively (radio behavior)
+            pinnedProviders = [provider]
         }
     }
 

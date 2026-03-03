@@ -16,7 +16,8 @@ struct ProviderTabView: View {
                         .padding(.vertical, 6)
                         .padding(.horizontal, 12)
                         .frame(maxWidth: .infinity)
-                        .background(isSelected ? Color(nsColor: .windowBackgroundColor) : .clear)
+                        .contentShape(Rectangle())
+                        .background(isSelected ? Color.white.opacity(0.1) : .clear)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .foregroundStyle(isSelected ? .primary : .secondary)
                 }

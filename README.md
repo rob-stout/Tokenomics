@@ -115,4 +115,4 @@ Click the **Refresh** button in the popover footer to trigger an immediate fetch
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+Source Available — free to use and share with attribution. See [LICENSE](LICENSE) for details.

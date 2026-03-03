@@ -44,6 +44,18 @@ enum SettingsService {
         pinnedProviders.isEmpty
     }
 
+    // MARK: - Gemini Plan
+
+    /// User-selected Gemini plan. nil = hasn't chosen yet (provider defaults to .free).
+    static var geminiPlan: GeminiPlan? {
+        get {
+            defaults.string(forKey: "geminiPlan").flatMap { GeminiPlan(rawValue: $0) }
+        }
+        set {
+            defaults.set(newValue?.rawValue, forKey: "geminiPlan")
+        }
+    }
+
     // MARK: - Selected Tab
 
     /// The last-selected provider tab (persisted across popover open/close)

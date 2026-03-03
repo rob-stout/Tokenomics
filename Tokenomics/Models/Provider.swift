@@ -40,17 +40,41 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     }
 
     #if os(macOS)
-    /// Opens Terminal and runs the login/auth command for this provider
+    /// Opens Terminal and runs the login/auth command, reusing the frontmost window if possible
     func openLoginInTerminal() {
-        let script = """
-        #!/bin/zsh
-        [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"
-        [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"
+        let shellSetup = """
+        [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"; \
+        [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"; \
         export PATH="$HOME/.claude/bin:$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
-        echo "Signing in to \(displayName)..."
-        echo ""
-        \(loginCommand)
         """
+        let fullCommand = "\(shellSetup); echo 'Signing in to \(displayName)...'; echo ''; \(loginCommand)"
+
+        // Use AppleScript to reuse existing Terminal window instead of opening a new one
+        let appleScript = """
+        tell application "Terminal"
+            if (count of windows) > 0 then
+                do script "\(fullCommand.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))" in front window
+            else
+                do script "\(fullCommand.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))"
+            end if
+            activate
+        end tell
+        """
+
+        if let script = NSAppleScript(source: appleScript) {
+            var error: NSDictionary?
+            script.executeAndReturnError(&error)
+            if error != nil {
+                // Fallback: open .command file (new window)
+                openCommandFile(command: fullCommand)
+            }
+        } else {
+            openCommandFile(command: fullCommand)
+        }
+    }
+
+    private func openCommandFile(command: String) {
+        let script = "#!/bin/zsh\n\(command)"
         let scriptFile = FileManager.default.temporaryDirectory
             .appendingPathComponent("tokenomics-\(rawValue)-login.command")
         do {
@@ -61,7 +85,6 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
             )
             NSWorkspace.shared.open(scriptFile)
         } catch {
-            // Fallback: copy command to clipboard
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(loginCommand, forType: .string)
         }
@@ -71,8 +94,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     /// Whether this provider exposes rate-limit / usage data
     var supportsUsageTracking: Bool {
         switch self {
-        case .claude, .codex: return true
-        case .gemini: return false
+        case .claude, .codex, .gemini: return true
         }
     }
 
@@ -86,40 +108,46 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     }
 
     #if os(macOS)
-    /// Opens Terminal and runs the install command for this provider
+    /// Opens Terminal and runs the install command, reusing the frontmost window if possible
     func openInstallInTerminal() {
-        let script = """
-        #!/bin/zsh
-        [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"
-        [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"
+        let shellSetup = """
+        [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"; \
+        [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"; \
         export PATH="$HOME/.claude/bin:$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
-
-        # Prefer npm if available, fall back to brew
-        if command -v npm &>/dev/null; then
-            echo "Installing \(displayName)..."
-            echo ""
-            \(installCommand)
-        elif command -v brew &>/dev/null; then
-            echo "npm not found — installing Node.js via Homebrew first..."
-            brew install node && \(installCommand)
-        else
-            echo "Error: npm and brew not found."
-            echo "Install Node.js from https://nodejs.org first, then run:"
-            echo "  \(installCommand)"
+        """
+        let installScript = """
+        if command -v npm &>/dev/null; then \
+        echo 'Installing \(displayName)...'; echo ''; \(installCommand); \
+        elif command -v brew &>/dev/null; then \
+        echo 'npm not found — installing Node.js via Homebrew first...'; \
+        brew install node && \(installCommand); \
+        else \
+        echo 'Error: npm and brew not found.'; \
+        echo 'Install Node.js from https://nodejs.org first, then run:'; \
+        echo '  \(installCommand)'; \
         fi
         """
-        let scriptFile = FileManager.default.temporaryDirectory
-            .appendingPathComponent("tokenomics-\(rawValue)-install.command")
-        do {
-            try script.write(to: scriptFile, atomically: true, encoding: .utf8)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o755],
-                ofItemAtPath: scriptFile.path
-            )
-            NSWorkspace.shared.open(scriptFile)
-        } catch {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(installCommand, forType: .string)
+        let fullCommand = "\(shellSetup); \(installScript)"
+
+        let appleScript = """
+        tell application "Terminal"
+            if (count of windows) > 0 then
+                do script "\(fullCommand.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))" in front window
+            else
+                do script "\(fullCommand.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))"
+            end if
+            activate
+        end tell
+        """
+
+        if let script = NSAppleScript(source: appleScript) {
+            var error: NSDictionary?
+            script.executeAndReturnError(&error)
+            if error != nil {
+                openCommandFile(command: fullCommand)
+            }
+        } else {
+            openCommandFile(command: fullCommand)
         }
     }
     #endif
@@ -168,6 +196,15 @@ struct WindowUsage: Sendable {
     let utilization: Double
     let resetsAt: Date
     let windowDuration: TimeInterval
+    let sublabelOverride: String?
+
+    init(label: String, utilization: Double, resetsAt: Date, windowDuration: TimeInterval, sublabelOverride: String? = nil) {
+        self.label = label
+        self.utilization = utilization
+        self.resetsAt = resetsAt
+        self.windowDuration = windowDuration
+        self.sublabelOverride = sublabelOverride
+    }
 
     /// Pace: how far through the window we are (0–1)
     var pace: Double {
@@ -178,6 +215,8 @@ struct WindowUsage: Sendable {
 
     /// Formatted time remaining until reset
     var timeUntilReset: String {
+        if let override = sublabelOverride { return override }
+
         let interval = resetsAt.timeIntervalSinceNow
         guard interval > 0 else { return "Resetting now" }
 

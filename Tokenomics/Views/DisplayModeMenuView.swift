@@ -21,15 +21,15 @@ struct DisplayModeMenuView: View {
 
             Divider()
 
-            // Individual providers
-            Text("Individual:")
+            // Pin a specific provider
+            Label("Pin Tracker:", systemImage: "pin")
                 .font(.caption2)
 
             ForEach(viewModel.connectedProviders) { provider in
                 Button(action: { viewModel.togglePin(for: provider) }) {
                     HStack {
                         if viewModel.isPinned(provider) {
-                            Image(systemName: "checkmark")
+                            Image(systemName: "pin.fill")
                         }
                         Text(provider.displayName)
                     }
@@ -37,8 +37,10 @@ struct DisplayModeMenuView: View {
             }
         } label: {
             HStack(spacing: 2) {
-                Image(systemName: "circle.circle")
+                Image(systemName: viewModel.isSmartMode ? "circle.circle" : "pin.fill")
                     .font(.caption)
+                    .imageScale(.small)
+                    .frame(width: 16, height: 16)
                     .foregroundStyle(.secondary)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 6, weight: .semibold))

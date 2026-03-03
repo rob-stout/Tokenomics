@@ -45,23 +45,29 @@ actor CodexProvider: UsageProvider {
     }
 
     func fetchUsage() async throws -> ProviderUsageSnapshot {
-        guard let rateLimits = findLatestRateLimits() else {
+        let sessionData = findLatestSessionData()
+
+        guard let sessionData else {
             throw AppError.decodingFailed(underlying: CodexError.noSessionData)
         }
 
-        return mapToSnapshot(rateLimits)
+        return mapToSnapshot(sessionData)
     }
 
     // MARK: - JSONL Parsing
 
-    /// Finds the most recent rate_limits entry across all session JSONL files
-    private func findLatestRateLimits() -> CodexRateLimits? {
+    /// Combined data from the most recent session's token_count event
+    private struct SessionData {
+        let tokenCount: CodexTokenCount?
+        let rateLimits: CodexRateLimits?
+    }
+
+    /// Finds the most recent token_count and rate_limits entries across session files
+    private func findLatestSessionData() -> SessionData? {
         let fm = FileManager.default
 
         guard fm.fileExists(atPath: sessionsDir.path) else { return nil }
 
-        // Walk sessions directory: sessions/YYYY/MM/DD/<session>.jsonl
-        // Sort by date directory names (descending) to find most recent first
         guard let yearDirs = try? fm.contentsOfDirectory(atPath: sessionsDir.path)
             .sorted(by: >) else { return nil }
 
@@ -83,8 +89,8 @@ actor CodexProvider: UsageProvider {
 
                     for file in sessionFiles {
                         let filePath = dayPath.appendingPathComponent(file)
-                        if let limits = parseLastRateLimits(from: filePath) {
-                            return limits
+                        if let data = parseLastSessionData(from: filePath) {
+                            return data
                         }
                     }
                 }
@@ -94,17 +100,17 @@ actor CodexProvider: UsageProvider {
         return nil
     }
 
-    /// Reads the tail of a JSONL file and returns the last rate_limits entry.
-    /// Only reads the last ~8KB to avoid loading entire large session files.
-    private func parseLastRateLimits(from url: URL) -> CodexRateLimits? {
+    /// Reads the tail of a JSONL file and extracts the last token_count and rate_limits.
+    /// Only reads the last ~16KB to avoid loading entire large session files.
+    private func parseLastSessionData(from url: URL) -> SessionData? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
 
         let fileSize = handle.seekToEndOfFile()
         guard fileSize > 0 else { return nil }
 
-        // Read only the tail — rate_limits entries are a few hundred bytes each
-        let readSize = min(fileSize, 8192)
+        // Read tail — token_count events can be larger than rate_limits
+        let readSize = min(fileSize, 16384)
         handle.seek(toFileOffset: fileSize - readSize)
         let tailData = handle.readData(ofLength: Int(readSize))
 
@@ -113,23 +119,39 @@ actor CodexProvider: UsageProvider {
         let lines = content.components(separatedBy: .newlines).reversed()
         let decoder = JSONDecoder()
 
+        var tokenCount: CodexTokenCount?
+        var rateLimits: CodexRateLimits?
+
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
 
-            // Quick check before full JSON parse
-            guard trimmed.contains("rate_limits") else { continue }
-
-            guard let lineData = trimmed.data(using: .utf8),
-                  let event = try? decoder.decode(CodexSessionEvent.self, from: lineData),
-                  let rateLimits = event.rateLimits else {
-                continue
+            // Look for token_count events (contain context window data)
+            if tokenCount == nil && trimmed.contains("token_count") {
+                if let lineData = trimmed.data(using: .utf8),
+                   let event = try? decoder.decode(CodexTokenCountEvent.self, from: lineData),
+                   let tc = event.tokenCount {
+                    tokenCount = tc
+                }
             }
 
-            return rateLimits
+            // Look for rate_limits (still useful for plan_type and reset times)
+            if rateLimits == nil && trimmed.contains("rate_limits") {
+                if let lineData = trimmed.data(using: .utf8),
+                   let event = try? decoder.decode(CodexSessionEvent.self, from: lineData),
+                   let rl = event.rateLimits {
+                    rateLimits = rl
+                }
+            }
+
+            // Found both — stop scanning
+            if tokenCount != nil && rateLimits != nil { break }
         }
 
-        return nil
+        // Need at least one source of data
+        guard tokenCount != nil || rateLimits != nil else { return nil }
+
+        return SessionData(tokenCount: tokenCount, rateLimits: rateLimits)
     }
 
     private func isCodexInPath() -> Bool {
@@ -141,34 +163,78 @@ actor CodexProvider: UsageProvider {
         return commonPaths.contains { FileManager.default.fileExists(atPath: $0) }
     }
 
-    private func mapToSnapshot(_ limits: CodexRateLimits) -> ProviderUsageSnapshot {
-        let shortWindow = WindowUsage(
-            label: "5-Hour Window",
-            utilization: limits.primary.usedPercent,
-            resetsAt: Date(timeIntervalSince1970: limits.primary.resetsAt),
-            windowDuration: Double(limits.primary.windowMinutes) * 60
-        )
+    private func mapToSnapshot(_ data: SessionData) -> ProviderUsageSnapshot {
+        // Primary bar: Context Window usage (what CLI shows as "% left")
+        let shortWindow: WindowUsage
+        if let tc = data.tokenCount {
+            let contextUsed = Double(tc.lastInputTokens) / Double(tc.modelContextWindow) * 100
+            let remaining = tc.modelContextWindow - tc.lastInputTokens
+            let sublabel = "\(Self.formatTokens(remaining)) of \(Self.formatTokens(tc.modelContextWindow)) remaining"
+            shortWindow = WindowUsage(
+                label: "Context Window",
+                utilization: contextUsed,
+                resetsAt: Date.distantFuture,
+                windowDuration: 1,
+                sublabelOverride: sublabel
+            )
+        } else {
+            // Fall back to rate limit primary if no token_count data
+            let primary = data.rateLimits?.primary
+            shortWindow = WindowUsage(
+                label: "5-Hour Window",
+                utilization: primary?.usedPercent ?? 0,
+                resetsAt: Date(timeIntervalSince1970: primary?.resetsAt ?? 0),
+                windowDuration: Double(primary?.windowMinutes ?? 300) * 60
+            )
+        }
 
-        let longWindow = WindowUsage(
-            label: "7-Day Window",
-            utilization: limits.secondary.usedPercent,
-            resetsAt: Date(timeIntervalSince1970: limits.secondary.resetsAt),
-            windowDuration: Double(limits.secondary.windowMinutes) * 60
-        )
+        // Secondary bar: Rate limit 5-hour window (currently 0% but will auto-fix)
+        let longWindow: WindowUsage
+        if let primary = data.rateLimits?.primary {
+            longWindow = WindowUsage(
+                label: "5-Hour Window",
+                utilization: primary.usedPercent,
+                resetsAt: Date(timeIntervalSince1970: primary.resetsAt),
+                windowDuration: Double(primary.windowMinutes) * 60
+            )
+        } else {
+            longWindow = WindowUsage(
+                label: "5-Hour Window",
+                utilization: 0,
+                resetsAt: Date.distantFuture,
+                windowDuration: 300 * 60
+            )
+        }
 
-        let plan = inferPlan(from: limits.credits)
+        let plan = inferPlan(from: data.rateLimits)
 
         return ProviderUsageSnapshot(
             shortWindow: shortWindow,
             longWindow: longWindow,
             planLabel: plan,
             extraUsage: nil,
-            creditsBalance: limits.credits?.balance
+            creditsBalance: data.rateLimits?.credits?.balance
         )
     }
 
-    private func inferPlan(from credits: CodexCredits?) -> String {
-        guard let credits else { return "Free" }
+    /// Formats token counts for display (e.g. 230,681 → "230.7K", 258,400 → "258.4K")
+    private static func formatTokens(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            return String(format: "%.1fM", Double(count) / 1_000_000)
+        } else if count >= 1_000 {
+            return String(format: "%.1fK", Double(count) / 1_000)
+        }
+        return "\(count)"
+    }
+
+    private func inferPlan(from limits: CodexRateLimits?) -> String {
+        guard let limits else { return "Free" }
+        // Prefer explicit plan_type (newer Codex versions)
+        if let planType = limits.planType, !planType.isEmpty {
+            return planType.prefix(1).uppercased() + planType.dropFirst()
+        }
+        // Fall back to credits-based inference
+        guard let credits = limits.credits else { return "Free" }
         if credits.unlimited { return "Pro" }
         if credits.hasCredits { return "Plus" }
         return "Free"
@@ -200,6 +266,56 @@ private struct CodexAuth: Decodable {
     }
 }
 
+/// Decodes a token_count event from JSONL:
+/// `{ "type": "event_msg", "payload": { "type": "token_count", "info": { ... } } }`
+private struct CodexTokenCountEvent: Decodable {
+    let tokenCount: CodexTokenCount?
+
+    private enum CodingKeys: String, CodingKey {
+        case payload
+    }
+
+    private enum PayloadKeys: String, CodingKey {
+        case type, info
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let payload = try? container.nestedContainer(keyedBy: PayloadKeys.self, forKey: .payload) {
+            let type = try? payload.decode(String.self, forKey: .type)
+            if type == "token_count" {
+                self.tokenCount = try? payload.decode(CodexTokenCount.self, forKey: .info)
+            } else {
+                self.tokenCount = nil
+            }
+        } else {
+            self.tokenCount = nil
+        }
+    }
+}
+
+/// Token usage from a token_count event's `info` field
+struct CodexTokenCount: Decodable, Sendable {
+    let lastInputTokens: Int
+    let modelContextWindow: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case lastTokenUsage = "last_token_usage"
+        case modelContextWindow = "model_context_window"
+    }
+
+    private enum UsageKeys: String, CodingKey {
+        case inputTokens = "input_tokens"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.modelContextWindow = try container.decode(Int.self, forKey: .modelContextWindow)
+        let usage = try container.nestedContainer(keyedBy: UsageKeys.self, forKey: .lastTokenUsage)
+        self.lastInputTokens = try usage.decode(Int.self, forKey: .inputTokens)
+    }
+}
+
 /// A single line in a Codex session JSONL file.
 /// Rate limits are nested: `{ "type": "event_msg", "payload": { "rate_limits": { ... } } }`
 private struct CodexSessionEvent: Decodable {
@@ -227,6 +343,12 @@ struct CodexRateLimits: Decodable, Sendable {
     let primary: CodexRateLimitWindow
     let secondary: CodexRateLimitWindow
     let credits: CodexCredits?
+    let planType: String?
+
+    enum CodingKeys: String, CodingKey {
+        case primary, secondary, credits
+        case planType = "plan_type"
+    }
 }
 
 struct CodexRateLimitWindow: Decodable, Sendable {

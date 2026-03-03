@@ -1,0 +1,46 @@
+Tokenomics License
+
+Copyright (c) 2025-2026 Rob Stout. All rights reserved.
+
+Permission is granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to use
+the Software for personal, non-commercial purposes, subject to the
+following conditions:
+
+1. ATTRIBUTION
+   You may share or recommend the Software to others, provided that you
+   link to the original repository (https://github.com/rob-stout/Tokenomics)
+   and credit Rob Stout as the author. You may not present the Software, or
+   any substantial portion of its code, as your own work.
+
+2. NO REDISTRIBUTION
+   You may not redistribute, repackage, sublicense, or sell copies of the
+   Software — whether modified or unmodified — without prior written
+   permission from the author. Distribution must occur through the official
+   repository or release channels maintained by the author.
+
+3. NO COMMERCIAL USE
+   You may not use the Software, or any substantial portion of its source
+   code, in a commercial product or service without prior written permission
+   from the author.
+
+4. MODIFICATIONS
+   You may fork and modify the Software for personal use or learning.
+   Public forks must retain this license and attribution, and may not be
+   distributed as standalone products.
+
+5. BUG REPORTS AND CONTRIBUTIONS
+   Bug reports and feature requests should be submitted through the
+   official repository at https://github.com/rob-stout/Tokenomics/issues.
+   By submitting a contribution (pull request, patch, or suggestion), you
+   grant the author a perpetual, royalty-free right to use, modify, and
+   incorporate that contribution into the Software.
+
+6. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+For permissions beyond this license, contact: rob@robstout.design
