@@ -2,16 +2,17 @@ Tokenomics License
 
 Copyright (c) 2025-2026 Rob Stout. All rights reserved.
 
-Permission is granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to use
-the Software for personal, non-commercial purposes, subject to the
-following conditions:
+Permission is granted, free of charge, to any individual obtaining a copy
+of this software and associated documentation files (the "Software"), to
+use the Software for their own personal workflow monitoring, regardless of
+whether that use occurs in a professional or commercial setting, subject
+to the following conditions:
 
 1. ATTRIBUTION
    You may share or recommend the Software to others, provided that you
    link to the original repository (https://github.com/rob-stout/Tokenomics)
    and credit Rob Stout as the author. You may not present the Software, or
-   any substantial portion of its code, as your own work.
+   any portion of its code, as your own work.
 
 2. NO REDISTRIBUTION
    You may not redistribute, repackage, sublicense, or sell copies of the
@@ -20,27 +21,43 @@ following conditions:
    repository or release channels maintained by the author.
 
 3. NO COMMERCIAL USE
-   You may not use the Software, or any substantial portion of its source
-   code, in a commercial product or service without prior written permission
-   from the author.
+   You may not incorporate any portion of the Software's source code into
+   a commercial product or service without prior written permission from
+   the author.
 
 4. MODIFICATIONS
    You may fork and modify the Software for personal use or learning.
-   Public forks must retain this license and attribution, and may not be
-   distributed as standalone products.
+   You may not distribute a modified version of the Software — whether as
+   a compiled binary, installer, or hosted service — as a standalone
+   product without prior written permission from the author. All forks and
+   modifications must retain this license and attribution.
 
 5. BUG REPORTS AND CONTRIBUTIONS
    Bug reports and feature requests should be submitted through the
    official repository at https://github.com/rob-stout/Tokenomics/issues.
    By submitting a contribution (pull request, patch, or suggestion), you
    grant the author a perpetual, royalty-free right to use, modify, and
-   incorporate that contribution into the Software.
+   incorporate that contribution into the Software. You represent that you
+   have the right to grant the above license and that the contribution does
+   not infringe any third-party rights.
 
 6. NO WARRANTY
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
    IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
-   LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+   LIABILITY ARISING FROM THE USE OF THE SOFTWARE. IN NO EVENT SHALL THE
+   AUTHOR'S TOTAL LIABILITY EXCEED THE AMOUNT PAID BY YOU FOR THE SOFTWARE
+   IN THE TWELVE MONTHS PRECEDING THE CLAIM, OR TEN DOLLARS ($10),
+   WHICHEVER IS GREATER.
+
+7. NON-AFFILIATION
+   This software is not affiliated with, endorsed by, or sponsored by
+   Anthropic PBC, OpenAI Inc., or Google LLC. All provider names,
+   trademarks, and logos are the property of their respective owners.
+
+8. GOVERNING LAW
+   This license is governed by the laws of the State of Colorado, without
+   regard to conflict of law principles.
 
 For permissions beyond this license, contact: rob@robstout.design

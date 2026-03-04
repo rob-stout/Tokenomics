@@ -32,8 +32,8 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
-        CFBundleShortVersionString: "2.2.1"
-        CFBundleVersion: "10"
+        CFBundleShortVersionString: "2.2.2"
+        CFBundleVersion: "11"
         LSUIElement: true
         SUFeedURL: https://raw.githubusercontent.com/rob-stout/Tokenomics/main/appcast.xml
         SUPublicEDKey: iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=

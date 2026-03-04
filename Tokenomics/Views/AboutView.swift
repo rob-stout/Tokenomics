@@ -47,7 +47,7 @@ struct AboutView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Tokenomics shows your AI coding tool usage at a glance from the menu bar. Supports Claude Code and Codex CLI.")
+                    Text("Tokenomics shows your AI coding tool usage at a glance from the menu bar. Supports Claude Code, Codex CLI, and Gemini CLI.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -58,22 +58,22 @@ struct AboutView: View {
                     legendRow(
                         icon: "circle.inset.filled",
                         title: "Outer Ring",
-                        description: "Your 7-day rolling usage window. Fills as you use more of your weekly allowance."
+                        description: "The broader picture — a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests (estimated from your selected plan)."
                     )
                     legendRow(
                         icon: "circle.fill",
                         title: "Inner Ring",
-                        description: "Your 5-hour rolling usage window. Fills as you use more of your short-term allowance."
+                        description: "Your most immediate constraint — the limit you're closest to hitting. Fills clockwise as usage increases."
                     )
                     legendRow(
                         icon: "smallcircle.filled.circle",
                         title: "Pace Dots",
-                        description: "Show how far through each time window you are. If the dot is ahead of the fill, you're under pace. If behind, you're using faster than the window replenishes."
+                        description: "Show where you'd be if usage were spread evenly across the window. Dot ahead of fill means you're under pace. Dot behind fill means you're consuming faster than the window replenishes. Only shown on time-based windows."
                     )
                     legendRow(
                         icon: "percent",
                         title: "Percentage",
-                        description: "The 5-hour utilization as a number, shown next to the rings."
+                        description: "Your inner ring value as a number — the limit you're closest to hitting."
                     )
 
                     Divider()
@@ -99,7 +99,7 @@ struct AboutView: View {
                     legendRow(
                         icon: "clock.arrow.circlepath",
                         title: "Reset Time",
-                        description: "When the usage window rolls over. The 5-hour window resets continuously; the 7-day window resets on a rolling basis."
+                        description: "When the current window resets. Time-based windows show a countdown; non-time-based windows (like context windows) show remaining capacity instead."
                     )
 
                     Divider()
@@ -109,13 +109,32 @@ struct AboutView: View {
                     legendRow(
                         icon: "person.text.rectangle",
                         title: "Plan Badge",
-                        description: "Shows your detected Claude plan: Free, Pro, or Max. Inferred from available API data."
+                        description: "Shows your plan tier for each provider. Claude and Codex plans are detected automatically. Gemini's plan is set by you and determines your daily rate limits."
                     )
                     legendRow(
                         icon: "dollarsign.circle",
                         title: "Extra Usage",
                         description: "Visible on Max plans with extra usage enabled. Shows how much of your monthly spending limit you've used."
                     )
+                    Divider()
+
+                    sectionHeader("Legal")
+
+                    HStack(spacing: 16) {
+                        if let privacyURL = URL(string: "https://github.com/rob-stout/Tokenomics/blob/main/docs/PRIVACY.md") {
+                            Link("Privacy Policy", destination: privacyURL)
+                                .font(.caption)
+                        }
+                        if let licenseURL = URL(string: "https://github.com/rob-stout/Tokenomics/blob/main/LICENSE") {
+                            Link("License", destination: licenseURL)
+                                .font(.caption)
+                        }
+                    }
+
+                    Text("Tokenomics is not affiliated with, endorsed by, or sponsored by Anthropic PBC, OpenAI Inc., or Google LLC.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(16)
             }
