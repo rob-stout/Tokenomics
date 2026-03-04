@@ -58,18 +58,18 @@ actor GeminiProvider: UsageProvider {
 
         return ProviderUsageSnapshot(
             shortWindow: WindowUsage(
-                label: "Requests Today",
-                utilization: min(requestUtilization, 100),
-                resetsAt: nextMidnightPT,
-                windowDuration: 86400,
-                sublabelOverride: requestSublabel
-            ),
-            longWindow: WindowUsage(
                 label: "Tokens Today",
                 utilization: min(tokenUtilization, 100),
                 resetsAt: nextMidnightPT,
                 windowDuration: 86400,
                 sublabelOverride: tokenSublabel
+            ),
+            longWindow: WindowUsage(
+                label: "Requests Today",
+                utilization: min(requestUtilization, 100),
+                resetsAt: nextMidnightPT,
+                windowDuration: 86400,
+                sublabelOverride: requestSublabel
             ),
             planLabel: plan.displayLabel,
             extraUsage: nil,

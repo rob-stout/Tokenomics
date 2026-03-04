@@ -127,10 +127,12 @@ enum MenuBarRingsRenderer {
     }
 
     /// Draws a pace dot on the ring centerline at the given fraction around the ring.
+    /// Skips drawing when pace is near zero or one (no meaningful position).
     private static func drawPaceDot(
         in ctx: CGContext, center: CGPoint, ringRadius: CGFloat,
         pace: Double, dotRadius: CGFloat
     ) {
+        guard pace > 0.01 && pace < 0.99 else { return }
         let angle = CGFloat.pi / 2 - CGFloat(pace) * 2 * .pi
         let dotCenter = CGPoint(
             x: center.x + ringRadius * cos(angle),

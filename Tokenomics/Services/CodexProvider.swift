@@ -164,45 +164,44 @@ actor CodexProvider: UsageProvider {
     }
 
     private func mapToSnapshot(_ data: SessionData) -> ProviderUsageSnapshot {
-        // Primary bar: Context Window usage (what CLI shows as "% left")
+        // Primary bar: 5-hour rate limit (drives menu bar % and inner ring)
         let shortWindow: WindowUsage
-        if let tc = data.tokenCount {
-            let contextUsed = Double(tc.lastInputTokens) / Double(tc.modelContextWindow) * 100
-            let remaining = tc.modelContextWindow - tc.lastInputTokens
-            let sublabel = "\(Self.formatTokens(remaining)) of \(Self.formatTokens(tc.modelContextWindow)) remaining"
-            shortWindow = WindowUsage(
-                label: "Context Window",
-                utilization: contextUsed,
-                resetsAt: Date.distantFuture,
-                windowDuration: 1,
-                sublabelOverride: sublabel
-            )
-        } else {
-            // Fall back to rate limit primary if no token_count data
-            let primary = data.rateLimits?.primary
-            shortWindow = WindowUsage(
-                label: "5-Hour Window",
-                utilization: primary?.usedPercent ?? 0,
-                resetsAt: Date(timeIntervalSince1970: primary?.resetsAt ?? 0),
-                windowDuration: Double(primary?.windowMinutes ?? 300) * 60
-            )
-        }
-
-        // Secondary bar: Rate limit 5-hour window (currently 0% but will auto-fix)
-        let longWindow: WindowUsage
         if let primary = data.rateLimits?.primary {
-            longWindow = WindowUsage(
+            shortWindow = WindowUsage(
                 label: "5-Hour Window",
                 utilization: primary.usedPercent,
                 resetsAt: Date(timeIntervalSince1970: primary.resetsAt),
                 windowDuration: Double(primary.windowMinutes) * 60
             )
         } else {
-            longWindow = WindowUsage(
+            shortWindow = WindowUsage(
                 label: "5-Hour Window",
                 utilization: 0,
                 resetsAt: Date.distantFuture,
                 windowDuration: 300 * 60
+            )
+        }
+
+        // Secondary bar: Context window usage (no pace dot — resets per conversation)
+        let longWindow: WindowUsage
+        if let tc = data.tokenCount {
+            let contextUsed = Double(tc.lastInputTokens) / Double(tc.modelContextWindow) * 100
+            let remaining = tc.modelContextWindow - tc.lastInputTokens
+            let sublabel = "\(Self.formatTokens(remaining)) of \(Self.formatTokens(tc.modelContextWindow)) remaining"
+            longWindow = WindowUsage(
+                label: "Context Window",
+                utilization: contextUsed,
+                resetsAt: Date.distantFuture,
+                windowDuration: 0,
+                sublabelOverride: sublabel
+            )
+        } else {
+            longWindow = WindowUsage(
+                label: "Context Window",
+                utilization: 0,
+                resetsAt: Date.distantFuture,
+                windowDuration: 0,
+                sublabelOverride: "No active session"
             )
         }
 

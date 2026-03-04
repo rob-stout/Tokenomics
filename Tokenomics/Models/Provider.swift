@@ -206,8 +206,10 @@ struct WindowUsage: Sendable {
         self.sublabelOverride = sublabelOverride
     }
 
-    /// Pace: how far through the window we are (0–1)
+    /// Pace: how far through the window we are (0–1).
+    /// Returns 0 for non-time-based windows (e.g. context window) where pace is meaningless.
     var pace: Double {
+        guard windowDuration > 0 else { return 0 }
         let remaining = max(resetsAt.timeIntervalSinceNow, 0)
         let elapsed = windowDuration - min(remaining, windowDuration)
         return min(max(elapsed / windowDuration, 0), 1)
