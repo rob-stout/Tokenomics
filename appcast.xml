@@ -25,12 +25,20 @@
             </item>
         -->
         <item>
+            <title>2.2.3</title>
+            <pubDate>Wed, 04 Mar 2026 19:13:29 -0700</pubDate>
+            <sparkle:version>12</sparkle:version>
+            <sparkle:shortVersionString>2.2.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.3/Tokenomics-2.2.3.dmg" length="1642411" type="application/octet-stream" sparkle:edSignature="Wjk7MBgPI1gqTHSp0uTODq5diIl57CmMDvUawdj9Gkd0Mj0GwLpqFILR9pythuflf4CXhOVhlXj09KlRoo4UBA=="/>
+        </item>
+        <item>
             <title>2.2.2</title>
             <pubDate>Wed, 04 Mar 2026 10:41:04 -0700</pubDate>
             <sparkle:version>11</sparkle:version>
             <sparkle:shortVersionString>2.2.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.2/Tokenomics-2.2.2.dmg" length="1639803" type="application/octet-stream" sparkle:edSignature="t71YzZSlt+iLS8ppnv9pDuFtmIOE7S+fCfMCVHLnqcwixzbWvZ9HQPVuUQbQWrBLw/xfJ4Du6E2wthjkLeOXDw=="/>
+            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.2/Tokenomics-2.2.2.dmg" length="1642432" type="application/octet-stream" sparkle:edSignature="rOZG+4CmXmDxoX34wF73yeYgwabMRKOF/7OHqFdxIQXYwdBheAeA0PgTu0iwVFTN4wZgODTsAMCob0oNXA2mCQ=="/>
         </item>
         <item>
             <title>2.2.1</title>
@@ -39,14 +47,6 @@
             <sparkle:shortVersionString>2.2.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.1/Tokenomics-2.2.1.dmg" length="1638227" type="application/octet-stream" sparkle:edSignature="mK2HSq9OQRVPtQcw6o5IV4mazqvKStZEnpW0sLWV7MDWZTbIgLE9D5xueM+cXzTEKa32umNqfTlyisktmkz7Dw=="/>
-        </item>
-        <item>
-            <title>2.2.0</title>
-            <pubDate>Tue, 03 Mar 2026 11:06:11 -0700</pubDate>
-            <sparkle:version>9</sparkle:version>
-            <sparkle:shortVersionString>2.2.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.0/Tokenomics-2.2.0.dmg" length="1638450" type="application/octet-stream" sparkle:edSignature="4ZOqHUln5zgZ6ZieinwMCmg8KvV8Nqf6p9bS9ZLiKmveBeSDG/fXGw/+Nsh4NyzPzoNYYLSmHhTgaMhMFhHRCQ=="/>
         </item>
     </channel>
 </rss>
