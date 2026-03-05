@@ -37,6 +37,7 @@ final class UsageViewModel: ObservableObject {
     ]
 
     private let pollingService = PollingService()
+    private var activityMonitor: ActivityMonitor?
 
     // MARK: - Computed Properties
 
@@ -184,24 +185,33 @@ final class UsageViewModel: ObservableObject {
             await pollingService.start { [weak self] in
                 await self?.fetchAllProviders()
             }
+
+            // Watch ~/.claude for activity to sleep/wake polling
+            startActivityMonitor()
         }
     }
 
+    private func startActivityMonitor() {
+        activityMonitor = ActivityMonitor { [weak self] in
+            guard let self else { return }
+            Task {
+                await self.pollingService.noteActivity()
+            }
+        }
+        activityMonitor?.start()
+    }
+
     func stopPolling() {
+        activityMonitor?.stop()
+        activityMonitor = nil
         Task { await pollingService.stop() }
     }
 
     func refresh() {
         Task {
+            // Manual refresh counts as activity — resets idle timer
+            await pollingService.noteActivity()
             await fetchAllProviders()
-
-            // Restart polling if it was stopped
-            let stopped = await !pollingService.isRunning
-            if stopped {
-                await pollingService.start { [weak self] in
-                    await self?.fetchAllProviders()
-                }
-            }
         }
     }
 
