@@ -27,7 +27,7 @@
         <item>
             <title>2.2.4</title>
             <pubDate>Wed, 04 Mar 2026 19:13:29 -0700</pubDate>
-            <sparkle:version>13</sparkle:version>
+            <sparkle:version>12</sparkle:version>
             <sparkle:shortVersionString>2.2.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.4/Tokenomics-2.2.4.dmg" length="1646680" type="application/octet-stream" sparkle:edSignature="A1rFaOKiyovDDeN47dBhNvZ/LJzbLuFrp3TBDk4f22DlR8sCbF3ADWFOZ8v5ARPOe/vNjIO2iFphZlHLAoyhBQ=="/>
