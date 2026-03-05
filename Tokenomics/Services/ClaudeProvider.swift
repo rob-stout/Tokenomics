@@ -8,7 +8,7 @@ actor ClaudeProvider: UsageProvider {
     private var cachedToken: String?
 
     func checkConnection() async -> ProviderConnectionState {
-        // Claude Code stores credentials in macOS Keychain.
+        // Claude Code stores credentials in ~/.claude/.credentials.json (and Keychain).
         // If we can read a token, the CLI is installed and authenticated.
         if let token = readToken() {
             cachedToken = token
@@ -70,15 +70,14 @@ actor ClaudeProvider: UsageProvider {
     }
 
     private func isClaudeCodeInstalled() -> Bool {
-        // If the Keychain service entry exists (even with an expired token),
-        // Claude Code has been installed at some point. We also check for
-        // the CLI binary in common paths.
-        let commonPaths = [
+        // Check for the credentials file or CLI binary in common paths.
+        let paths = [
+            "\(NSHomeDirectory())/.claude/.credentials.json",
             "/usr/local/bin/claude",
             "\(NSHomeDirectory())/.claude/bin/claude",
             "/opt/homebrew/bin/claude"
         ]
-        return commonPaths.contains { FileManager.default.fileExists(atPath: $0) }
+        return paths.contains { FileManager.default.fileExists(atPath: $0) }
     }
 
     private func mapToSnapshot(_ data: UsageData) -> ProviderUsageSnapshot {
