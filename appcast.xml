@@ -25,12 +25,12 @@
             </item>
         -->
         <item>
-            <title>2.2.3</title>
+            <title>2.2.4</title>
             <pubDate>Wed, 04 Mar 2026 19:13:29 -0700</pubDate>
-            <sparkle:version>12</sparkle:version>
-            <sparkle:shortVersionString>2.2.3</sparkle:shortVersionString>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>2.2.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.3/Tokenomics-2.2.3.dmg" length="1642411" type="application/octet-stream" sparkle:edSignature="Wjk7MBgPI1gqTHSp0uTODq5diIl57CmMDvUawdj9Gkd0Mj0GwLpqFILR9pythuflf4CXhOVhlXj09KlRoo4UBA=="/>
+            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.2.4/Tokenomics-2.2.4.dmg" length="1646680" type="application/octet-stream" sparkle:edSignature="A1rFaOKiyovDDeN47dBhNvZ/LJzbLuFrp3TBDk4f22DlR8sCbF3ADWFOZ8v5ARPOe/vNjIO2iFphZlHLAoyhBQ=="/>
         </item>
         <item>
             <title>2.2.2</title>

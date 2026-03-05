@@ -104,7 +104,7 @@ Tokenomics reads credentials from local sources for each detected provider:
 | **Codex CLI** | Session files in `~/.codex/sessions/` | Local file reads |
 | **Gemini CLI** | Session files in `~/.gemini/` | Local file reads |
 
-- Usage data is refreshed every **5 minutes** in the background
+- Usage data is refreshed every **5 minutes** while you're actively using a supported tool; polling sleeps automatically after 9 minutes of inactivity and wakes instantly when activity resumes
 - Credentials are held in memory only — never written to disk by Tokenomics
 - Only Claude Code requires a network call; Codex and Gemini usage is read entirely from local files
 
