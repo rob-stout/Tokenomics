@@ -72,24 +72,41 @@ APPCAST_PATH="$PROJECT_ROOT/appcast.xml"
 NEW_VERSION=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
 [[ -n "$NEW_VERSION" ]] || die "Could not read CFBundleShortVersionString from project.yml"
 
-# Build number auto-increments from the highest in appcast.xml
+# Pull last shipped version and highest build from appcast.xml
 HIGHEST_BUILD=0
+SHIPPED_VERSION=""
 if [[ -f "$APPCAST_PATH" ]]; then
     while IFS= read -r build; do
         build_num=${build//[^0-9]/}
         if [[ -n "$build_num" && "$build_num" -gt "$HIGHEST_BUILD" ]]; then
             HIGHEST_BUILD=$build_num
+            # Grab the version string for this build
+            SHIPPED_VERSION=$(grep -A1 "<sparkle:version>${build_num}</sparkle:version>" "$APPCAST_PATH" \
+                | grep "shortVersionString" | sed 's/.*>\(.*\)<.*/\1/')
+            # If version is on the line before, try that too
+            if [[ -z "$SHIPPED_VERSION" ]]; then
+                SHIPPED_VERSION=$(grep -B1 "<sparkle:version>${build_num}</sparkle:version>" "$APPCAST_PATH" \
+                    | grep "shortVersionString" | sed 's/.*>\(.*\)<.*/\1/')
+            fi
         fi
     done < <(grep '<sparkle:version>' "$APPCAST_PATH" | sed 's/.*<sparkle:version>\(.*\)<\/sparkle:version>.*/\1/')
 fi
 NEXT_BUILD=$((HIGHEST_BUILD + 1))
+
+echo "  Last shipped: ${SHIPPED_VERSION:-none} (build ${HIGHEST_BUILD})"
+echo "  Building:     $NEW_VERSION (build $NEXT_BUILD)"
+
+# Validate new version is different from last shipped
+if [[ -n "$SHIPPED_VERSION" && "$NEW_VERSION" == "$SHIPPED_VERSION" ]]; then
+    die "Version $NEW_VERSION is the same as the last shipped release.\nBump the version in project.yml before distributing."
+fi
 
 # Update build number in both files, sync version to Info.plist
 sed -i '' "s/CFBundleVersion: \".*\"/CFBundleVersion: \"$NEXT_BUILD\"/" "$YML_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT_BUILD" "$PLIST_PATH"
 
-echo "  Version: $NEW_VERSION (build $NEXT_BUILD) ✓"
+echo "  project.yml + Info.plist synced ✓"
 
 # ---------------------------------------------------------------------------
 # Step 1: Generate Xcode project
