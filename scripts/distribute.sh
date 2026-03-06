@@ -59,36 +59,66 @@ xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" >/dev/null 2>&1 
     || die "Notarytool keychain profile '$NOTARIZE_PROFILE' not found.\n\nSet it up with:\n  xcrun notarytool store-credentials \"$NOTARIZE_PROFILE\" --apple-id <email> --team-id RPDDQP7KZ5 --password <app-specific-password>"
 
 # ---------------------------------------------------------------------------
-# Step 0: Version sync — ensure project.yml and Info.plist match
+# Step 0: Version bump — auto-increment build, prompt for version
 # ---------------------------------------------------------------------------
 
-step "Checking version consistency"
+step "Version management"
 
 PLIST_PATH="$PROJECT_ROOT/Tokenomics/Resources/Info.plist"
 YML_PATH="$PROJECT_ROOT/project.yml"
-
-PLIST_VERSION=$(defaults read "$PLIST_PATH" CFBundleShortVersionString 2>/dev/null || echo "")
-PLIST_BUILD=$(defaults read "$PLIST_PATH" CFBundleVersion 2>/dev/null || echo "")
-YML_VERSION=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
-YML_BUILD=$(grep 'CFBundleVersion:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
-
-if [[ "$PLIST_VERSION" != "$YML_VERSION" || "$PLIST_BUILD" != "$YML_BUILD" ]]; then
-    die "Version mismatch!\n  project.yml:  $YML_VERSION (build $YML_BUILD)\n  Info.plist:   $PLIST_VERSION (build $PLIST_BUILD)\n\nUpdate both files to match before distributing."
-fi
-
-# Check that the build number isn't already used in appcast.xml
 APPCAST_PATH="$PROJECT_ROOT/appcast.xml"
+
+# Read current version from project.yml (source of truth)
+CURRENT_VERSION=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+
+# Find the highest build number from appcast.xml (what's already shipped)
+HIGHEST_BUILD=0
 if [[ -f "$APPCAST_PATH" ]]; then
-    if grep -q "<sparkle:version>${PLIST_BUILD}</sparkle:version>" "$APPCAST_PATH"; then
-        EXISTING_VER=$(grep -B1 "<sparkle:version>${PLIST_BUILD}</sparkle:version>" "$APPCAST_PATH" \
-            | grep "shortVersionString" | sed 's/.*>\(.*\)<.*/\1/')
-        if [[ "$EXISTING_VER" != "$PLIST_VERSION" ]]; then
-            die "Build number $PLIST_BUILD is already used by v$EXISTING_VER in appcast.xml.\nBump CFBundleVersion to avoid a Sparkle conflict."
+    while IFS= read -r build; do
+        build_num=${build//[^0-9]/}
+        if [[ -n "$build_num" && "$build_num" -gt "$HIGHEST_BUILD" ]]; then
+            HIGHEST_BUILD=$build_num
         fi
-    fi
+    done < <(grep '<sparkle:version>' "$APPCAST_PATH" | sed 's/.*<sparkle:version>\(.*\)<\/sparkle:version>.*/\1/')
+fi
+NEXT_BUILD=$((HIGHEST_BUILD + 1))
+
+# Compute default patch bump (e.g. 2.2.5 → 2.2.6)
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+DEFAULT_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+
+echo "  Current version: $CURRENT_VERSION (latest shipped build: $HIGHEST_BUILD)"
+echo ""
+echo "  Enter new version [$DEFAULT_VERSION]: "
+read -r NEW_VERSION
+NEW_VERSION=${NEW_VERSION:-$DEFAULT_VERSION}
+
+echo ""
+echo "  → Version: $NEW_VERSION (build $NEXT_BUILD)"
+echo ""
+read -r -p "  Proceed? [Y/n] " CONFIRM
+CONFIRM=${CONFIRM:-Y}
+[[ "$CONFIRM" =~ ^[Yy]$ ]] || die "Aborted by user."
+
+# Update project.yml
+sed -i '' "s/CFBundleShortVersionString: \".*\"/CFBundleShortVersionString: \"$NEW_VERSION\"/" "$YML_PATH"
+sed -i '' "s/CFBundleVersion: \".*\"/CFBundleVersion: \"$NEXT_BUILD\"/" "$YML_PATH"
+
+# Update Info.plist
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST_PATH"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT_BUILD" "$PLIST_PATH"
+
+# Verify they match
+VERIFY_YML_V=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+VERIFY_PLIST_V=$(defaults read "$PLIST_PATH" CFBundleShortVersionString 2>/dev/null)
+VERIFY_YML_B=$(grep 'CFBundleVersion:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+VERIFY_PLIST_B=$(defaults read "$PLIST_PATH" CFBundleVersion 2>/dev/null)
+
+if [[ "$VERIFY_YML_V" != "$VERIFY_PLIST_V" || "$VERIFY_YML_B" != "$VERIFY_PLIST_B" ]]; then
+    die "Version sync failed!\n  project.yml: $VERIFY_YML_V (build $VERIFY_YML_B)\n  Info.plist:  $VERIFY_PLIST_V (build $VERIFY_PLIST_B)"
 fi
 
-echo "  Version: $PLIST_VERSION (build $PLIST_BUILD) ✓"
+echo "  project.yml + Info.plist updated to $NEW_VERSION (build $NEXT_BUILD) ✓"
 
 # ---------------------------------------------------------------------------
 # Step 1: Generate Xcode project
@@ -98,9 +128,8 @@ step "Generating Xcode project with XcodeGen"
 cd "$PROJECT_ROOT"
 xcodegen generate
 
-# Read the version AFTER xcodegen runs — xcodegen overwrites Info.plist from
-# project.yml, so reading before this step would get the previous release's value.
-APP_VERSION=$(defaults read "$PROJECT_ROOT/Tokenomics/Resources/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "1.0")
+# Version was already set in Step 0 — xcodegen regenerates Info.plist from project.yml
+APP_VERSION="$NEW_VERSION"
 DMG_NAME="Tokenomics-${APP_VERSION}.dmg"
 DMG_OUTPUT="$PROJECT_ROOT/$DMG_NAME"
 
