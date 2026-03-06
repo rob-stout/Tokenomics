@@ -53,9 +53,13 @@ actor UsageService {
         case 401, 403:
             throw AppError.tokenExpired
         case 429:
-            let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After")
-                .flatMap(TimeInterval.init) ?? 60
+            let retryAfterHeader = httpResponse.value(forHTTPHeaderField: "Retry-After")
+            let retryAfter = retryAfterHeader.flatMap(TimeInterval.init) ?? 300
             rateLimitedUntil = Date().addingTimeInterval(retryAfter)
+            if let body = String(data: data, encoding: .utf8) {
+                print("[UsageService] 429 Rate Limited — Retry-After: \(retryAfterHeader ?? "not provided"), backing off \(Int(retryAfter))s. Body: \(body)")
+            }
+            print("[UsageService] 429 headers: \(httpResponse.allHeaderFields)")
             throw AppError.rateLimited(retryAfter: retryAfter)
         default:
             throw AppError.httpError(statusCode: httpResponse.statusCode)
