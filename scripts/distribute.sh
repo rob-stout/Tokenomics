@@ -59,6 +59,38 @@ xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" >/dev/null 2>&1 
     || die "Notarytool keychain profile '$NOTARIZE_PROFILE' not found.\n\nSet it up with:\n  xcrun notarytool store-credentials \"$NOTARIZE_PROFILE\" --apple-id <email> --team-id RPDDQP7KZ5 --password <app-specific-password>"
 
 # ---------------------------------------------------------------------------
+# Step 0: Version sync — ensure project.yml and Info.plist match
+# ---------------------------------------------------------------------------
+
+step "Checking version consistency"
+
+PLIST_PATH="$PROJECT_ROOT/Tokenomics/Resources/Info.plist"
+YML_PATH="$PROJECT_ROOT/project.yml"
+
+PLIST_VERSION=$(defaults read "$PLIST_PATH" CFBundleShortVersionString 2>/dev/null || echo "")
+PLIST_BUILD=$(defaults read "$PLIST_PATH" CFBundleVersion 2>/dev/null || echo "")
+YML_VERSION=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+YML_BUILD=$(grep 'CFBundleVersion:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+
+if [[ "$PLIST_VERSION" != "$YML_VERSION" || "$PLIST_BUILD" != "$YML_BUILD" ]]; then
+    die "Version mismatch!\n  project.yml:  $YML_VERSION (build $YML_BUILD)\n  Info.plist:   $PLIST_VERSION (build $PLIST_BUILD)\n\nUpdate both files to match before distributing."
+fi
+
+# Check that the build number isn't already used in appcast.xml
+APPCAST_PATH="$PROJECT_ROOT/appcast.xml"
+if [[ -f "$APPCAST_PATH" ]]; then
+    if grep -q "<sparkle:version>${PLIST_BUILD}</sparkle:version>" "$APPCAST_PATH"; then
+        EXISTING_VER=$(grep -B1 "<sparkle:version>${PLIST_BUILD}</sparkle:version>" "$APPCAST_PATH" \
+            | grep "shortVersionString" | sed 's/.*>\(.*\)<.*/\1/')
+        if [[ "$EXISTING_VER" != "$PLIST_VERSION" ]]; then
+            die "Build number $PLIST_BUILD is already used by v$EXISTING_VER in appcast.xml.\nBump CFBundleVersion to avoid a Sparkle conflict."
+        fi
+    fi
+fi
+
+echo "  Version: $PLIST_VERSION (build $PLIST_BUILD) ✓"
+
+# ---------------------------------------------------------------------------
 # Step 1: Generate Xcode project
 # ---------------------------------------------------------------------------
 
