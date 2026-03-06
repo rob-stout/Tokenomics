@@ -59,19 +59,20 @@ xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" >/dev/null 2>&1 
     || die "Notarytool keychain profile '$NOTARIZE_PROFILE' not found.\n\nSet it up with:\n  xcrun notarytool store-credentials \"$NOTARIZE_PROFILE\" --apple-id <email> --team-id RPDDQP7KZ5 --password <app-specific-password>"
 
 # ---------------------------------------------------------------------------
-# Step 0: Version bump — auto-increment build, prompt for version
+# Step 0: Version sync — read version from project.yml, auto-increment build
 # ---------------------------------------------------------------------------
 
-step "Version management"
+step "Version sync"
 
 PLIST_PATH="$PROJECT_ROOT/Tokenomics/Resources/Info.plist"
 YML_PATH="$PROJECT_ROOT/project.yml"
 APPCAST_PATH="$PROJECT_ROOT/appcast.xml"
 
-# Read current version from project.yml (source of truth)
-CURRENT_VERSION=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+# Version comes from project.yml (set during development, committed before running this script)
+NEW_VERSION=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+[[ -n "$NEW_VERSION" ]] || die "Could not read CFBundleShortVersionString from project.yml"
 
-# Find the highest build number from appcast.xml (what's already shipped)
+# Build number auto-increments from the highest in appcast.xml
 HIGHEST_BUILD=0
 if [[ -f "$APPCAST_PATH" ]]; then
     while IFS= read -r build; do
@@ -83,42 +84,12 @@ if [[ -f "$APPCAST_PATH" ]]; then
 fi
 NEXT_BUILD=$((HIGHEST_BUILD + 1))
 
-# Compute default patch bump (e.g. 2.2.5 → 2.2.6)
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-DEFAULT_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
-
-echo "  Current version: $CURRENT_VERSION (latest shipped build: $HIGHEST_BUILD)"
-echo ""
-echo "  Enter new version [$DEFAULT_VERSION]: "
-read -r NEW_VERSION
-NEW_VERSION=${NEW_VERSION:-$DEFAULT_VERSION}
-
-echo ""
-echo "  → Version: $NEW_VERSION (build $NEXT_BUILD)"
-echo ""
-read -r -p "  Proceed? [Y/n] " CONFIRM
-CONFIRM=${CONFIRM:-Y}
-[[ "$CONFIRM" =~ ^[Yy]$ ]] || die "Aborted by user."
-
-# Update project.yml
-sed -i '' "s/CFBundleShortVersionString: \".*\"/CFBundleShortVersionString: \"$NEW_VERSION\"/" "$YML_PATH"
+# Update build number in both files, sync version to Info.plist
 sed -i '' "s/CFBundleVersion: \".*\"/CFBundleVersion: \"$NEXT_BUILD\"/" "$YML_PATH"
-
-# Update Info.plist
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT_BUILD" "$PLIST_PATH"
 
-# Verify they match
-VERIFY_YML_V=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
-VERIFY_PLIST_V=$(defaults read "$PLIST_PATH" CFBundleShortVersionString 2>/dev/null)
-VERIFY_YML_B=$(grep 'CFBundleVersion:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
-VERIFY_PLIST_B=$(defaults read "$PLIST_PATH" CFBundleVersion 2>/dev/null)
-
-if [[ "$VERIFY_YML_V" != "$VERIFY_PLIST_V" || "$VERIFY_YML_B" != "$VERIFY_PLIST_B" ]]; then
-    die "Version sync failed!\n  project.yml: $VERIFY_YML_V (build $VERIFY_YML_B)\n  Info.plist:  $VERIFY_PLIST_V (build $VERIFY_PLIST_B)"
-fi
-
-echo "  project.yml + Info.plist updated to $NEW_VERSION (build $NEXT_BUILD) ✓"
+echo "  Version: $NEW_VERSION (build $NEXT_BUILD) ✓"
 
 # ---------------------------------------------------------------------------
 # Step 1: Generate Xcode project
