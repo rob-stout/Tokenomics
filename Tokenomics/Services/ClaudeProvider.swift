@@ -9,20 +9,10 @@ actor ClaudeProvider: UsageProvider {
 
     func checkConnection() async -> ProviderConnectionState {
         // Claude Code stores credentials in ~/.claude/.credentials.json (and Keychain).
-        // If we can read a token, the CLI is installed and authenticated.
-        if let token = readToken() {
-            cachedToken = token
-            // Attempt a fetch to verify the token is still valid
-            do {
-                let snapshot = try await fetchUsage()
-                return .connected(plan: snapshot.planLabel)
-            } catch let error as AppError where error.isTokenExpired {
-                cachedToken = nil
-                return .authExpired
-            } catch {
-                // Token exists but fetch failed (network, etc.) — still "connected"
-                return .connected(plan: "—")
-            }
+        // Only check token presence — don't call the API here.
+        // Usage fetch will validate the token and update state on the first poll.
+        if readToken() != nil {
+            return .connected(plan: "—")
         }
 
         // Check if Claude Code is installed by looking for the Keychain service

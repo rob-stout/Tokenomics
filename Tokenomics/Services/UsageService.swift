@@ -5,6 +5,9 @@ actor UsageService {
     // Compile-time constant — URL(string:) only fails on malformed strings
     private let baseURL = URL(string: "https://api.anthropic.com/api/oauth/usage")! // swiftlint:disable:this force_unwrapping
 
+    /// Earliest time we're allowed to retry after a 429
+    private var rateLimitedUntil: Date?
+
     private lazy var decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         // API returns fractional seconds (e.g. "2026-02-25T20:00:00.849139+00:00")
@@ -28,6 +31,12 @@ actor UsageService {
     }()
 
     func fetchUsage(token: String) async throws -> UsageData {
+        // Respect rate-limit backoff — don't hit the API if we're still in a cooldown
+        if let until = rateLimitedUntil, Date() < until {
+            let remaining = until.timeIntervalSinceNow
+            throw AppError.rateLimited(retryAfter: remaining)
+        }
+
         var request = URLRequest(url: baseURL)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
@@ -40,12 +49,13 @@ actor UsageService {
 
         switch httpResponse.statusCode {
         case 200:
-            break
+            rateLimitedUntil = nil
         case 401, 403:
             throw AppError.tokenExpired
         case 429:
             let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After")
-                .flatMap(TimeInterval.init)
+                .flatMap(TimeInterval.init) ?? 60
+            rateLimitedUntil = Date().addingTimeInterval(retryAfter)
             throw AppError.rateLimited(retryAfter: retryAfter)
         default:
             throw AppError.httpError(statusCode: httpResponse.statusCode)
