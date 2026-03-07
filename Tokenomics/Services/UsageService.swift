@@ -11,6 +11,9 @@ actor UsageService {
     /// Earliest time we're allowed to retry after a 429
     private var rateLimitedUntil: Date?
 
+    /// Consecutive 429 count for exponential backoff (resets on success)
+    private var consecutive429s: Int = 0
+
     private lazy var decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         // API returns fractional seconds (e.g. "2026-02-25T20:00:00.849139+00:00")
@@ -54,17 +57,19 @@ actor UsageService {
         switch httpResponse.statusCode {
         case 200:
             rateLimitedUntil = nil
+            consecutive429s = 0
             Self.log.info("Usage fetch succeeded")
         case 401, 403:
             throw AppError.tokenExpired
         case 429:
-            let retryAfterHeader = httpResponse.value(forHTTPHeaderField: "Retry-After")
-            let retryAfter = max(retryAfterHeader.flatMap(TimeInterval.init) ?? 300, 300)
-            rateLimitedUntil = Date().addingTimeInterval(retryAfter)
+            consecutive429s += 1
+            // Exponential backoff: 5 min → 10 min → 20 min → 40 min (capped at 1 hour)
+            let baseBackoff: TimeInterval = 300
+            let backoff = min(baseBackoff * pow(2, Double(consecutive429s - 1)), 3600)
+            rateLimitedUntil = Date().addingTimeInterval(backoff)
             let body = String(data: data, encoding: .utf8) ?? ""
-            Self.log.warning("429 Rate Limited — Retry-After: \(retryAfterHeader ?? "not provided", privacy: .public), backing off \(Int(retryAfter))s. Body: \(body, privacy: .public)")
-            Self.log.debug("429 headers: \(httpResponse.allHeaderFields, privacy: .public)")
-            throw AppError.rateLimited(retryAfter: retryAfter)
+            Self.log.warning("429 Rate Limited (#\(self.consecutive429s)) — backing off \(Int(backoff))s. Body: \(body, privacy: .public)")
+            throw AppError.rateLimited(retryAfter: backoff)
         default:
             throw AppError.httpError(statusCode: httpResponse.statusCode)
         }
