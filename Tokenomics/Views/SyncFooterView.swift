@@ -7,6 +7,7 @@ struct SyncFooterView: View {
     let onRefresh: () -> Void
     let onSettings: () -> Void
     let showDisplayMode: Bool
+    var updateAvailable: Bool = false
     @ObservedObject var viewModel: UsageViewModel
 
     private var syncText: String {
@@ -63,6 +64,14 @@ struct SyncFooterView: View {
                 Image(systemName: "gearshape")
                     .font(.caption)
                     .frame(height: 16)
+                    .overlay(alignment: .topTrailing) {
+                        if updateAvailable {
+                            Circle()
+                                .fill(.blue)
+                                .frame(width: 6, height: 6)
+                                .offset(x: 2, y: -2)
+                        }
+                    }
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
