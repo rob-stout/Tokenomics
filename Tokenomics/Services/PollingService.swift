@@ -1,23 +1,41 @@
 import Foundation
 
-/// Manages periodic polling for usage data with activity-aware sleep/wake.
+/// Manages periodic polling with per-provider intervals and activity-aware sleep/wake.
 ///
-/// When active: polls at the configured interval (default 5 min).
-/// When idle (no activity for `idleTimeout`): stops polling to avoid rate limits.
-/// When activity resumes: immediately fetches and restarts the polling loop.
+/// Ticks every 60s. On each tick, checks which providers are due for a fetch
+/// based on their individual `pollInterval`. Local providers (Codex, Gemini)
+/// poll every minute; remote providers (Claude) poll less frequently.
+///
+/// When idle (no activity for `idleTimeout`): stops polling to save resources.
+/// When activity resumes: immediately fetches and restarts.
 actor PollingService {
     private var task: Task<Void, Never>?
-    private let interval: TimeInterval
+    private let tickInterval: TimeInterval = 60 // Check every minute
     private let idleTimeout: TimeInterval
     private var lastActivity: Date = Date()
-    private var storedAction: (@Sendable () async -> Void)?
+    private var storedAction: (@Sendable (ProviderId) async -> Void)?
+    private var providerSchedules: [ProviderId: ProviderSchedule] = [:]
 
-    init(interval: TimeInterval = 300, idleTimeout: TimeInterval = 540) { // 5 min poll, 9 min idle
-        self.interval = interval
+    struct ProviderSchedule {
+        let interval: TimeInterval
+        var lastFetched: Date?
+
+        func isDue(now: Date) -> Bool {
+            guard let last = lastFetched else { return true }
+            return now.timeIntervalSince(last) >= interval
+        }
+    }
+
+    init(idleTimeout: TimeInterval = 540) { // 9 min idle
         self.idleTimeout = idleTimeout
     }
 
     var isRunning: Bool { task != nil }
+
+    /// Register a provider's poll interval
+    func registerProvider(_ id: ProviderId, interval: TimeInterval) {
+        providerSchedules[id] = ProviderSchedule(interval: interval, lastFetched: nil)
+    }
 
     /// Record external activity (e.g. filesystem change in ~/.claude).
     /// Wakes polling if it was sleeping.
@@ -35,9 +53,9 @@ actor PollingService {
         Date().timeIntervalSince(lastActivity) > idleTimeout
     }
 
-    /// Starts polling, calling the provided closure on each tick.
+    /// Starts polling, calling the provided closure with each provider ID when it's due.
     /// No-op if polling is already active.
-    func start(action: @escaping @Sendable () async -> Void) {
+    func start(action: @escaping @Sendable (ProviderId) async -> Void) {
         storedAction = action
         guard task == nil else { return }
         lastActivity = Date()
@@ -50,23 +68,36 @@ actor PollingService {
         storedAction = nil
     }
 
+    /// Mark a provider as just-fetched (called after manual refresh)
+    func markFetched(_ id: ProviderId) {
+        providerSchedules[id]?.lastFetched = Date()
+    }
+
     // MARK: - Private
 
-    private func startLoop(action: @escaping @Sendable () async -> Void) {
+    private func startLoop(action: @escaping @Sendable (ProviderId) async -> Void) {
         task = Task {
-            // Fetch immediately on start/wake
-            await action()
+            // Fetch all providers immediately on start/wake
+            let now = Date()
+            for id in providerSchedules.keys {
+                providerSchedules[id]?.lastFetched = now
+                await action(id)
+            }
 
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(interval))
+                try? await Task.sleep(for: .seconds(tickInterval))
                 guard !Task.isCancelled else { break }
 
                 if isIdle {
-                    // Go to sleep — ActivityMonitor will wake us via noteActivity()
                     break
                 }
 
-                await action()
+                // Check which providers are due
+                let now = Date()
+                for (id, schedule) in providerSchedules where schedule.isDue(now: now) {
+                    providerSchedules[id]?.lastFetched = now
+                    await action(id)
+                }
             }
 
             // If we exited due to idle (not cancellation), nil out task

@@ -3,6 +3,7 @@ import Foundation
 /// Gemini CLI usage provider — counts requests from local session files against plan limits
 actor GeminiProvider: UsageProvider {
     let id = ProviderId.gemini
+    let pollInterval: TimeInterval = 60 // 1 min — local files, no rate limit
 
     private let authFile: URL
     private let tmpDir: URL

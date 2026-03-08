@@ -3,6 +3,7 @@ import Foundation
 /// Codex CLI usage provider — reads local JSONL session files (no network needed)
 actor CodexProvider: UsageProvider {
     let id = ProviderId.codex
+    let pollInterval: TimeInterval = 60 // 1 min — local files, no rate limit
 
     private let codexDir: URL
     private let sessionsDir: URL

@@ -269,6 +269,10 @@ struct ProviderState: Sendable {
 protocol UsageProvider: Actor {
     var id: ProviderId { get }
 
+    /// How often this provider should be polled (seconds).
+    /// Local providers can use short intervals; remote APIs should use longer ones.
+    var pollInterval: TimeInterval { get }
+
     /// Check whether the CLI is installed and authenticated
     func checkConnection() async -> ProviderConnectionState
 

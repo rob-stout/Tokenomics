@@ -3,6 +3,7 @@ import Foundation
 /// Claude Code usage provider — wraps the existing UsageService + KeychainService
 actor ClaudeProvider: UsageProvider {
     let id = ProviderId.claude
+    let pollInterval: TimeInterval = 600 // 10 min — remote API with tight rate limits
 
     private let usageService = UsageService()
     private var cachedToken: String?

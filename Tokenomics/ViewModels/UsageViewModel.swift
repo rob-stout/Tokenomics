@@ -181,9 +181,15 @@ final class UsageViewModel: ObservableObject {
                 selectedTab = visibleProviders.first ?? .claude
             }
 
-            // Start polling loop
-            await pollingService.start { [weak self] in
-                await self?.fetchAllProviders()
+            // Register each provider's poll interval
+            for (id, provider) in providerOrder {
+                let interval = await provider.pollInterval
+                await pollingService.registerProvider(id, interval: interval)
+            }
+
+            // Start per-provider polling loop
+            await pollingService.start { [weak self] providerId in
+                await self?.fetchProvider(providerId)
             }
 
             // Watch ~/.claude for activity to sleep/wake polling
@@ -211,6 +217,10 @@ final class UsageViewModel: ObservableObject {
         Task {
             // Manual refresh counts as activity — resets idle timer
             await pollingService.noteActivity()
+            // Fetch all providers and reset their poll timers
+            for (id, _) in providerOrder {
+                await pollingService.markFetched(id)
+            }
             await fetchAllProviders()
         }
     }
@@ -309,9 +319,18 @@ final class UsageViewModel: ObservableObject {
         }
     }
 
+    /// Fetch a single provider by ID (called by the per-provider polling loop)
+    private func fetchProvider(_ id: ProviderId) async {
+        guard let provider = providers[id] else { return }
+        let currentState = providerStates[id] ?? .empty
+        let newState = await fetchSingleProvider(
+            id: id, provider: provider, currentState: currentState
+        )
+        providerStates[id] = newState
+    }
+
+    /// Fetch all providers concurrently (used by manual refresh)
     private func fetchAllProviders() async {
-        // Fetch all providers concurrently — Codex reads local files instantly
-        // while Claude may be waiting on the network. They shouldn't block each other.
         await withTaskGroup(of: (ProviderId, ProviderState).self) { group in
             for (id, provider) in providerOrder {
                 let currentState = providerStates[id] ?? .empty
