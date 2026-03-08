@@ -143,6 +143,16 @@ final class UsageViewModel: ObservableObject {
         providerStates.values.contains(where: \.isLoading)
     }
 
+    /// Whether the current provider is rate-limited but showing cached data
+    var isShowingStaleData: Bool {
+        guard let tab = selectedTab,
+              let state = providerStates[tab] else { return false }
+        if case .rateLimited = state.error {
+            return state.usage != nil
+        }
+        return false
+    }
+
     /// Plan label for the current tab
     var planLabel: String {
         currentProviderState?.usage?.planLabel ?? "—"
@@ -159,6 +169,19 @@ final class UsageViewModel: ObservableObject {
         self.hasCompletedOnboarding = SettingsService.hasCompletedOnboarding
         self.pinnedProviders = SettingsService.pinnedProviders
         self.selectedTab = SettingsService.selectedTab
+
+        // Pre-populate provider states with cached usage so data shows instantly
+        for id in ProviderId.allCases {
+            if let cached = SettingsService.cachedUsage(for: id) {
+                providerStates[id] = ProviderState(
+                    connection: .notInstalled,
+                    usage: cached.snapshot,
+                    error: nil,
+                    lastSynced: cached.cachedAt,
+                    isLoading: false
+                )
+            }
+        }
     }
 
     // MARK: - Lifecycle
@@ -370,6 +393,7 @@ final class UsageViewModel: ObservableObject {
 
         do {
             let snapshot = try await provider.fetchUsage()
+            SettingsService.cacheUsage(snapshot, for: id)
             return ProviderState(
                 connection: currentState.connection,
                 usage: snapshot,

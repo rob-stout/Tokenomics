@@ -72,7 +72,7 @@ struct UsagePeriod: Decodable, Sendable {
     }
 }
 
-struct ExtraUsage: Decodable, Sendable {
+struct ExtraUsage: Codable, Sendable {
     let isEnabled: Bool
     let monthlyLimit: Int?
     let usedCredits: Double?

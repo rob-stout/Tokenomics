@@ -91,6 +91,7 @@ struct PopoverView: View {
             onSettings: { viewModel.showSettings = true },
             showDisplayMode: viewModel.installedProviders.count > 1,
             updateAvailable: updaterService.updateAvailable,
+            isStale: viewModel.isShowingStaleData,
             viewModel: viewModel
         )
         .padding(.horizontal, 16)

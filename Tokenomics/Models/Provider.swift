@@ -182,7 +182,7 @@ enum ProviderConnectionState: Sendable, Equatable {
 // MARK: - Usage Snapshot
 
 /// Provider-agnostic usage data that the UI renders
-struct ProviderUsageSnapshot: Sendable {
+struct ProviderUsageSnapshot: Codable, Sendable {
     let shortWindow: WindowUsage
     let longWindow: WindowUsage
     let planLabel: String
@@ -191,7 +191,7 @@ struct ProviderUsageSnapshot: Sendable {
 }
 
 /// A single usage window (e.g. 5-hour or 7-day)
-struct WindowUsage: Sendable {
+struct WindowUsage: Codable, Sendable {
     let label: String
     let utilization: Double
     let resetsAt: Date

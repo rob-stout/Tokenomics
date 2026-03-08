@@ -68,4 +68,24 @@ enum SettingsService {
         }
     }
 
+    // MARK: - Usage Cache
+
+    /// Save a provider's last successful usage snapshot to disk
+    static func cacheUsage(_ snapshot: ProviderUsageSnapshot, for provider: ProviderId) {
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        defaults.set(data, forKey: "cachedUsage_\(provider.rawValue)")
+        defaults.set(Date().timeIntervalSince1970, forKey: "cachedUsageTime_\(provider.rawValue)")
+    }
+
+    /// Load a provider's cached usage snapshot (if any)
+    static func cachedUsage(for provider: ProviderId) -> (snapshot: ProviderUsageSnapshot, cachedAt: Date)? {
+        guard let data = defaults.data(forKey: "cachedUsage_\(provider.rawValue)"),
+              let snapshot = try? JSONDecoder().decode(ProviderUsageSnapshot.self, from: data) else {
+            return nil
+        }
+        let timestamp = defaults.double(forKey: "cachedUsageTime_\(provider.rawValue)")
+        let cachedAt = timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : Date.distantPast
+        return (snapshot, cachedAt)
+    }
+
 }

@@ -1,57 +1,77 @@
 import Foundation
+import os
 
 /// Claude Code usage provider — wraps the existing UsageService + KeychainService
 actor ClaudeProvider: UsageProvider {
     let id = ProviderId.claude
     let pollInterval: TimeInterval = 600 // 10 min — remote API with tight rate limits
 
+    private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "ClaudeProvider")
+
     private let usageService = UsageService()
-    private var cachedToken: String?
+    private let tokenRefreshService = TokenRefreshService()
+    private var cachedCredentials: KeychainService.OAuthCredentials?
 
     func checkConnection() async -> ProviderConnectionState {
-        // Claude Code stores credentials in ~/.claude/.credentials.json (and Keychain).
         // Only check token presence — don't call the API here.
-        // Usage fetch will validate the token and update state on the first poll.
-        if readToken() != nil {
+        if KeychainService.readAccessToken() != nil {
             return .connected(plan: "—")
         }
-
-        // Check if Claude Code is installed by looking for the Keychain service
-        // entry (even if empty). No entry at all means not installed.
-        if isClaudeCodeInstalled() {
-            return .installedNoAuth
-        }
-
+        if isClaudeCodeInstalled() { return .installedNoAuth }
         return .notInstalled
     }
 
     func fetchUsage() async throws -> ProviderUsageSnapshot {
-        if cachedToken == nil {
-            cachedToken = readToken()
-        }
-
-        guard let token = cachedToken else {
-            throw AppError.notAuthenticated
-        }
-
+        let token = try await getValidToken()
         do {
             let data = try await usageService.fetchUsage(token: token)
             return mapToSnapshot(data)
         } catch let error as AppError where error.isTokenExpired {
-            // Token rotated — try once more with a fresh Keychain read
-            cachedToken = nil
-            cachedToken = readToken()
-            guard let freshToken = cachedToken else {
-                throw AppError.tokenExpired
-            }
+            // Token might have been rotated — re-read and retry once
+            cachedCredentials = nil
+            let freshToken = try await getValidToken()
             let data = try await usageService.fetchUsage(token: freshToken)
             return mapToSnapshot(data)
         }
     }
 
-    /// Clear cached token (called by ViewModel on auth errors)
+    /// Clear cached credentials (called by ViewModel on auth errors)
     func clearCachedToken() {
-        cachedToken = nil
+        cachedCredentials = nil
+    }
+
+    // MARK: - Token Management
+
+    /// Returns a valid access token, refreshing if expired
+    private func getValidToken() async throws -> String {
+        if cachedCredentials == nil {
+            cachedCredentials = KeychainService.readCredentials()
+        }
+
+        guard let creds = cachedCredentials else {
+            throw AppError.notAuthenticated
+        }
+
+        // If token is expired or about to expire, try refreshing
+        if TokenRefreshService.needsRefresh(expiresAt: creds.expiresAt) {
+            if let refreshToken = creds.refreshToken {
+                Self.log.info("Token expired or expiring soon — refreshing")
+                do {
+                    let result = try await tokenRefreshService.refresh(using: refreshToken)
+                    // Update cached credentials with new token
+                    cachedCredentials = KeychainService.OAuthCredentials(
+                        accessToken: result.accessToken,
+                        refreshToken: result.refreshToken,
+                        expiresAt: Date().addingTimeInterval(result.expiresIn)
+                    )
+                    return result.accessToken
+                } catch {
+                    Self.log.warning("Token refresh failed: \(error.localizedDescription) — using existing token")
+                }
+            }
+        }
+
+        return creds.accessToken
     }
 
     // MARK: - Private

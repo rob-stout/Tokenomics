@@ -8,6 +8,7 @@ struct SyncFooterView: View {
     let onSettings: () -> Void
     let showDisplayMode: Bool
     var updateAvailable: Bool = false
+    var isStale: Bool = false
     @ObservedObject var viewModel: UsageViewModel
 
     private var syncText: String {
@@ -25,9 +26,15 @@ struct SyncFooterView: View {
     var body: some View {
         HStack {
             TimelineView(.periodic(from: .now, by: 60)) { _ in
-                Text(syncText)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                if isStale {
+                    Text("Rate limited · showing cached data")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else {
+                    Text(syncText)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Spacer()
