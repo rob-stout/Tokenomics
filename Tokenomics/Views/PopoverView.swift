@@ -18,6 +18,8 @@ struct PopoverView: View {
                 AboutView(onDismiss: { viewModel.showAbout = false })
             } else if viewModel.showAIConnections {
                 AIConnectionsView(viewModel: viewModel)
+            } else if viewModel.showNotifications {
+                NotificationsView(viewModel: viewModel)
             } else if viewModel.showSettings {
                 settingsView
             } else if !viewModel.hasCompletedOnboarding {
@@ -28,6 +30,7 @@ struct PopoverView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.showSettings)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showAIConnections)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showNotifications)
         .background {
             // Hidden buttons to register keyboard shortcuts within the popover
             VStack {
@@ -379,6 +382,27 @@ struct PopoverView: View {
                             .font(.caption)
                         Spacer()
                         Text("\(viewModel.connectedProviders.count) connected")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+                Divider()
+
+                // Notifications
+                Button(action: { viewModel.showNotifications = true }) {
+                    HStack {
+                        Text("Notifications")
+                            .font(.caption)
+                        Spacer()
+                        Text(viewModel.notificationsSubtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Image(systemName: "chevron.right")

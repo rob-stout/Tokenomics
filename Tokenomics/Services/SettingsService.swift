@@ -68,6 +68,53 @@ enum SettingsService {
         }
     }
 
+    // MARK: - Notification Thresholds
+
+    /// Per-provider notification configuration
+    struct NotificationConfig: Codable {
+        var isEnabled: Bool = true
+        /// Percentage threshold at which to fire an alert (50–100, in 10% steps)
+        var threshold: Int = 80
+    }
+
+    /// Which usage window(s) trigger alerts
+    enum AlertWindow: String, Codable, CaseIterable {
+        case short, long, both
+
+        var displayLabel: String {
+            switch self {
+            case .short: return "Short"
+            case .long: return "Long"
+            case .both: return "Both"
+            }
+        }
+    }
+
+    /// Load per-provider notification config, returning the default if none saved
+    static func notificationConfig(for provider: ProviderId) -> NotificationConfig {
+        guard let data = defaults.data(forKey: "notificationConfig_\(provider.rawValue)"),
+              let config = try? JSONDecoder().decode(NotificationConfig.self, from: data) else {
+            return NotificationConfig()
+        }
+        return config
+    }
+
+    /// Persist per-provider notification config
+    static func setNotificationConfig(_ config: NotificationConfig, for provider: ProviderId) {
+        guard let data = try? JSONEncoder().encode(config) else { return }
+        defaults.set(data, forKey: "notificationConfig_\(provider.rawValue)")
+    }
+
+    /// Which usage window triggers alerts (default: short window only)
+    static var alertWindow: AlertWindow {
+        get {
+            defaults.string(forKey: "alertWindow").flatMap { AlertWindow(rawValue: $0) } ?? .short
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: "alertWindow")
+        }
+    }
+
     // MARK: - Usage Cache
 
     /// Save a provider's last successful usage snapshot to disk

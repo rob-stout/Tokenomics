@@ -27,6 +27,7 @@ final class UsageViewModel: ObservableObject {
     @Published var showSettings = false
     @Published var showAIConnections = false
     @Published var showAbout = false
+    @Published var showNotifications = false
 
     // MARK: - Providers
 
@@ -38,6 +39,7 @@ final class UsageViewModel: ObservableObject {
 
     private let pollingService = PollingService()
     private var activityMonitor: ActivityMonitor?
+    let notificationService = NotificationService()
 
     // MARK: - Computed Properties
 
@@ -289,6 +291,7 @@ final class UsageViewModel: ObservableObject {
         showSettings = false
         showAIConnections = false
         showAbout = false
+        showNotifications = false
     }
 
     // MARK: - Private
@@ -394,6 +397,12 @@ final class UsageViewModel: ObservableObject {
         do {
             let snapshot = try await provider.fetchUsage()
             SettingsService.cacheUsage(snapshot, for: id)
+            // Evaluate thresholds after every successful fetch
+            notificationService.evaluate(
+                providerId: id,
+                snapshot: snapshot,
+                connection: currentState.connection
+            )
             return ProviderState(
                 connection: currentState.connection,
                 usage: snapshot,
