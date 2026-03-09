@@ -19,6 +19,14 @@ A macOS menu bar app that shows your AI coding tool usage at a glance — suppor
 
 ## Installation
 
+### Homebrew (recommended)
+
+```bash
+brew install --cask rob-stout/tap/tokenomics
+```
+
+### Manual
+
 1. Download the latest `.dmg` from [Releases](../../releases)
 2. Open the `.dmg` and drag **Tokenomics** into your Applications folder
 3. Launch Tokenomics — if Gatekeeper prompts you, open **System Settings → Privacy & Security** and click **Open Anyway**
