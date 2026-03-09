@@ -2,6 +2,11 @@ import Foundation
 import os
 
 /// Claude Code usage provider — wraps the existing UsageService + KeychainService
+///
+/// Token strategy: always re-read from the Keychain on each fetch. Claude Code
+/// refreshes its own token during normal use, so we piggyback on that. We never
+/// call the refresh endpoint ourselves because doing so invalidates Claude Code's
+/// refresh token (they're single-use) and logs the user out.
 actor ClaudeProvider: UsageProvider {
     let id = ProviderId.claude
     let pollInterval: TimeInterval = 600 // 10 min — remote API with tight rate limits
@@ -9,15 +14,11 @@ actor ClaudeProvider: UsageProvider {
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "ClaudeProvider")
 
     private let usageService = UsageService()
-    private let tokenRefreshService = TokenRefreshService()
-    private var cachedCredentials: KeychainService.OAuthCredentials?
-    private var lastTokenRefresh: Date?
 
-    /// Refresh proactively every 22 hours to stay ahead of per-token rate limits
-    private static let proactiveRefreshInterval: TimeInterval = 22 * 3600
+    /// Track the last token we used so we can detect when Claude Code has refreshed
+    private var lastUsedToken: String?
 
     func checkConnection() async -> ProviderConnectionState {
-        // Only check token presence — don't call the API here.
         if KeychainService.readAccessToken() != nil {
             return .connected(plan: "—")
         }
@@ -26,95 +27,43 @@ actor ClaudeProvider: UsageProvider {
     }
 
     func fetchUsage() async throws -> ProviderUsageSnapshot {
-        let token = try await getValidToken()
+        let token = try readToken()
+
+        // If Claude Code refreshed since our last fetch, we have a fresh token
+        // which also means a fresh rate-limit window — clear any backoff state
+        if let previous = lastUsedToken, token != previous {
+            Self.log.info("Detected token rotation by Claude Code — clearing rate limit backoff")
+            await usageService.resetRateLimit()
+        }
+        lastUsedToken = token
+
         do {
             let data = try await usageService.fetchUsage(token: token)
             return mapToSnapshot(data)
         } catch let error as AppError where error.isTokenExpired {
-            // Token might have been rotated — re-read and retry once
-            cachedCredentials = nil
-            let freshToken = try await getValidToken()
-            let data = try await usageService.fetchUsage(token: freshToken)
-            return mapToSnapshot(data)
-        } catch let error as AppError where error.isRateLimited {
-            // Rate limited — refresh the token to get a fresh rate limit window, then retry once
-            guard let creds = cachedCredentials, let refreshToken = creds.refreshToken else {
-                throw error
-            }
-            Self.log.info("429 received — refreshing token for fresh rate limit window")
-            do {
-                let result = try await tokenRefreshService.refresh(using: refreshToken)
-                cachedCredentials = KeychainService.OAuthCredentials(
-                    accessToken: result.accessToken,
-                    refreshToken: result.refreshToken,
-                    expiresAt: Date().addingTimeInterval(result.expiresIn)
-                )
-                // Reset the rate limit state so the retry isn't blocked
+            // Claude Code may have refreshed — re-read from Keychain and retry once
+            Self.log.info("Token expired — re-reading from Keychain")
+            let freshToken = try readToken()
+            if freshToken != token {
+                lastUsedToken = freshToken
                 await usageService.resetRateLimit()
-                let data = try await usageService.fetchUsage(token: result.accessToken)
+                let data = try await usageService.fetchUsage(token: freshToken)
                 return mapToSnapshot(data)
-            } catch {
-                Self.log.warning("Token refresh on 429 failed: \(error.localizedDescription)")
-                throw AppError.rateLimited(retryAfter: 300)
             }
+            throw error
         }
-    }
-
-    /// Clear cached credentials (called by ViewModel on auth errors)
-    func clearCachedToken() {
-        cachedCredentials = nil
-    }
-
-    // MARK: - Token Management
-
-    /// Returns a valid access token, refreshing if expired or stale (>22h old)
-    private func getValidToken() async throws -> String {
-        if cachedCredentials == nil {
-            cachedCredentials = KeychainService.readCredentials()
-        }
-
-        guard let creds = cachedCredentials else {
-            throw AppError.notAuthenticated
-        }
-
-        let needsExpiryRefresh = TokenRefreshService.needsRefresh(expiresAt: creds.expiresAt)
-        let needsProactiveRefresh: Bool = {
-            guard let lastRefresh = lastTokenRefresh else { return true } // Never refreshed this session
-            return Date().timeIntervalSince(lastRefresh) >= Self.proactiveRefreshInterval
-        }()
-
-        if needsExpiryRefresh || needsProactiveRefresh {
-            if let refreshToken = creds.refreshToken {
-                let reason = needsExpiryRefresh ? "expiring soon" : "proactive (>22h)"
-                Self.log.info("Refreshing token — \(reason)")
-                do {
-                    let result = try await tokenRefreshService.refresh(using: refreshToken)
-                    cachedCredentials = KeychainService.OAuthCredentials(
-                        accessToken: result.accessToken,
-                        refreshToken: result.refreshToken,
-                        expiresAt: Date().addingTimeInterval(result.expiresIn)
-                    )
-                    lastTokenRefresh = Date()
-                    // Fresh token = fresh rate limit window
-                    await usageService.resetRateLimit()
-                    return result.accessToken
-                } catch {
-                    Self.log.warning("Token refresh failed: \(error.localizedDescription) — using existing token")
-                }
-            }
-        }
-
-        return creds.accessToken
     }
 
     // MARK: - Private
 
-    private func readToken() -> String? {
-        KeychainService.readAccessToken()
+    private func readToken() throws -> String {
+        guard let token = KeychainService.readAccessToken() else {
+            throw AppError.notAuthenticated
+        }
+        return token
     }
 
     private func isClaudeCodeInstalled() -> Bool {
-        // Check for the credentials file or CLI binary in common paths.
         let paths = [
             "\(NSHomeDirectory())/.claude/.credentials.json",
             "/usr/local/bin/claude",

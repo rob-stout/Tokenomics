@@ -75,7 +75,7 @@ struct AboutView: View {
                     Divider()
 
                     // Built by
-                    Text("Built by Rob Stout \u{2014} Portfolio")
+                    Text("Built by Rob Stout")
                         .font(.caption)
                         .fontWeight(.medium)
 
@@ -83,7 +83,7 @@ struct AboutView: View {
                     VStack(spacing: 0) {
                         linkRow(
                             icon: "person.circle",
-                            label: "Rob Stout",
+                            label: "Rob Stout \u{2014} Portfolio",
                             url: "https://robrstout.com"
                         )
 

@@ -12,6 +12,15 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
+schemes:
+  Tokenomics:
+    build:
+      targets:
+        Tokenomics: all
+    run:
+      config: Debug
+    archive:
+      config: Release
 targets:
   Tokenomics:
     type: application
@@ -63,6 +72,7 @@ targets:
           CODE_SIGN_STYLE: Manual
           DEVELOPMENT_TEAM: RPDDQP7KZ5
           CODE_SIGN_IDENTITY: "Developer ID Application"
+          PROVISIONING_PROFILE_SPECIFIER: "Tokenomics Developer ID"
 
   TokenomicsWidgets:
     type: extensionkit-extension
@@ -105,3 +115,4 @@ targets:
           CODE_SIGN_STYLE: Manual
           DEVELOPMENT_TEAM: RPDDQP7KZ5
           CODE_SIGN_IDENTITY: "Developer ID Application"
+          PROVISIONING_PROFILE_SPECIFIER: "Tokenomics Widget Developer ID"

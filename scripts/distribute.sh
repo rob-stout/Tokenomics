@@ -69,7 +69,7 @@ YML_PATH="$PROJECT_ROOT/project.yml"
 APPCAST_PATH="$PROJECT_ROOT/appcast.xml"
 
 # Version comes from project.yml (set during development, committed before running this script)
-NEW_VERSION=$(grep 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+NEW_VERSION=$(grep -m1 'CFBundleShortVersionString:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
 [[ -n "$NEW_VERSION" ]] || die "Could not read CFBundleShortVersionString from project.yml"
 
 # Pull last shipped version and highest build from appcast.xml

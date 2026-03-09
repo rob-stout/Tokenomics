@@ -2,15 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Distribute outside the Mac App Store via Developer ID -->
 	<key>method</key>
 	<string>developer-id</string>
 
 	<key>teamID</key>
 	<string>RPDDQP7KZ5</string>
 
-	<!-- Let Xcode manage provisioning automatically -->
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.robstout.tokenomics</key>
+		<string>Tokenomics Developer ID</string>
+		<key>com.robstout.tokenomics.widgets</key>
+		<string>Tokenomics Widget Developer ID</string>
+	</dict>
+
+	<key>signingCertificate</key>
+	<string>Developer ID Application</string>
 </dict>
 </plist>
