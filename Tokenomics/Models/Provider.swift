@@ -102,6 +102,12 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
                 [.posixPermissions: 0o755],
                 ofItemAtPath: scriptFile.path
             )
+            // Remove quarantine so macOS doesn't flag the script as "damaged"
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            process.arguments = ["-d", "com.apple.quarantine", scriptFile.path]
+            try? process.run()
+            process.waitUntilExit()
             NSWorkspace.shared.open(scriptFile)
         } catch {
             NSPasteboard.general.clearContents()
@@ -119,10 +125,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
 
     /// Whether this provider uses a Personal Access Token instead of CLI-based auth
     var usesPATAuth: Bool {
-        switch self {
-        case .copilot: return true
-        default: return false
-        }
+        // All providers now have zero-friction auth
+        return false
     }
 
     /// Whether auth is handled automatically by the provider's own app (no CLI/PAT needed)

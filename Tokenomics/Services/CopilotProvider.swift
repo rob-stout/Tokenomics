@@ -1,23 +1,19 @@
 import Foundation
 import os
 
-/// GitHub Copilot usage provider — fetches premium request usage via GitHub REST API.
+/// GitHub Copilot usage provider — zero-friction auth via `gh` CLI token.
 ///
-/// Auth: Fine-grained Personal Access Token with "Plan" read permission,
-/// stored in our Keychain. Falls back to reading the GitHub CLI token from
-/// `~/.config/gh/hosts.yml` if present.
+/// Auth: reads the token from `gh auth token` (stored in the system keyring by
+/// the GitHub CLI). No PAT or manual setup required.
 ///
-/// API: `GET /users/{username}/settings/billing/premium_request/usage`
-/// Returns billing line items for the current month. The limit (e.g. 300 for
-/// Individual) is not exposed, so we hardcode known plan tiers.
+/// API: `GET https://api.github.com/copilot_internal/user` — returns remaining
+/// quotas, monthly limits, plan type, and reset date. Works for both free and
+/// paid users with the standard gh CLI token.
 actor CopilotProvider: UsageProvider {
     let id = ProviderId.copilot
-    let pollInterval: TimeInterval = 600 // 10 min — remote API
+    let pollInterval: TimeInterval = 300 // 5 min — lightweight internal endpoint
 
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "CopilotProvider")
-
-    /// Cached username to avoid re-fetching on every poll
-    private var cachedUsername: String?
 
     func checkConnection() async -> ProviderConnectionState {
         guard let token = readToken() else {
@@ -25,19 +21,13 @@ actor CopilotProvider: UsageProvider {
             return .notInstalled
         }
 
-        // Validate token with a lightweight /user call
         do {
-            let username = try await fetchUsername(token: token)
-            cachedUsername = username
-
-            // Try billing to detect plan; if it fails, still show connected
-            if let usage = try? await fetchBillingUsage(token: token, username: username) {
-                let plan = inferPlan(from: usage)
-                return .connected(plan: plan)
-            }
-            return .connected(plan: "Free")
+            let userInfo = try await fetchCopilotUser(token: token)
+            let plan = userInfo.planLabel
+            return .connected(plan: plan)
         } catch {
             Self.log.warning("Copilot connection check failed: \(error.localizedDescription)")
+            // Token exists but Copilot isn't enabled for this account
             return .installedNoAuth
         }
     }
@@ -47,59 +37,19 @@ actor CopilotProvider: UsageProvider {
             throw AppError.notAuthenticated
         }
 
-        let username: String
-        if let cached = cachedUsername {
-            username = cached
-        } else {
-            username = try await fetchUsername(token: token)
-            cachedUsername = username
-        }
-
-        do {
-            let usage = try await fetchBillingUsage(token: token, username: username)
-            return mapToSnapshot(usage)
-        } catch AppError.httpError(statusCode: 404) {
-            // 404 means the token lacks "Plan" scope or user is on free tier
-            // with no billing data. Return a snapshot indicating PAT is needed.
-            return noBillingDataSnapshot()
-        }
-    }
-
-    /// Snapshot shown when the billing endpoint isn't accessible (wrong scope or free plan)
-    private func noBillingDataSnapshot() -> ProviderUsageSnapshot {
-        let calendar = Calendar.current
-        let now = Date()
-        let nextMonth = calendar.date(byAdding: .month, value: 1, to: now) ?? now
-        let resetsAt = calendar.date(from: calendar.dateComponents([.year, .month], from: nextMonth)) ?? now
-        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
-
-        return ProviderUsageSnapshot(
-            shortWindow: WindowUsage(
-                label: "Premium Requests",
-                utilization: 0,
-                resetsAt: resetsAt,
-                windowDuration: resetsAt.timeIntervalSince(monthStart),
-                sublabelOverride: "Add a PAT with Plan scope for usage data"
-            ),
-            longWindow: nil,
-            planLabel: "Free",
-            extraUsage: nil,
-            creditsBalance: nil
-        )
+        let userInfo = try await fetchCopilotUser(token: token)
+        return mapToSnapshot(userInfo)
     }
 
     // MARK: - Token Reading
 
-    /// Read the GitHub PAT — checks our Keychain first, then `gh auth token` CLI
+    /// Read token via `gh auth token` (gh stores tokens in the system keyring)
     private func readToken() -> String? {
+        // Check for a manually-saved PAT first (legacy fallback)
         if let pat = CopilotKeychainService.readPAT() {
             return pat
         }
-        return readGitHubCLIToken()
-    }
 
-    /// Read token via `gh auth token` (gh stores tokens in the system keyring)
-    private func readGitHubCLIToken() -> String? {
         let ghPaths = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh"]
         guard let ghPath = ghPaths.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
             return nil
@@ -136,43 +86,17 @@ actor CopilotProvider: UsageProvider {
         return paths.contains { FileManager.default.fileExists(atPath: $0) }
     }
 
-    // MARK: - GitHub API
+    // MARK: - Copilot Internal API
 
-    /// Fetch the authenticated user's login name
-    private func fetchUsername(token: String) async throws -> String {
-        var request = URLRequest(url: URL(string: "https://api.github.com/user")!)
-        request.addGitHubHeaders(token: token)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validateResponse(response)
-
-        struct UserResponse: Decodable {
-            let login: String
-        }
-        let user = try JSONDecoder().decode(UserResponse.self, from: data)
-        return user.login
-    }
-
-    /// Fetch premium request billing for the current month
-    private func fetchBillingUsage(token: String, username: String) async throws -> CopilotBillingResponse {
-        let now = Date()
-        let calendar = Calendar.current
-        let year = calendar.component(.year, from: now)
-        let month = calendar.component(.month, from: now)
-
-        var components = URLComponents(string: "https://api.github.com/users/\(username)/settings/billing/premium_request/usage")!
-        components.queryItems = [
-            URLQueryItem(name: "year", value: "\(year)"),
-            URLQueryItem(name: "month", value: "\(month)")
-        ]
-
-        var request = URLRequest(url: components.url!)
-        request.addGitHubHeaders(token: token)
+    private func fetchCopilotUser(token: String) async throws -> CopilotUserInfo {
+        var request = URLRequest(url: URL(string: "https://api.github.com/copilot_internal/user")!)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("token \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateResponse(response)
 
-        return try JSONDecoder().decode(CopilotBillingResponse.self, from: data)
+        return try JSONDecoder().decode(CopilotUserInfo.self, from: data)
     }
 
     private func validateResponse(_ response: URLResponse) throws {
@@ -180,7 +104,8 @@ actor CopilotProvider: UsageProvider {
         switch http.statusCode {
         case 200...299: return
         case 401: throw AppError.tokenExpired
-        case 403: throw AppError.tokenExpired // PAT lacks required permission
+        case 403: throw AppError.notAuthenticated
+        case 404: throw AppError.httpError(statusCode: 404)
         case 429:
             let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
                 .flatMap { TimeInterval($0) }
@@ -192,100 +117,116 @@ actor CopilotProvider: UsageProvider {
 
     // MARK: - Mapping
 
-    private func mapToSnapshot(_ billing: CopilotBillingResponse) -> ProviderUsageSnapshot {
-        // Sum premium requests across all models
-        let totalUsed = billing.usageItems
-            .filter { $0.sku == "Copilot Premium Request" }
-            .reduce(0) { $0 + $1.grossQuantity }
+    private func mapToSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
+        let chatQuota = info.limitedUserQuotas?.chat ?? 0
+        let chatLimit = info.monthlyQuotas?.chat ?? 0
+        let chatUsed = chatLimit - chatQuota
 
-        // Known plan limits — GitHub doesn't expose these via API
-        let limit = inferLimit(from: billing)
-        let utilization = limit > 0 ? Double(totalUsed) / Double(limit) * 100 : 0
+        let completionsQuota = info.limitedUserQuotas?.completions ?? 0
+        let completionsLimit = info.monthlyQuotas?.completions ?? 0
+        let completionsUsed = completionsLimit - completionsQuota
 
-        // Monthly reset: 1st of next month
+        let chatUtilization = chatLimit > 0
+            ? Double(chatUsed) / Double(chatLimit) * 100 : 0
+        let completionsUtilization = completionsLimit > 0
+            ? Double(completionsUsed) / Double(completionsLimit) * 100 : 0
+
+        // Parse reset date
+        let resetsAt: Date
+        if let resetStr = info.limitedUserResetDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            resetsAt = formatter.date(from: resetStr) ?? Date.distantFuture
+        } else {
+            resetsAt = Date.distantFuture
+        }
+
+        // Estimate cycle start (reset date minus ~30 days)
         let calendar = Calendar.current
-        let now = Date()
-        let nextMonth = calendar.date(byAdding: .month, value: 1, to: now) ?? now
-        let resetsAt = calendar.date(from: calendar.dateComponents([.year, .month], from: nextMonth)) ?? now
-        let monthDuration = resetsAt.timeIntervalSince(
-            calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let cycleStart = calendar.date(byAdding: .month, value: -1, to: resetsAt) ?? Date()
+        let cycleDuration = resetsAt.timeIntervalSince(cycleStart)
+
+        // Short window: chat requests (the tighter constraint for most users)
+        let shortWindow = WindowUsage(
+            label: "Chat",
+            utilization: min(chatUtilization, 999),
+            resetsAt: resetsAt,
+            windowDuration: cycleDuration,
+            sublabelOverride: "\(chatUsed) / \(chatLimit) used"
         )
 
-        let plan = inferPlan(from: billing)
+        // Long window: completions (higher limit, secondary metric)
+        let longWindow: WindowUsage?
+        if completionsLimit > 0 {
+            longWindow = WindowUsage(
+                label: "Completions",
+                utilization: min(completionsUtilization, 999),
+                resetsAt: resetsAt,
+                windowDuration: cycleDuration,
+                sublabelOverride: "\(completionsUsed) / \(completionsLimit) used"
+            )
+        } else {
+            longWindow = nil
+        }
 
         return ProviderUsageSnapshot(
-            shortWindow: WindowUsage(
-                label: "Premium Requests",
-                utilization: min(utilization, 999),
-                resetsAt: resetsAt,
-                windowDuration: monthDuration,
-                sublabelOverride: "\(totalUsed) / \(limit) used"
-            ),
-            longWindow: nil,
-            planLabel: plan,
+            shortWindow: shortWindow,
+            longWindow: longWindow,
+            planLabel: info.planLabel,
             extraUsage: nil,
             creditsBalance: nil
         )
     }
-
-    /// Infer plan tier from billing data
-    private func inferPlan(from billing: CopilotBillingResponse) -> String {
-        let totalUsed = billing.usageItems
-            .filter { $0.sku == "Copilot Premium Request" }
-            .reduce(0) { $0 + $1.grossQuantity }
-
-        // If they have premium request usage, they're at least on Individual
-        // We can't reliably distinguish Pro from Individual via billing alone
-        if totalUsed > 0 { return "Individual" }
-        return "Free"
-    }
-
-    /// Known premium request limits per plan
-    private func inferLimit(from billing: CopilotBillingResponse) -> Int {
-        // GitHub Individual: 300/month, Pro: higher limits
-        // Default to Individual limit since we can't detect the plan tier
-        return SettingsService.copilotMonthlyLimit ?? 300
-    }
 }
 
-// MARK: - GitHub API Helpers
+// MARK: - Response Model
 
-private extension URLRequest {
-    mutating func addGitHubHeaders(token: String) {
-        setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+private struct CopilotUserInfo: Decodable {
+    let login: String?
+    let accessTypeSku: String?
+    let copilotPlan: String?
+    let chatEnabled: Bool?
+    let limitedUserQuotas: Quotas?
+    let limitedUserResetDate: String?
+    let monthlyQuotas: Quotas?
+
+    struct Quotas: Decodable {
+        let chat: Int?
+        let completions: Int?
     }
-}
 
-// MARK: - Response Models
-
-struct CopilotBillingResponse: Decodable, Sendable {
-    let usageItems: [CopilotUsageItem]
+    var planLabel: String {
+        guard let sku = accessTypeSku else { return "Free" }
+        switch sku {
+        case "free_limited_copilot": return "Free"
+        case "copilot_for_individual", "copilot_individual": return "Individual"
+        case "copilot_for_business", "copilot_business": return "Business"
+        case "copilot_enterprise": return "Enterprise"
+        default:
+            // Fall back to copilot_plan field
+            if let plan = copilotPlan {
+                return plan.prefix(1).uppercased() + plan.dropFirst()
+            }
+            return "Free"
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
-        case usageItems = "usageItems"
+        case login
+        case accessTypeSku = "access_type_sku"
+        case copilotPlan = "copilot_plan"
+        case chatEnabled = "chat_enabled"
+        case limitedUserQuotas = "limited_user_quotas"
+        case limitedUserResetDate = "limited_user_reset_date"
+        case monthlyQuotas = "monthly_quotas"
     }
 }
 
-struct CopilotUsageItem: Decodable, Sendable {
-    let product: String
-    let sku: String
-    let model: String
-    let unitType: String
-    let pricePerUnit: Double
-    let grossQuantity: Int
-    let grossAmount: Double
+// MARK: - Copilot Keychain (legacy PAT fallback)
 
-    enum CodingKeys: String, CodingKey {
-        case product, sku, model, unitType, pricePerUnit
-        case grossQuantity, grossAmount
-    }
-}
-
-// MARK: - Copilot Keychain
-
-/// Separate Keychain service for GitHub PAT storage
+/// Separate Keychain service for GitHub PAT storage.
+/// Kept as a fallback for users who manually entered a PAT before the
+/// zero-friction gh CLI integration was added.
 enum CopilotKeychainService {
     private static let service = "com.robstout.tokenomics.github-pat"
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "CopilotKeychain")
@@ -311,7 +252,6 @@ enum CopilotKeychainService {
     }
 
     static func savePAT(_ token: String) {
-        // Delete existing entry first
         deletePAT()
 
         guard let data = token.data(using: .utf8) else { return }
