@@ -8,6 +8,8 @@ import AppKit
 /// Supported AI coding tool providers
 enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     case claude
+    case copilot
+    case cursor
     case codex
     case gemini
 
@@ -16,8 +18,21 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     var displayName: String {
         switch self {
         case .claude: return "Claude Code"
+        case .copilot: return "GitHub Copilot"
+        case .cursor: return "Cursor"
         case .codex: return "Codex CLI"
         case .gemini: return "Gemini CLI"
+        }
+    }
+
+    /// Shorter name for tab bars where horizontal space is limited
+    var tabLabel: String {
+        switch self {
+        case .claude: return "Claude"
+        case .copilot: return "Copilot"
+        case .cursor: return "Cursor"
+        case .codex: return "Codex"
+        case .gemini: return "Gemini"
         }
     }
 
@@ -25,6 +40,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     var shortLabel: String {
         switch self {
         case .claude: return "C"
+        case .copilot: return "P"
+        case .cursor: return "U"
         case .codex: return "X"
         case .gemini: return "G"
         }
@@ -34,6 +51,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     var loginCommand: String {
         switch self {
         case .claude: return "claude"
+        case .copilot: return "gh auth login"
+        case .cursor: return "open -a Cursor"
         case .codex: return "codex login"
         case .gemini: return "gemini login"
         }
@@ -94,7 +113,23 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     /// Whether this provider exposes rate-limit / usage data
     var supportsUsageTracking: Bool {
         switch self {
-        case .claude, .codex, .gemini: return true
+        case .claude, .copilot, .cursor, .codex, .gemini: return true
+        }
+    }
+
+    /// Whether this provider uses a Personal Access Token instead of CLI-based auth
+    var usesPATAuth: Bool {
+        switch self {
+        case .copilot: return true
+        default: return false
+        }
+    }
+
+    /// Whether auth is handled automatically by the provider's own app (no CLI/PAT needed)
+    var hasAutoAuth: Bool {
+        switch self {
+        case .cursor: return true
+        default: return false
         }
     }
 
@@ -102,6 +137,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     var installCommand: String {
         switch self {
         case .claude: return "npm install -g @anthropic-ai/claude-code"
+        case .copilot: return "brew install gh"
+        case .cursor: return "brew install --cask cursor"
         case .codex: return "npm install -g @openai/codex"
         case .gemini: return "npm install -g @google/gemini-cli"
         }
@@ -184,7 +221,8 @@ enum ProviderConnectionState: Sendable, Equatable {
 /// Provider-agnostic usage data that the UI renders
 struct ProviderUsageSnapshot: Codable, Sendable {
     let shortWindow: WindowUsage
-    let longWindow: WindowUsage
+    /// Nil for providers that only expose a single usage metric (e.g. Copilot premium requests).
+    let longWindow: WindowUsage?
     let planLabel: String
     let extraUsage: ExtraUsage?
     let creditsBalance: String?

@@ -51,12 +51,19 @@ struct MenuBarLabel: View {
     @ViewBuilder
     private var ringLabel: some View {
         if let usage = activeUsage {
-            Image(nsImage: MenuBarRingsRenderer.image(
-                fiveHourFraction: usage.shortWindow.utilization / 100,
-                sevenDayFraction: usage.longWindow.utilization / 100,
-                fiveHourPace: usage.shortWindow.pace,
-                sevenDayPace: usage.longWindow.pace
-            ))
+            if let longWindow = usage.longWindow {
+                Image(nsImage: MenuBarRingsRenderer.image(
+                    fiveHourFraction: usage.shortWindow.utilization / 100,
+                    sevenDayFraction: longWindow.utilization / 100,
+                    fiveHourPace: usage.shortWindow.pace,
+                    sevenDayPace: longWindow.pace
+                ))
+            } else {
+                Image(nsImage: MenuBarRingsRenderer.singleRingImage(
+                    fraction: usage.shortWindow.utilization / 100,
+                    pace: usage.shortWindow.pace
+                ))
+            }
 
             Text("\(Int(usage.shortWindow.utilization))%")
                 .font(.caption)

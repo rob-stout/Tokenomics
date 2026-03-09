@@ -11,6 +11,7 @@ enum MenuBarRingsRenderer {
     // rings and percentage text survives MenuBarExtra layout compression.
     private static let trailingPadding: CGFloat = 6
 
+    /// Renders two concentric rings (short window inside, long window outside).
     static func image(
         fiveHourFraction: Double,
         sevenDayFraction: Double,
@@ -29,6 +30,23 @@ enum MenuBarRingsRenderer {
             sevenDayFraction: sevenDayFraction,
             fiveHourPace: fiveHourPace,
             sevenDayPace: sevenDayPace
+        ))
+        image.isTemplate = true
+        return image
+    }
+
+    /// Renders a single, slightly thicker ring for providers with only one usage metric.
+    static func singleRingImage(fraction: Double, pace: Double) -> NSImage {
+        let ptSize: CGFloat = 22
+        let pxSize: CGFloat = 44
+        let totalPtWidth = ptSize + trailingPadding
+        let totalPxWidth = pxSize + trailingPadding * 2
+
+        let image = NSImage(size: NSSize(width: totalPtWidth, height: ptSize))
+        image.addRepresentation(renderSingleRing(
+            pxWidth: totalPxWidth, pxHeight: pxSize, ptWidth: totalPtWidth, ptHeight: ptSize,
+            fraction: fraction,
+            pace: pace
         ))
         image.isTemplate = true
         return image
@@ -147,5 +165,60 @@ enum MenuBarRingsRenderer {
 
     private static func clamp(_ value: Double) -> Double {
         min(max(value, 0), 1)
+    }
+
+    /// Single-ring renderer: uses the midpoint radius and a slightly thicker stroke
+    /// so it fills the same visual space as the two-ring variant.
+    private static func renderSingleRing(
+        pxWidth: CGFloat, pxHeight: CGFloat, ptWidth: CGFloat, ptHeight: CGFloat,
+        fraction: Double,
+        pace: Double
+    ) -> NSBitmapImageRep {
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(pxWidth),
+            pixelsHigh: Int(pxHeight),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return NSBitmapImageRep()
+        }
+        rep.size = NSSize(width: ptWidth, height: ptHeight)
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        guard let ctx = NSGraphicsContext.current?.cgContext else {
+            NSGraphicsContext.restoreGraphicsState()
+            return rep
+        }
+
+        let ringSize: CGFloat = 22
+        let center = CGPoint(x: ringSize / 2, y: ptHeight / 2)
+        // Midpoint between outer (9) and inner (5.5) radius — sits in the center of the ring space
+        let radius: CGFloat = 7.25
+        let strokeWidth: CGFloat = 5   // Thicker than either individual ring to fill the gap
+        let paceDotRadius: CGFloat = 1.375
+
+        let trackAlpha: CGFloat = 0.15
+        let fillAlpha: CGFloat = 0.45
+
+        drawArc(in: ctx, center: center, radius: radius,
+                fraction: 1.0, strokeWidth: strokeWidth,
+                color: CGColor(gray: 1, alpha: trackAlpha), roundCap: false)
+
+        drawArc(in: ctx, center: center, radius: radius,
+                fraction: clamp(fraction), strokeWidth: strokeWidth,
+                color: CGColor(gray: 1, alpha: fillAlpha), roundCap: true)
+
+        drawPaceDot(in: ctx, center: center, ringRadius: radius,
+                    pace: clamp(pace), dotRadius: paceDotRadius)
+
+        NSGraphicsContext.restoreGraphicsState()
+        return rep
     }
 }

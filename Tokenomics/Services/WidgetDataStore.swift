@@ -27,7 +27,8 @@ enum WidgetDataStore {
             let displayName: String
             let shortLabel: String
             let shortWindow: WindowEntry
-            let longWindow: WindowEntry
+            /// Nil for providers that only expose a single usage metric.
+            let longWindow: WindowEntry?
             let planLabel: String
         }
 
@@ -93,12 +94,14 @@ enum WidgetDataStore {
                     resetsAt: snapshot.shortWindow.resetsAt,
                     windowDuration: snapshot.shortWindow.windowDuration
                 ),
-                longWindow: .init(
-                    label: widgetLabel(snapshot.longWindow.label),
-                    utilization: snapshot.longWindow.utilization,
-                    resetsAt: snapshot.longWindow.resetsAt,
-                    windowDuration: snapshot.longWindow.windowDuration
-                ),
+                longWindow: snapshot.longWindow.map { long in
+                    .init(
+                        label: widgetLabel(long.label),
+                        utilization: long.utilization,
+                        resetsAt: long.resetsAt,
+                        windowDuration: long.windowDuration
+                    )
+                },
                 planLabel: snapshot.planLabel
             )
         }

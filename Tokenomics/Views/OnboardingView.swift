@@ -86,8 +86,14 @@ struct OnboardingView: View {
 
             switch connection {
             case .notInstalled:
-                Button("Install") {
-                    provider.openInstallInTerminal()
+                Button(provider.usesPATAuth ? "Connect" : "Install") {
+                    if provider.usesPATAuth {
+                        viewModel.completeOnboarding()
+                        viewModel.showSettings = true
+                        viewModel.showAIConnections = true
+                    } else {
+                        provider.openInstallInTerminal()
+                    }
                 }
                 .font(.caption2)
                 .padding(.horizontal, 10)
@@ -98,17 +104,47 @@ struct OnboardingView: View {
                 )
                 .buttonStyle(.plain)
             case .installedNoAuth:
-                Button("Sign In") {
-                    provider.openLoginInTerminal()
+                if provider.usesPATAuth {
+                    Button("Connect") {
+                        viewModel.completeOnboarding()
+                        viewModel.showSettings = true
+                        viewModel.showAIConnections = true
+                    }
+                    .font(.caption2)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                } else if provider.hasAutoAuth {
+                    Button("Open \(provider.tabLabel)") {
+                        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.todesktop.230313mzl4w4u92") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .font(.caption2)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                } else {
+                    Button("Sign In") {
+                        provider.openLoginInTerminal()
+                    }
+                    .font(.caption2)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
                 }
-                .font(.caption2)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 3)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                )
-                .buttonStyle(.plain)
             default:
                 EmptyView()
             }

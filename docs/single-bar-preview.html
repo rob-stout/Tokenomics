@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tokenomics — One Bar vs Two Bar Provider Comparison</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; justify-content: center; padding: 40px 20px; gap: 60px; flex-wrap: wrap; }
+
+  .section { text-align: center; }
+  .section h2 { font-size: 13px; color: #888; margin-bottom: 20px; font-weight: 500; letter-spacing: 0.5px; }
+  .section h3 { font-size: 11px; color: #666; margin-bottom: 12px; font-weight: 400; }
+
+  /* Popover mock */
+  .popover { width: 320px; background: #252540; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); margin-bottom: 24px; }
+  .popover-header { padding: 12px 16px 8px; display: flex; justify-content: space-between; align-items: center; }
+  .popover-header h1 { font-size: 14px; font-weight: 600; }
+  .badge { font-size: 10px; background: #333355; padding: 2px 8px; border-radius: 8px; color: #aaa; }
+
+  .tabs { display: flex; border-bottom: 1px solid #333355; }
+  .tab { flex: 1; text-align: center; padding: 8px 0; font-size: 11px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: #e0e0e0; border-bottom-color: #7c7cff; }
+
+  .usage-section { padding: 12px 16px; }
+  .divider { height: 1px; background: #333355; margin: 0 16px; }
+
+  .bar-group { margin: 8px 0; }
+  .bar-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .bar-label-text { font-size: 11px; color: #ccc; }
+  .bar-label-pct { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bar-sublabel { font-size: 10px; color: #666; margin-top: 3px; }
+
+  .bar-track { height: 6px; background: #333355; border-radius: 3px; position: relative; overflow: visible; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .bar-fill.green { background: linear-gradient(90deg, #4ade80, #22c55e); }
+  .bar-fill.orange { background: linear-gradient(90deg, #fb923c, #f97316); }
+  .bar-fill.red { background: linear-gradient(90deg, #f87171, #ef4444); }
+
+  .pace-dot { width: 6px; height: 6px; background: white; border-radius: 50%; position: absolute; top: 0; box-shadow: 0 0 3px rgba(255,255,255,0.5); }
+
+  /* Menu bar icons */
+  .menubar-row { display: flex; gap: 32px; justify-content: center; margin-top: 20px; }
+  .menubar-item { text-align: center; }
+  .menubar-item span { display: block; font-size: 10px; color: #666; margin-top: 6px; }
+
+  .ring-container { width: 48px; height: 48px; position: relative; display: flex; align-items: center; justify-content: center; }
+
+  /* Comparison labels */
+  .compare-label { font-size: 11px; color: #7c7cff; font-weight: 600; margin: 16px 0 8px; text-align: left; padding: 0 16px; }
+
+  /* Annotation */
+  .annotation { background: #1e1e38; border: 1px solid #333355; border-radius: 8px; padding: 12px 16px; margin-top: 16px; max-width: 320px; }
+  .annotation p { font-size: 11px; color: #999; line-height: 1.5; }
+  .annotation strong { color: #ccc; }
+</style>
+</head>
+<body>
+
+<!-- CURRENT: Two-bar provider (Claude) -->
+<div class="section">
+  <h2>CURRENT: TWO-BAR PROVIDER</h2>
+  <h3>Claude Code, Codex, Gemini</h3>
+
+  <div class="popover">
+    <div class="popover-header">
+      <h1>Tokenomics</h1>
+      <div class="badge">Max 5</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active">C</div>
+      <div class="tab">X</div>
+      <div class="tab">G</div>
+    </div>
+
+    <div class="usage-section">
+      <div class="bar-group">
+        <div class="bar-label">
+          <span class="bar-label-text">5-Hour Window</span>
+          <span class="bar-label-pct" style="color: #fb923c;">72%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill orange" style="width: 72%;"></div>
+          <div class="pace-dot" style="left: 58%;"></div>
+        </div>
+        <div class="bar-sublabel">Resets in 2h 14m</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="usage-section">
+      <div class="bar-group">
+        <div class="bar-label">
+          <span class="bar-label-text">7-Day Window</span>
+          <span class="bar-label-pct" style="color: #4ade80;">34%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill green" style="width: 34%;"></div>
+          <div class="pace-dot" style="left: 42%;"></div>
+        </div>
+        <div class="bar-sublabel">Resets Wednesday</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-ring menu bar icon -->
+  <h3>Menu Bar Icon (two rings)</h3>
+  <div class="menubar-row">
+    <div class="menubar-item">
+      <div class="ring-container">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <!-- Outer ring track -->
+          <circle cx="24" cy="24" r="21" fill="none" stroke="#333355" stroke-width="3"/>
+          <!-- Outer ring fill (34%) -->
+          <circle cx="24" cy="24" r="21" fill="none" stroke="#4ade80" stroke-width="3"
+            stroke-dasharray="132" stroke-dashoffset="87"
+            transform="rotate(-90 24 24)" stroke-linecap="round"/>
+          <!-- Inner ring track -->
+          <circle cx="24" cy="24" r="15" fill="none" stroke="#333355" stroke-width="3"/>
+          <!-- Inner ring fill (72%) -->
+          <circle cx="24" cy="24" r="15" fill="none" stroke="#fb923c" stroke-width="3"
+            stroke-dasharray="94" stroke-dashoffset="26"
+            transform="rotate(-90 24 24)" stroke-linecap="round"/>
+          <!-- Percentage -->
+          <text x="24" y="27" text-anchor="middle" font-size="10" fill="#e0e0e0" font-weight="600" font-family="-apple-system">72</text>
+        </svg>
+      </div>
+      <span>Claude</span>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <p><strong>Two bars, two rings.</strong> Each bar maps to a ring. Inner ring = short window (immediate constraint). Outer ring = long window (broader picture). Pace dots show if you're ahead or behind even usage.</p>
+  </div>
+</div>
+
+<!-- NEW: One-bar provider (Copilot, Cursor, Midjourney) -->
+<div class="section">
+  <h2>NEW: ONE-BAR PROVIDER</h2>
+  <h3>Copilot, Cursor, Midjourney, etc.</h3>
+
+  <div class="popover">
+    <div class="popover-header">
+      <h1>Tokenomics</h1>
+      <div class="badge">Pro</div>
+    </div>
+    <div class="tabs">
+      <div class="tab">C</div>
+      <div class="tab">X</div>
+      <div class="tab">G</div>
+      <div class="tab active" style="color: #e0e0e0; border-bottom-color: #7c7cff;">Co</div>
+    </div>
+
+    <div class="usage-section">
+      <div class="bar-group">
+        <div class="bar-label">
+          <span class="bar-label-text">Premium Requests</span>
+          <span class="bar-label-pct" style="color: #4ade80;">156 / 300</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill green" style="width: 52%;"></div>
+          <!-- No pace dot — not time-based -->
+        </div>
+        <div class="bar-sublabel">Renews April 1</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spacer to match height -->
+  <div style="height: 68px;"></div>
+
+  <!-- Copilot: single thick ring -->
+  <h3>Menu Bar Icon (single thick ring)</h3>
+  <div class="menubar-row">
+    <div class="menubar-item">
+      <div class="ring-container">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <!-- Single ring track -->
+          <circle cx="24" cy="24" r="18" fill="none" stroke="#333355" stroke-width="6"/>
+          <!-- Single ring fill (52%) -->
+          <circle cx="24" cy="24" r="18" fill="none" stroke="#4ade80" stroke-width="6"
+            stroke-dasharray="113" stroke-dashoffset="54"
+            transform="rotate(-90 24 24)" stroke-linecap="round"/>
+          <!-- Percentage -->
+          <text x="24" y="27" text-anchor="middle" font-size="10" fill="#e0e0e0" font-weight="600" font-family="-apple-system">52</text>
+        </svg>
+      </div>
+      <span>Copilot</span>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <p><strong>One bar, one ring.</strong> Credit-based tools have a single metric (used vs. budget). No second bar needed. No pace dot (credits aren't time-paced). The ring is thicker to fill the same visual space — actually cleaner and easier to read at a glance.</p>
+  </div>
+</div>
+
+<!-- CREATIVE TOOL EXAMPLE -->
+<div class="section">
+  <h2>FUTURE: CREATIVE TOOL</h2>
+  <h3>Midjourney, Runway, Figma AI</h3>
+
+  <div class="popover">
+    <div class="popover-header">
+      <h1>Tokenomics</h1>
+      <div class="badge">Standard</div>
+    </div>
+    <div class="tabs">
+      <div class="tab">C</div>
+      <div class="tab">X</div>
+      <div class="tab">G</div>
+      <div class="tab">Co</div>
+      <div class="tab active" style="color: #e0e0e0; border-bottom-color: #7c7cff;">Mj</div>
+    </div>
+
+    <div class="usage-section">
+      <div class="bar-group">
+        <div class="bar-label">
+          <span class="bar-label-text">Fast GPU Hours</span>
+          <span class="bar-label-pct" style="color: #fb923c;">1.2h / 3.3h</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill orange" style="width: 64%;"></div>
+        </div>
+        <div class="bar-sublabel">Renews March 15</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 68px;"></div>
+
+  <!-- Midjourney: single thick ring, orange -->
+  <h3>Menu Bar Icon (single thick ring)</h3>
+  <div class="menubar-row">
+    <div class="menubar-item">
+      <div class="ring-container">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="18" fill="none" stroke="#333355" stroke-width="6"/>
+          <circle cx="24" cy="24" r="18" fill="none" stroke="#fb923c" stroke-width="6"
+            stroke-dasharray="113" stroke-dashoffset="41"
+            transform="rotate(-90 24 24)" stroke-linecap="round"/>
+          <text x="24" y="27" text-anchor="middle" font-size="10" fill="#e0e0e0" font-weight="600" font-family="-apple-system">64</text>
+        </svg>
+      </div>
+      <span>Midjourney</span>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <p><strong>Same pattern, different data.</strong> Midjourney's "Fast GPU Hours" works exactly like a usage bar — just credits instead of API requests. The label and sublabel change, but the bar, ring, and color system all work as-is. No UI redesign needed.</p>
+  </div>
+</div>
+
+<!-- COMBINED MENU BAR -->
+<div class="section" style="width: 100%; max-width: 800px;">
+  <h2>MENU BAR: ALL PROVIDERS TOGETHER</h2>
+  <h3>Two-ring providers mix with single-ring providers seamlessly</h3>
+
+  <div style="display: flex; gap: 16px; justify-content: center; background: #1e1e38; border-radius: 12px; padding: 20px 32px; margin-top: 8px;">
+    <!-- Claude: two rings -->
+    <div class="menubar-item">
+      <div class="ring-container">
+        <svg width="40" height="40" viewBox="0 0 40 40">
+          <circle cx="20" cy="20" r="17" fill="none" stroke="#333355" stroke-width="2.5"/>
+          <circle cx="20" cy="20" r="17" fill="none" stroke="#4ade80" stroke-width="2.5"
+            stroke-dasharray="107" stroke-dashoffset="70" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+          <circle cx="20" cy="20" r="12" fill="none" stroke="#333355" stroke-width="2.5"/>
+          <circle cx="20" cy="20" r="12" fill="none" stroke="#fb923c" stroke-width="2.5"
+            stroke-dasharray="75" stroke-dashoffset="21" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+          <text x="20" y="23" text-anchor="middle" font-size="8" fill="#e0e0e0" font-weight="600" font-family="-apple-system">72</text>
+        </svg>
+      </div>
+      <span>Claude</span>
+    </div>
+
+    <!-- Codex: two rings -->
+    <div class="menubar-item">
+      <div class="ring-container">
+        <svg width="40" height="40" viewBox="0 0 40 40">
+          <circle cx="20" cy="20" r="17" fill="none" stroke="#333355" stroke-width="2.5"/>
+          <circle cx="20" cy="20" r="17" fill="none" stroke="#4ade80" stroke-width="2.5"
+            stroke-dasharray="107" stroke-dashoffset="86" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+          <circle cx="20" cy="20" r="12" fill="none" stroke="#333355" stroke-width="2.5"/>
+          <circle cx="20" cy="20" r="12" fill="none" stroke="#4ade80" stroke-width="2.5"
+            stroke-dasharray="75" stroke-dashoffset="53" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+          <text x="20" y="23" text-anchor="middle" font-size="8" fill="#e0e0e0" font-weight="600" font-family="-apple-system">30</text>
+        </svg>
+      </div>
+      <span>Codex</span>
+    </div>
+
+    <!-- Copilot: single thick ring -->
+    <div class="menubar-item">
+      <div class="ring-container">
+        <svg width="40" height="40" viewBox="0 0 40 40">
+          <circle cx="20" cy="20" r="14.5" fill="none" stroke="#333355" stroke-width="5"/>
+          <circle cx="20" cy="20" r="14.5" fill="none" stroke="#4ade80" stroke-width="5"
+            stroke-dasharray="91" stroke-dashoffset="44" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+          <text x="20" y="23" text-anchor="middle" font-size="8" fill="#e0e0e0" font-weight="600" font-family="-apple-system">52</text>
+        </svg>
+      </div>
+      <span>Copilot</span>
+    </div>
+
+    <!-- Midjourney: single thick ring, orange -->
+    <div class="menubar-item">
+      <div class="ring-container">
+        <svg width="40" height="40" viewBox="0 0 40 40">
+          <circle cx="20" cy="20" r="14.5" fill="none" stroke="#333355" stroke-width="5"/>
+          <circle cx="20" cy="20" r="14.5" fill="none" stroke="#fb923c" stroke-width="5"
+            stroke-dasharray="91" stroke-dashoffset="33" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+          <text x="20" y="23" text-anchor="middle" font-size="8" fill="#e0e0e0" font-weight="600" font-family="-apple-system">64</text>
+        </svg>
+      </div>
+      <span>Midjourney</span>
+    </div>
+  </div>
+
+  <div class="annotation" style="max-width: 600px; margin: 16px auto 0;">
+    <p><strong>The key insight:</strong> Two-ring providers (rate-limit tools with two windows) and single-ring providers (credit-based tools with one metric) look natural side by side. The thicker ring fills the same visual footprint. No UI redesign needed — just one optional field in the data model.</p>
+  </div>
+</div>
+
+</body>
+</html>

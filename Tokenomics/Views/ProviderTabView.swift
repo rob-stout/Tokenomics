@@ -10,7 +10,7 @@ struct ProviderTabView: View {
             ForEach(providers) { provider in
                 let isSelected = selection == provider
                 Button(action: { selection = provider }) {
-                    Text(provider.displayName)
+                    Text(provider.tabLabel)
                         .font(.caption)
                         .fontWeight(.medium)
                         .padding(.vertical, 6)

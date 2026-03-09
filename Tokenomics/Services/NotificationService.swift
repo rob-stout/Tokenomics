@@ -67,12 +67,22 @@ final class NotificationService: ObservableObject {
                 config: config
             )
         case .long:
-            evaluateWindow(
-                providerId: providerId,
-                window: snapshot.longWindow,
-                windowKey: "long",
-                config: config
-            )
+            // Fall back to the short window when the provider has no long window
+            if let longWindow = snapshot.longWindow {
+                evaluateWindow(
+                    providerId: providerId,
+                    window: longWindow,
+                    windowKey: "long",
+                    config: config
+                )
+            } else {
+                evaluateWindow(
+                    providerId: providerId,
+                    window: snapshot.shortWindow,
+                    windowKey: "short",
+                    config: config
+                )
+            }
         case .both:
             evaluateWindow(
                 providerId: providerId,
@@ -80,12 +90,14 @@ final class NotificationService: ObservableObject {
                 windowKey: "short",
                 config: config
             )
-            evaluateWindow(
-                providerId: providerId,
-                window: snapshot.longWindow,
-                windowKey: "long",
-                config: config
-            )
+            if let longWindow = snapshot.longWindow {
+                evaluateWindow(
+                    providerId: providerId,
+                    window: longWindow,
+                    windowKey: "long",
+                    config: config
+                )
+            }
         }
     }
 

@@ -44,6 +44,71 @@ On the legal and strategy side: the source-available licensing decision deserves
 
 ---
 
+## 2026-03-09 — Widgets, IA Redesign, and Rate Limit Defense
+
+**Phase**: The Craft — platform constraints, information architecture, and resilient data fetching
+
+**What I Did**: Shipped a macOS WidgetKit extension with two configurable widget families, redesigned the app's information architecture by splitting "About Tokenomics" into two purpose-driven screens, and implemented a three-layer defense against Anthropic's OAuth rate limit bug. Each of these was driven by a distinct problem — discoverability, user intent mismatch, and silent data staleness — not by a feature roadmap.
+
+**Why It Matters**: Widgets extend the app's core concept — ambient usage awareness — to the desktop surface users actually stare at between coding sessions. The IA redesign reflects a principle I use in product work constantly: content designed for two different user intents (confused vs. curious) cannot live comfortably on the same screen. And the rate limit defense demonstrates that graceful degradation is a design problem as much as an engineering one — the right question isn't "what do we show when the API fails?" but "how do we make the failure invisible to users who don't need to know about it?"
+
+**Key Decisions**:
+
+1. **File-based App Group storage over UserDefaults for widget data.** The main app is non-sandboxed (it reads credential files from `~/.claude/`, `~/.codex/`, `~/.gemini/`). Widget extensions must be sandboxed. `UserDefaults(suiteName:)` uses CFPreferences, which behaves unreliably when one process in a shared suite is sandboxed and one is not. The solution was file-based storage in the shared App Group container — the main app writes a JSON snapshot, the widget reads it. This is a more explicit contract than UserDefaults and sidesteps the CFPrefs sandbox boundary entirely. The trade-off: a small amount of serialization code that UserDefaults would have handled automatically. Worth it for the reliability.
+
+2. **App sandbox entitlement required for widget gallery visibility.** This is undocumented. A widget extension that appears structurally correct — correct Info.plist, correct entitlements for App Group, correct widget timeline provider — will not appear in the macOS widget gallery if the `com.apple.security.app-sandbox` entitlement is absent. No error is surfaced; the widget simply doesn't show up. Discovering this required testing on a clean install, not a simulator. The fix is a one-line entitlements addition, but finding it cost time that better documentation would have prevented.
+
+3. **"Smart" mode as a widget configuration option.** The widget's `AppIntent` lets users choose between Smart (worst-of-N utilization across all installed providers) or a specific provider (Claude, Codex, Gemini). This mirrors the menu bar's Smart vs. pin behavior. The key insight: a small widget has one number to show, and the worst-of-N utilization is the number that requires action. Defaulting to Smart means the widget is useful immediately after install, without configuration. The provider-specific options exist for users who want to watch a single tool.
+
+4. **Split "About Tokenomics" into "How It Works" and "About Tokenomics."** The monolithic About screen was serving two different jobs simultaneously: (a) helping confused users understand the UI, and (b) telling the story of what the app is and who built it. Users in state (a) are scanning for a specific answer — they want a legend, a quick explanation of the ring metaphor, how data is fetched. Users in state (b) are reading a short narrative — they want identity, provenance, a link to learn more. Scanning and narrative reading are different cognitive modes, and combining them on one screen means neither job gets done well. The split was recommended by a designer agent and refined based on my input: keep the version number in the Quit row (it's utility context, not marketing), avoid "open source" language in favor of a direct portfolio link.
+
+5. **Desktop Widgets explainer moved from Settings to How It Works.** The explainer for the macOS "access data from other apps" permission dialog was previously a paragraph of explanatory text living inside a Settings list of action rows — a clear affordance mismatch. Action rows prompt behavior; explanatory text teaches. Moving it to How It Works put it next to the other conceptual explanations (how rings work, how data is fetched), where a user who encounters the permission dialog will naturally look for context.
+
+6. **Three-layer rate limit defense for Anthropic's OAuth endpoint.** Anthropic's usage endpoint has a known bug: approximately 5 requests per OAuth token before returning 429. The layered response: (a) proactive token refresh every ~22 hours, staying ahead of the per-token limit before hitting it; (b) reactive refresh on any 429 response as a recovery path; (c) cached data fallback with "Updated Xm ago" microcopy when both strategies fail. This is deliberate systems thinking — no single layer is sufficient, but together they make the failure invisible in normal use.
+
+7. **"Updated Xm ago" as the stale data signal.** The original stale data indicator was "Rate limited · showing cached data" — accurate but alarming. It implies failure and invites the user to question whether the data is trustworthy. The replacement, an orange-tinted "Updated Xm ago" with a tooltip, communicates the same information without the negative frame. "Updated 4m ago" is how weather apps, dashboards, and news feeds handle stale data. It implies the system is working and gives the user a simple way to assess the data's age. Microcopy that informs without alarming is a design choice, not a euphemism.
+
+**What I Learned**: The widget gallery discoverability bug (missing sandbox entitlement) is a good example of how platform constraints can be invisible until you test in the right context. Simulator testing wouldn't have caught it. This is a category of problem that shows up repeatedly in mobile and desktop platform work: the gap between "builds without error" and "works for users" is often a deployment-context issue, not a logic issue. The solution is always some version of testing in the most production-like environment available, earlier than feels necessary.
+
+The IA split reinforced something I use in design work but don't always articulate cleanly: the right question for any screen or surface is "what is the user's intent when they arrive here?" Not "what information do we have?" Not "what do we want them to know?" When intent is well-defined, content organization becomes obvious. When intent is ambiguous or composite, the screen fights itself.
+
+**Artifacts to Capture**:
+- Screenshot: small widget in macOS widget gallery — ring showing worst-of-N utilization
+- Screenshot: medium widget — multi-provider dashboard with all three providers visible
+- Screenshot: widget configuration interface — Smart vs. specific provider AppIntent
+- Screenshot: How It Works screen — legend, data fetching explanation, Desktop Widgets explainer
+- Screenshot: About Tokenomics screen — identity narrative, Rob Stout portfolio link, Buy Me a Coffee
+- Side-by-side: old monolithic About screen vs. the two new purpose-driven screens
+- Screenshot: "Updated Xm ago" stale data indicator with orange tint vs. old "Rate limited" message
+- Code snippet: App Group file-based storage write/read pattern — shows the explicit serialization contract that sidesteps the CFPrefs sandbox issue
+- Code snippet: three-layer token refresh logic — proactive 22-hour refresh, reactive 429 handler, cached fallback
+- Diagram: widget data flow — main app writes JSON to App Group container → widget extension reads on timeline refresh
+
+**Story Thread**: This entry sits at the intersection of "The Build" and "The Craft" arcs. The widget extension is new surface area — the concept of ambient usage awareness now lives on the desktop, not just in the menu bar. The IA redesign and microcopy decisions are pure craft — small choices with measurable impact on how the app feels to someone who doesn't know how it works yet. The rate limit defense is engineering in service of design: the goal was never to handle a 429 correctly, it was to make the API's instability invisible to users who shouldn't have to think about it.
+
+---
+
+## 2026-03-09 — v2.2.6: Homebrew Cask Distribution
+
+**Phase**: The Build — distribution strategy as a user experience decision
+
+**What I Did**: Added a Homebrew Cask installer as a parallel distribution channel alongside the existing direct DMG download. Users who prefer the terminal can now install with `brew install --cask tokenomics` and receive the same signed, notarized binary as the DMG path.
+
+**Why It Matters**: Distribution is a UX decision. The target users for Tokenomics are developers who spend their working day in the terminal — they installed Claude Code, Codex CLI, and Gemini CLI from the command line, they manage their tools with package managers, and they are mildly annoyed by anything that breaks that pattern. Offering only a DMG download is a small friction point that accumulates: find the GitHub release page, click download, open the DMG, drag to Applications, eject, dismiss Gatekeeper. For a developer, `brew install --cask tokenomics` followed by a return key is not a convenience — it is the expected path. Offering a Homebrew Cask is meeting your audience in their environment, not asking them to step into yours.
+
+**Key Decision**: Support two distribution channels rather than consolidating on one. The trade-off is maintenance overhead — both the DMG and the Cask formula need to be updated on each release — against adoption friction for the primary user persona. The overhead is small (the Cask formula is a short file that references the same GitHub Release asset already being published) and the friction reduction is real. The correct answer for a developer tool targeting developers is to have both. A direct download link matters for discoverability (GitHub search, web search, landing pages). A Homebrew Cask matters for the moment of installation.
+
+**What I Learned**: The decision exposed a broader principle: distribution channels are not fungible. Each channel carries its own trust signal and workflow affordances. A DMG on a GitHub release page signals "this is a real macOS app from a developer who knows the platform." A Homebrew Cask signals "this is a first-class developer tool that someone cared enough to package for the ecosystem I already use." The same binary, two different signals, two different adoption contexts. Thinking about distribution at the level of "who is the user and what is their workflow" rather than "what is the path of least effort for the developer" is the same kind of reasoning I apply to onboarding flows and settings screens. It just showed up here in a shell command.
+
+**Artifacts to Capture**:
+- The Homebrew Cask formula file — short, concrete artifact that makes the decision tangible
+- README section showing both installation paths side by side (`brew install --cask` and DMG download) — shows that the decision was treated as a first-class UX choice, not a footnote
+- Screenshot: GitHub Release page showing the DMG asset alongside a note about the Cask — illustrates the two-channel strategy visually
+
+**Story Thread**: This entry belongs to "The Build" arc, but specifically the part of building that concerns how software reaches its users rather than how it works internally. Most solo developer projects treat distribution as an afterthought — ship the binary, post the link, done. Treating the install command as a product decision is what distinguishes a developer tool from a developer experiment.
+
+---
+
 ## 2026-03-03 — v2.2.0: Multi-Provider Expansion (Gemini + Codex, Real Data)
 
 **Phase**: The Build — shipping the multi-provider vision designed in the strategy doc

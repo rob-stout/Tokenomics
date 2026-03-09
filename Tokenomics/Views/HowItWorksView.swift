@@ -59,7 +59,7 @@ struct HowItWorksView: View {
                     legendRow(
                         icon: "circle.inset.filled",
                         title: "Outer Ring",
-                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests (estimated from your selected plan)."
+                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests. Not all providers have two rings \u{2014} Copilot shows a single ring for premium requests."
                     )
                     legendRow(
                         icon: "circle.fill",
@@ -110,7 +110,7 @@ struct HowItWorksView: View {
                     legendRow(
                         icon: "person.text.rectangle",
                         title: "Plan Badge",
-                        description: "Shows your plan tier for each provider. Claude and Codex plans are detected automatically. Gemini's plan is set by you and determines your daily rate limits."
+                        description: "Shows your plan tier for each provider. Claude, Codex, and Copilot plans are detected automatically. Gemini's plan is set by you and determines your daily rate limits."
                     )
                     legendRow(
                         icon: "dollarsign.circle",

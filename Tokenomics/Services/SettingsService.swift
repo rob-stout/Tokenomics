@@ -56,6 +56,24 @@ enum SettingsService {
         }
     }
 
+    // MARK: - Copilot Plan Limit
+
+    /// User-specified monthly premium request limit for Copilot.
+    /// nil = use default (300 for Individual plan).
+    static var copilotMonthlyLimit: Int? {
+        get {
+            let value = defaults.integer(forKey: "copilotMonthlyLimit")
+            return value > 0 ? value : nil
+        }
+        set {
+            if let limit = newValue {
+                defaults.set(limit, forKey: "copilotMonthlyLimit")
+            } else {
+                defaults.removeObject(forKey: "copilotMonthlyLimit")
+            }
+        }
+    }
+
     // MARK: - Selected Tab
 
     /// The last-selected provider tab (persisted across popover open/close)

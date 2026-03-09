@@ -5,6 +5,8 @@ import WidgetKit
 enum WidgetProviderSelection: String, AppEnum {
     case smart = "smart"
     case claude = "claude"
+    case copilot = "copilot"
+    case cursor = "cursor"
     case codex = "codex"
     case gemini = "gemini"
 
@@ -13,6 +15,8 @@ enum WidgetProviderSelection: String, AppEnum {
     static var caseDisplayRepresentations: [WidgetProviderSelection: DisplayRepresentation] = [
         .smart: "Best of All (Smart)",
         .claude: "Claude Code",
+        .copilot: "GitHub Copilot",
+        .cursor: "Cursor",
         .codex: "Codex CLI",
         .gemini: "Gemini CLI"
     ]

@@ -4,6 +4,8 @@ import SwiftUI
 struct AIConnectionsView: View {
     @ObservedObject var viewModel: UsageViewModel
     @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
+    @State private var showingPATEntry = false
+    @State private var patText = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -143,52 +145,119 @@ struct AIConnectionsView: View {
             // Action buttons for non-connected states
             switch connection {
             case .notInstalled:
-                Button("Install") {
-                    provider.openInstallInTerminal()
+                if provider.usesPATAuth {
+                    Button("Connect") {
+                        showingPATEntry = true
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                    .help("Enter a GitHub Personal Access Token")
+                } else {
+                    Button("Install") {
+                        provider.openInstallInTerminal()
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                    .help("Opens Terminal to install \(provider.displayName)")
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 3)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                )
-                .buttonStyle(.plain)
-                .help("Opens Terminal to install \(provider.displayName)")
             case .installedNoAuth:
-                Button("Sign In") {
-                    provider.openLoginInTerminal()
+                if provider.usesPATAuth {
+                    Button("Connect") {
+                        showingPATEntry = true
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                    .help("Enter a GitHub Personal Access Token")
+                } else {
+                    Button("Sign In") {
+                        provider.openLoginInTerminal()
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                    .help("Opens Terminal to sign in")
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 3)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                )
-                .buttonStyle(.plain)
-                .help("Opens Terminal to sign in")
             case .authExpired:
-                Button("Fix") {
-                    provider.openLoginInTerminal()
+                if provider.usesPATAuth {
+                    Button("Reconnect") {
+                        showingPATEntry = true
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                    .help("Enter a new GitHub Personal Access Token")
+                } else {
+                    Button("Fix") {
+                        provider.openLoginInTerminal()
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                    .help("Opens Terminal to reconnect")
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 3)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                )
-                .buttonStyle(.plain)
-                .help("Opens Terminal to reconnect")
             default:
-                EmptyView()
+                if provider == .copilot && isConnected {
+                    Button("Disconnect") {
+                        CopilotKeychainService.deletePAT()
+                        viewModel.redetectProviders()
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                    .buttonStyle(.plain)
+                } else {
+                    EmptyView()
+                }
             }
         }
         .padding(.vertical, 10)
+        .sheet(isPresented: $showingPATEntry) {
+            patEntrySheet
+        }
     }
 
     // MARK: - Icon Styling
@@ -215,5 +284,58 @@ struct AIConnectionsView: View {
         case .authExpired: return .orange
         default: return .secondary
         }
+    }
+
+    // MARK: - PAT Entry Sheet
+
+    private var patEntrySheet: some View {
+        VStack(spacing: 16) {
+            Text("Connect GitHub Copilot")
+                .font(.headline)
+
+            Text("Enter a fine-grained Personal Access Token with **Plan (read)** permission.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            SecureField("ghp_...", text: $patText)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+
+            HStack {
+                Button("Create Token") {
+                    if let url = URL(string: "https://github.com/settings/personal-access-tokens/new") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Cancel") {
+                    patText = ""
+                    showingPATEntry = false
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Connect") {
+                    let trimmed = patText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    CopilotKeychainService.savePAT(trimmed)
+                    patText = ""
+                    showingPATEntry = false
+                    viewModel.redetectProviders()
+                    viewModel.refresh()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(patText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
     }
 }

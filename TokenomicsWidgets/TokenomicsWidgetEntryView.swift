@@ -35,6 +35,10 @@ struct SmallWidgetView: View {
             return providers.max(by: { $0.shortWindow.utilization < $1.shortWindow.utilization })
         case .claude:
             return providers.first(where: { $0.id == "claude" })
+        case .copilot:
+            return providers.first(where: { $0.id == "copilot" })
+        case .cursor:
+            return providers.first(where: { $0.id == "cursor" })
         case .codex:
             return providers.first(where: { $0.id == "codex" })
         case .gemini:
@@ -149,23 +153,25 @@ struct MediumWidgetView: View {
                 )
             }
 
-            // Long window bar
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(provider.longWindow.label)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(Int(provider.longWindow.utilization))%")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .monospacedDigit()
-                }
+            // Long window bar — only shown when the provider exposes two usage windows
+            if let longWindow = provider.longWindow {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(longWindow.label)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(Int(longWindow.utilization))%")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .monospacedDigit()
+                    }
 
-                WidgetProgressBar(
-                    utilization: provider.longWindow.utilization,
-                    pace: provider.longWindow.pace
-                )
+                    WidgetProgressBar(
+                        utilization: longWindow.utilization,
+                        pace: longWindow.pace
+                    )
+                }
             }
         }
     }

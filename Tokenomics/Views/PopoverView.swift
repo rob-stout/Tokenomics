@@ -177,14 +177,16 @@ struct PopoverView: View {
                 sublabel: usage.shortWindow.timeUntilReset
             )
 
-            Divider()
+            if let longWindow = usage.longWindow {
+                Divider()
 
-            UsageBarView(
-                label: usage.longWindow.label,
-                utilization: usage.longWindow.utilization,
-                pace: usage.longWindow.pace,
-                sublabel: usage.longWindow.timeUntilReset
-            )
+                UsageBarView(
+                    label: longWindow.label,
+                    utilization: longWindow.utilization,
+                    pace: longWindow.pace,
+                    sublabel: longWindow.timeUntilReset
+                )
+            }
 
             // Extra usage (Claude Max)
             if let extra = usage.extraUsage, extra.isEnabled {
@@ -253,16 +255,40 @@ struct PopoverView: View {
                 .font(.caption)
                 .fontWeight(.semibold)
 
-            Button("Sign In") {
-                provider.openLoginInTerminal()
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            if provider.usesPATAuth {
+                Button("Reconnect") {
+                    viewModel.showAIConnections = true
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
 
-            Text("Opens Terminal to reconnect.\nTokenomics will detect it automatically.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                Text("Update your token in AI Connections.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            } else if provider.hasAutoAuth {
+                Button("Open \(provider.tabLabel)") {
+                    provider.openLoginInTerminal()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Text("Sign in to \(provider.displayName),\nthen click Refresh.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Button("Sign In") {
+                    provider.openLoginInTerminal()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Text("Opens Terminal to reconnect.\nTokenomics will detect it automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding(24)
     }

@@ -34,6 +34,8 @@ final class UsageViewModel: ObservableObject {
 
     private let providers: [ProviderId: any UsageProvider] = [
         .claude: ClaudeProvider(),
+        .copilot: CopilotProvider(),
+        .cursor: CursorProvider(),
         .codex: CodexProvider(),
         .gemini: GeminiProvider()
     ]
@@ -113,22 +115,28 @@ final class UsageViewModel: ObservableObject {
             .max(by: { $0.shortWindow.utilization < $1.shortWindow.utilization })
     }
 
-    /// Menu bar ring data for a specific provider
-    func menuBarRingData(for providerId: ProviderId) -> (fiveHour: Double, sevenDay: Double, fiveHourPace: Double, sevenDayPace: Double)? {
+    /// Menu bar ring data for a specific provider.
+    /// Returns nil when no usage is available. `sevenDay` and `sevenDayPace` are nil
+    /// when the provider only exposes a single usage window.
+    func menuBarRingData(for providerId: ProviderId) -> (fiveHour: Double, sevenDay: Double?, fiveHourPace: Double, sevenDayPace: Double?)? {
         guard let usage = providerStates[providerId]?.usage else { return nil }
         return (
             fiveHour: usage.shortWindow.utilization,
-            sevenDay: usage.longWindow.utilization,
+            sevenDay: usage.longWindow?.utilization,
             fiveHourPace: usage.shortWindow.pace,
-            sevenDayPace: usage.longWindow.pace
+            sevenDayPace: usage.longWindow?.pace
         )
     }
 
-    /// Tooltip text for the menu bar — shows both windows per provider
+    /// Tooltip text for the menu bar — shows both windows per provider when available
     var menuBarTooltip: String {
         let parts = connectedProviders.compactMap { id -> String? in
             guard let usage = providerStates[id]?.usage else { return nil }
-            return "\(id.displayName): 5hr \(Int(usage.shortWindow.utilization))% | 7day \(Int(usage.longWindow.utilization))%"
+            if let longWindow = usage.longWindow {
+                return "\(id.displayName): 5hr \(Int(usage.shortWindow.utilization))% | 7day \(Int(longWindow.utilization))%"
+            } else {
+                return "\(id.displayName): \(Int(usage.shortWindow.utilization))%"
+            }
         }
         guard !parts.isEmpty else { return "Tokenomics" }
         return parts.joined(separator: "\n")
