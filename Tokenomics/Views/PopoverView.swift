@@ -16,6 +16,8 @@ struct PopoverView: View {
         VStack(spacing: 0) {
             if viewModel.showAbout {
                 AboutView(onDismiss: { viewModel.showAbout = false })
+            } else if viewModel.showHowItWorks {
+                HowItWorksView(onDismiss: { viewModel.showHowItWorks = false })
             } else if viewModel.showAIConnections {
                 AIConnectionsView(viewModel: viewModel)
             } else if viewModel.showNotifications {
@@ -308,7 +310,7 @@ struct PopoverView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button(error.isTokenExpired ? "Refresh" : "Try Again") {
+            Button(error.isTokenExpired ? "Refresh" : "Check Now") {
                 viewModel.refresh()
             }
             .buttonStyle(.bordered)
@@ -437,6 +439,42 @@ struct PopoverView: View {
 
                 Divider()
 
+                // How It Works
+                Button(action: { viewModel.showHowItWorks = true }) {
+                    HStack {
+                        Text("How It Works")
+                            .font(.caption)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+                Divider()
+
+                // About
+                Button(action: { viewModel.showAbout = true }) {
+                    HStack {
+                        Text("About Tokenomics")
+                            .font(.caption)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+                Divider()
+
                 // Feedback
                 Button("Report Bugs / Feedback") {
                     if let url = URL(string: "https://github.com/rob-stout/Tokenomics/issues") {
@@ -447,15 +485,6 @@ struct PopoverView: View {
                 .font(.caption)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-
-                Divider()
-
-                // About
-                Button("About Tokenomics") { viewModel.showAbout = true }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
 
                 Divider()
 

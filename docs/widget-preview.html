@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tokenomics — Widget Previews</title>
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Base                                                                 */
+    /* ------------------------------------------------------------------ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --widget-bg:        #1C1C1E;
+      --widget-radius:    20px;
+      --text-primary:     rgba(255,255,255,1.00);
+      --text-secondary:   rgba(255,255,255,0.60);
+      --text-tertiary:    rgba(255,255,255,0.40);
+      --bar-track:        rgba(255,255,255,0.08);
+      --bar-fill-healthy: rgba(255,255,255,0.60);
+      --bar-fill-caution: #FF9F0A;
+      --bar-fill-warning: #FF453A;
+      --ring-track:       rgba(255,255,255,0.10);
+      --ring-healthy:     rgba(255,255,255,1.00);
+      --ring-caution:     #FF9F0A;
+      --ring-warning:     #FF453A;
+      --badge-bg:         rgba(255,255,255,0.12);
+      --font:             -apple-system, "SF Pro Text", "SF Pro Display",
+                          "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background: #0A0A0C;
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 60px 40px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Page chrome                                                          */
+    /* ------------------------------------------------------------------ */
+    .page-header {
+      margin-bottom: 48px;
+    }
+    .page-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .page-header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .section {
+      margin-bottom: 64px;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 20px;
+    }
+
+    .widget-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .widget-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .widget-caption {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-align: center;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Shared widget shell                                                  */
+    /* ------------------------------------------------------------------ */
+    .widget {
+      background: var(--widget-bg);
+      border-radius: var(--widget-radius);
+      overflow: hidden;
+      /* subtle inner border like macOS widget material */
+      box-shadow:
+        inset 0 0.5px 0 rgba(255,255,255,0.08),
+        0 4px 24px rgba(0,0,0,0.55),
+        0 1px 4px rgba(0,0,0,0.35);
+      position: relative;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Small widget — 170x170 — Ring                                       */
+    /* ------------------------------------------------------------------ */
+    .widget-small {
+      width:  170px;
+      height: 170px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+    }
+
+    .ring-container {
+      position: relative;
+      width:  110px;
+      height: 110px;
+      margin-bottom: 10px;
+    }
+    .ring-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg); /* start arc at top */
+    }
+    .ring-center-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+    }
+    .ring-percent {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1;
+      color: var(--text-primary);
+    }
+
+    .ring-provider {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+      margin-bottom: 2px;
+    }
+    .ring-reset {
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--text-tertiary);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Medium widget — 364x170 — Dashboard                                 */
+    /* ------------------------------------------------------------------ */
+    .widget-medium {
+      width:  364px;
+      height: 170px;
+      padding: 14px 16px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+    .dashboard-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.1px;
+    }
+    .dashboard-time {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-tertiary);
+    }
+
+    /* Provider rows */
+    .provider-list {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      flex: 1;
+    }
+
+    .provider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Badge */
+    .provider-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--badge-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-primary);
+      flex-shrink: 0;
+      letter-spacing: 0;
+    }
+
+    /* Two-bar block */
+    .bar-group {
+      flex: 1;
+      display: flex;
+      gap: 6px;
+    }
+
+    .bar-block {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .bar-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .bar-label {
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .bar-percent {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .bar-percent.caution { color: #FF9F0A; }
+    .bar-percent.warning { color: #FF453A; }
+
+    .bar-track {
+      height: 4px;
+      border-radius: 99px;
+      background: var(--bar-track);
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--bar-fill-healthy);
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bar-fill.caution { background: var(--bar-fill-caution); }
+    .bar-fill.warning { background: var(--bar-fill-warning); }
+
+    /* ------------------------------------------------------------------ */
+    /* Divider between sections                                             */
+    /* ------------------------------------------------------------------ */
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 48px 0;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Spec annotation strip                                                */
+    /* ------------------------------------------------------------------ */
+    .spec-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-top: 32px;
+    }
+    .spec-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .spec-key {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+    }
+    .spec-val {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Color swatch inline */
+    .swatch {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Threshold legend                                                     */
+    /* ------------------------------------------------------------------ */
+    .threshold-legend {
+      display: flex;
+      gap: 20px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .threshold-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .threshold-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .dot-healthy { background: var(--ring-healthy); }
+    .dot-caution { background: var(--ring-caution); }
+    .dot-warning { background: var(--ring-warning); }
+  </style>
+</head>
+<body>
+
+  <header class="page-header">
+    <h1>Tokenomics — Widget Previews</h1>
+    <p>macOS desktop widgets for AI coding tool usage tracking.<br>
+       170pt small (ring) and 364x170pt medium (dashboard). All values are representative demo data.</p>
+  </header>
+
+  <!-- ================================================================== -->
+  <!-- SMALL WIDGET — all three threshold states                           -->
+  <!-- ================================================================== -->
+  <section class="section">
+    <div class="section-label">Small Widget — 170 x 170pt — Worst-of-N Ring</div>
+
+    <div class="widget-row">
+
+      <!-- Healthy: 42% — white ring -->
+      <div class="widget-group">
+        <div class="widget widget-small">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 110 110">
+              <!-- Track -->
+              <circle
+                cx="55" cy="55" r="44"
+                fill="none"
+                stroke="rgba(255,255,255,0.10)"
+                stroke-width="7"
+                stroke-linecap="round"
+              />
+              <!-- Fill — 42% of circumference = 0.42 * 2π * 44 ≈ 116.2, full = 276.5 -->
+              <circle
+                cx="55" cy="55" r="44"
+                fill="none"
+                stroke="rgba(255,255,255,1)"
+                stroke-width="7"
+                stroke-linecap="round"
+                stroke-dasharray="276.5"
+                stroke-dashoffset="160.4"
+              />
+            </svg>
+            <div class="ring-center-text">
+              <span class="ring-percent">42%</span>
+            </div>
+          </div>
+          <div class="ring-provider">Claude Code</div>
+          <div class="ring-reset">2h 30m</div>
+        </div>
+        <div class="widget-caption">Healthy — &lt;70%</div>
+      </div>
+
+      <!-- Caution: 82% — orange ring -->
+      <div class="widget-group">
+        <div class="widget widget-small">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 110 110">
+              <circle
+                cx="55" cy="55" r="44"
+                fill="none"
+                stroke="rgba(255,255,255,0.10)"
+                stroke-width="7"
+                stroke-linecap="round"
+              />
+              <!-- 82% → dashoffset = 276.5 * (1 - 0.82) = 49.8 -->
+              <circle
+                cx="55" cy="55" r="44"
+                fill="none"
+                stroke="#FF9F0A"
+                stroke-width="7"
+                stroke-linecap="round"
+                stroke-dasharray="276.5"
+                stroke-dashoffset="49.8"
+              />
+            </svg>
+            <div class="ring-center-text">
+              <span class="ring-percent" style="color:#FF9F0A;">82%</span>
+            </div>
+          </div>
+          <div class="ring-provider">Codex CLI</div>
+          <div class="ring-reset">45m</div>
+        </div>
+        <div class="widget-caption">Caution — 70–89%</div>
+      </div>
+
+      <!-- Warning: 95% — red ring -->
+      <div class="widget-group">
+        <div class="widget widget-small">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 110 110">
+              <circle
+                cx="55" cy="55" r="44"
+                fill="none"
+                stroke="rgba(255,255,255,0.10)"
+                stroke-width="7"
+                stroke-linecap="round"
+              />
+              <!-- 95% → dashoffset = 276.5 * 0.05 = 13.8 -->
+              <circle
+                cx="55" cy="55" r="44"
+                fill="none"
+                stroke="#FF453A"
+                stroke-width="7"
+                stroke-linecap="round"
+                stroke-dasharray="276.5"
+                stroke-dashoffset="13.8"
+              />
+            </svg>
+            <div class="ring-center-text">
+              <span class="ring-percent" style="color:#FF453A;">95%</span>
+            </div>
+          </div>
+          <div class="ring-provider">Gemini CLI</div>
+          <div class="ring-reset">12m</div>
+        </div>
+        <div class="widget-caption">Warning — 90%+</div>
+      </div>
+
+    </div><!-- .widget-row -->
+
+    <div class="threshold-legend">
+      <div class="threshold-item">
+        <div class="threshold-dot dot-healthy"></div>
+        White — healthy (&lt;70%)
+      </div>
+      <div class="threshold-item">
+        <div class="threshold-dot dot-caution"></div>
+        Orange — caution (70–89%)
+      </div>
+      <div class="threshold-item">
+        <div class="threshold-dot dot-warning"></div>
+        Red — warning (90%+)
+      </div>
+    </div>
+
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ================================================================== -->
+  <!-- MEDIUM WIDGET — nominal state                                       -->
+  <!-- ================================================================== -->
+  <section class="section">
+    <div class="section-label">Medium Widget — 364 x 170pt — Multi-Provider Dashboard</div>
+
+    <div class="widget-row">
+
+      <!-- Nominal state: all healthy / mixed -->
+      <div class="widget-group">
+        <div class="widget widget-medium">
+          <div class="dashboard-header">
+            <span class="dashboard-title">Tokenomics</span>
+            <span class="dashboard-time">3m ago</span>
+          </div>
+          <div class="provider-list">
+
+            <!-- Claude Code: 42% / 28% healthy -->
+            <div class="provider-row">
+              <div class="provider-badge">C</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">5-Hour</span>
+                    <span class="bar-percent">42%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:42%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">7-Day</span>
+                    <span class="bar-percent">28%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:28%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Codex CLI: 65% / 35% healthy -->
+            <div class="provider-row">
+              <div class="provider-badge">X</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">5-Hour</span>
+                    <span class="bar-percent">65%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:65%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Context</span>
+                    <span class="bar-percent">35%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:35%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gemini CLI: 15% / 8% healthy -->
+            <div class="provider-row">
+              <div class="provider-badge">G</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Tokens</span>
+                    <span class="bar-percent">15%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:15%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Requests</span>
+                    <span class="bar-percent">8%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:8%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- .provider-list -->
+        </div><!-- .widget -->
+        <div class="widget-caption">Nominal — all providers healthy</div>
+      </div>
+
+    </div><!-- .widget-row -->
+
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ================================================================== -->
+  <!-- MEDIUM WIDGET — threshold states                                    -->
+  <!-- ================================================================== -->
+  <section class="section">
+    <div class="section-label">Medium Widget — Threshold State Variants</div>
+
+    <div class="widget-row">
+
+      <!-- Caution state: Codex at 85% on short window -->
+      <div class="widget-group">
+        <div class="widget widget-medium">
+          <div class="dashboard-header">
+            <span class="dashboard-title">Tokenomics</span>
+            <span class="dashboard-time">1m ago</span>
+          </div>
+          <div class="provider-list">
+
+            <div class="provider-row">
+              <div class="provider-badge">C</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">5-Hour</span>
+                    <span class="bar-percent">38%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:38%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">7-Day</span>
+                    <span class="bar-percent">22%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:22%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Codex at 85% short — caution -->
+            <div class="provider-row">
+              <div class="provider-badge">X</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">5-Hour</span>
+                    <span class="bar-percent caution">85%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill caution" style="width:85%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Context</span>
+                    <span class="bar-percent">41%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:41%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="provider-row">
+              <div class="provider-badge">G</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Tokens</span>
+                    <span class="bar-percent">20%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:20%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Requests</span>
+                    <span class="bar-percent">11%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:11%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="widget-caption">Caution — Codex short window at 85%</div>
+      </div>
+
+      <!-- Warning state: Claude at 95% short window -->
+      <div class="widget-group">
+        <div class="widget widget-medium">
+          <div class="dashboard-header">
+            <span class="dashboard-title">Tokenomics</span>
+            <span class="dashboard-time">just now</span>
+          </div>
+          <div class="provider-list">
+
+            <!-- Claude at 95% short — warning -->
+            <div class="provider-row">
+              <div class="provider-badge">C</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">5-Hour</span>
+                    <span class="bar-percent warning">95%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill warning" style="width:95%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">7-Day</span>
+                    <span class="bar-percent caution">74%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill caution" style="width:74%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="provider-row">
+              <div class="provider-badge">X</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">5-Hour</span>
+                    <span class="bar-percent">52%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:52%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Context</span>
+                    <span class="bar-percent">30%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:30%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="provider-row">
+              <div class="provider-badge">G</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Tokens</span>
+                    <span class="bar-percent">18%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:18%"></div>
+                  </div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta">
+                    <span class="bar-label">Requests</span>
+                    <span class="bar-percent">9%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width:9%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="widget-caption">Warning — Claude short window at 95%</div>
+      </div>
+
+    </div><!-- .widget-row -->
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ================================================================== -->
+  <!-- Spec annotations                                                     */
+  <!-- ================================================================== -->
+  <section class="section">
+    <div class="section-label">Design Specifications</div>
+
+    <div class="spec-strip">
+      <div class="spec-item">
+        <span class="spec-key">Widget sizes</span>
+        <span class="spec-val">Small: 170 x 170pt<br>Medium: 364 x 170pt</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Corner radius</span>
+        <span class="spec-val">20px (system widget)</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Background</span>
+        <span class="spec-val">#1C1C1E</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Font</span>
+        <span class="spec-val">-apple-system / SF Pro</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Ring track</span>
+        <span class="spec-val">white 10% opacity</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Ring stroke width</span>
+        <span class="spec-val">7pt</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Bar height</span>
+        <span class="spec-val">4px capsule</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Bar track</span>
+        <span class="spec-val">white 8% opacity</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Bar fill (healthy)</span>
+        <span class="spec-val">white 60% opacity</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Text: primary</span>
+        <span class="spec-val">white 100%</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Text: secondary</span>
+        <span class="spec-val">white 60%</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Text: tertiary</span>
+        <span class="spec-val">white 40%</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Caution threshold</span>
+        <span class="spec-val"><span class="swatch" style="background:#FF9F0A"></span>#FF9F0A (70–89%)</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-key">Warning threshold</span>
+        <span class="spec-val"><span class="swatch" style="background:#FF453A"></span>#FF453A (90%+)</span>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>

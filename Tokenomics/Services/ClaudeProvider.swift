@@ -11,6 +11,10 @@ actor ClaudeProvider: UsageProvider {
     private let usageService = UsageService()
     private let tokenRefreshService = TokenRefreshService()
     private var cachedCredentials: KeychainService.OAuthCredentials?
+    private var lastTokenRefresh: Date?
+
+    /// Refresh proactively every 22 hours to stay ahead of per-token rate limits
+    private static let proactiveRefreshInterval: TimeInterval = 22 * 3600
 
     func checkConnection() async -> ProviderConnectionState {
         // Only check token presence — don't call the API here.
@@ -32,6 +36,27 @@ actor ClaudeProvider: UsageProvider {
             let freshToken = try await getValidToken()
             let data = try await usageService.fetchUsage(token: freshToken)
             return mapToSnapshot(data)
+        } catch let error as AppError where error.isRateLimited {
+            // Rate limited — refresh the token to get a fresh rate limit window, then retry once
+            guard let creds = cachedCredentials, let refreshToken = creds.refreshToken else {
+                throw error
+            }
+            Self.log.info("429 received — refreshing token for fresh rate limit window")
+            do {
+                let result = try await tokenRefreshService.refresh(using: refreshToken)
+                cachedCredentials = KeychainService.OAuthCredentials(
+                    accessToken: result.accessToken,
+                    refreshToken: result.refreshToken,
+                    expiresAt: Date().addingTimeInterval(result.expiresIn)
+                )
+                // Reset the rate limit state so the retry isn't blocked
+                await usageService.resetRateLimit()
+                let data = try await usageService.fetchUsage(token: result.accessToken)
+                return mapToSnapshot(data)
+            } catch {
+                Self.log.warning("Token refresh on 429 failed: \(error.localizedDescription)")
+                throw AppError.rateLimited(retryAfter: 300)
+            }
         }
     }
 
@@ -42,7 +67,7 @@ actor ClaudeProvider: UsageProvider {
 
     // MARK: - Token Management
 
-    /// Returns a valid access token, refreshing if expired
+    /// Returns a valid access token, refreshing if expired or stale (>22h old)
     private func getValidToken() async throws -> String {
         if cachedCredentials == nil {
             cachedCredentials = KeychainService.readCredentials()
@@ -52,18 +77,26 @@ actor ClaudeProvider: UsageProvider {
             throw AppError.notAuthenticated
         }
 
-        // If token is expired or about to expire, try refreshing
-        if TokenRefreshService.needsRefresh(expiresAt: creds.expiresAt) {
+        let needsExpiryRefresh = TokenRefreshService.needsRefresh(expiresAt: creds.expiresAt)
+        let needsProactiveRefresh: Bool = {
+            guard let lastRefresh = lastTokenRefresh else { return true } // Never refreshed this session
+            return Date().timeIntervalSince(lastRefresh) >= Self.proactiveRefreshInterval
+        }()
+
+        if needsExpiryRefresh || needsProactiveRefresh {
             if let refreshToken = creds.refreshToken {
-                Self.log.info("Token expired or expiring soon — refreshing")
+                let reason = needsExpiryRefresh ? "expiring soon" : "proactive (>22h)"
+                Self.log.info("Refreshing token — \(reason)")
                 do {
                     let result = try await tokenRefreshService.refresh(using: refreshToken)
-                    // Update cached credentials with new token
                     cachedCredentials = KeychainService.OAuthCredentials(
                         accessToken: result.accessToken,
                         refreshToken: result.refreshToken,
                         expiresAt: Date().addingTimeInterval(result.expiresIn)
                     )
+                    lastTokenRefresh = Date()
+                    // Fresh token = fresh rate limit window
+                    await usageService.resetRateLimit()
                     return result.accessToken
                 } catch {
                     Self.log.warning("Token refresh failed: \(error.localizedDescription) — using existing token")

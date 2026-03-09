@@ -19,6 +19,8 @@ targets:
     dependencies:
       - package: Sparkle
         product: Sparkle
+      - target: TokenomicsWidgets
+        embed: true
     sources:
       - path: Tokenomics
         excludes:
@@ -41,6 +43,8 @@ targets:
       path: Tokenomics/Resources/Tokenomics.entitlements
       properties:
         com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - group.com.robstout.tokenomics
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics
@@ -56,6 +60,48 @@ targets:
           CODE_SIGN_IDENTITY: "Apple Development"
         release:
           # Manual signing for Developer ID distribution
+          CODE_SIGN_STYLE: Manual
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+
+  TokenomicsWidgets:
+    type: extensionkit-extension
+    platform: macOS
+    deploymentTarget:
+      macOS: "14.0"
+    sources:
+      - path: TokenomicsWidgets
+      - path: Tokenomics/Services/WidgetDataStore.swift
+        type: file
+    info:
+      path: TokenomicsWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Tokenomics Widgets
+        CFBundleShortVersionString: "2.2.6"
+        CFBundleVersion: "15"
+        EXAppExtensionAttributes:
+          EXExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: TokenomicsWidgets/TokenomicsWidgets.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - group.com.robstout.tokenomics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics.widgets
+        PRODUCT_NAME: TokenomicsWidgets
+        CODE_SIGN_ENTITLEMENTS: TokenomicsWidgets/TokenomicsWidgets.entitlements
+        SWIFT_STRICT_CONCURRENCY: complete
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WIDGET_EXTENSION"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
+      configs:
+        debug:
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: VJKRVGGNXV
+          CODE_SIGN_IDENTITY: "Apple Development"
+        release:
           CODE_SIGN_STYLE: Manual
           DEVELOPMENT_TEAM: RPDDQP7KZ5
           CODE_SIGN_IDENTITY: "Developer ID Application"

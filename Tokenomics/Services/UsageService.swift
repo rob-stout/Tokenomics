@@ -36,6 +36,12 @@ actor UsageService {
         return decoder
     }()
 
+    /// Clear the rate limit state so a retry with a fresh token isn't blocked
+    func resetRateLimit() {
+        rateLimitedUntil = nil
+        consecutive429s = 0
+    }
+
     func fetchUsage(token: String) async throws -> UsageData {
         // Respect rate-limit backoff — don't hit the API if we're still in a cooldown
         if let until = rateLimitedUntil, Date() < until {

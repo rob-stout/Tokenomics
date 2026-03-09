@@ -16,10 +16,14 @@ struct SyncFooterView: View {
         let interval = Date.now.timeIntervalSince(lastSynced)
 
         if interval < 60 {
-            return "Just synced"
+            return "Updated just now"
         } else {
             let minutes = Int(interval / 60)
-            return "Synced \(minutes)m ago"
+            if minutes >= 60 {
+                let hours = minutes / 60
+                return "Updated \(hours)h ago"
+            }
+            return "Updated \(minutes)m ago"
         }
     }
 
@@ -27,9 +31,10 @@ struct SyncFooterView: View {
         HStack {
             TimelineView(.periodic(from: .now, by: 60)) { _ in
                 if isStale {
-                    Text("Rate limited · showing cached data")
+                    Text(syncText)
                         .font(.caption)
                         .foregroundStyle(.orange)
+                        .help("Refreshes every 10 min. Showing most recent available data.")
                 } else {
                     Text(syncText)
                         .font(.caption)

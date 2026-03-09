@@ -94,6 +94,22 @@ The percentage next to the icon always reflects the inner ring — the limit you
 
 ---
 
+## Desktop Widgets
+
+Tokenomics includes macOS desktop widgets (requires macOS 14 Sonoma or later). To add one:
+
+1. Right-click your desktop → **Edit Widgets**
+2. Search for "Tokenomics"
+3. Drag a widget to your desktop
+
+**Available sizes:**
+- **Small** — shows your most critical provider's usage as a ring
+- **Medium** — multi-provider dashboard with both usage windows per provider
+
+**"Access data from other apps" dialog:** When you first launch Tokenomics after updating, macOS may show a prompt saying Tokenomics wants to access data from other apps. This is the standard App Group permission — it allows the main app to share your usage data with the widget extension so your widgets stay up to date. **No data leaves your Mac.** If you accidentally denied this, go to **System Settings → Privacy & Security → App Management** and re-enable Tokenomics.
+
+---
+
 ## How It Works
 
 Tokenomics reads credentials from local sources for each detected provider:

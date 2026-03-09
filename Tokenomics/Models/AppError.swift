@@ -15,6 +15,12 @@ enum AppError: Error, LocalizedError {
         return false
     }
 
+    /// True when the API returned 429
+    var isRateLimited: Bool {
+        if case .rateLimited = self { return true }
+        return false
+    }
+
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
@@ -22,7 +28,7 @@ enum AppError: Error, LocalizedError {
         case .tokenExpired:
             return "Session expired — re-authenticate in your terminal, then click Refresh."
         case .rateLimited:
-            return "Too many requests — trying again shortly"
+            return "Couldn't load usage data — check back in a few minutes"
         case .networkUnavailable:
             return "No network connection"
         case .decodingFailed:

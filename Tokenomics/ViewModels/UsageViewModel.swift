@@ -27,6 +27,7 @@ final class UsageViewModel: ObservableObject {
     @Published var showSettings = false
     @Published var showAIConnections = false
     @Published var showAbout = false
+    @Published var showHowItWorks = false
     @Published var showNotifications = false
 
     // MARK: - Providers
@@ -291,6 +292,7 @@ final class UsageViewModel: ObservableObject {
         showSettings = false
         showAIConnections = false
         showAbout = false
+        showHowItWorks = false
         showNotifications = false
     }
 
@@ -353,6 +355,7 @@ final class UsageViewModel: ObservableObject {
             id: id, provider: provider, currentState: currentState
         )
         providerStates[id] = newState
+        pushToWidgets()
     }
 
     /// Fetch all providers concurrently (used by manual refresh)
@@ -372,6 +375,17 @@ final class UsageViewModel: ObservableObject {
                 providerStates[id] = newState
             }
         }
+        pushToWidgets()
+    }
+
+    /// Push current usage data to the shared App Group store for WidgetKit
+    private func pushToWidgets() {
+        let entries: [(ProviderId, ProviderUsageSnapshot)] = connectedProviders.compactMap { id in
+            guard let usage = providerStates[id]?.usage else { return nil }
+            return (id, usage)
+        }
+        guard !entries.isEmpty else { return }
+        WidgetDataStore.write(providers: entries)
     }
 
     private func fetchSingleProvider(

@@ -2,10 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Allows outbound HTTPS connections to api.anthropic.com -->
-	<key>com.apple.security.network.client</key>
+	<key>com.apple.security.app-sandbox</key>
 	<true/>
-	<!-- Shared container for widget data -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.robstout.tokenomics</string>
