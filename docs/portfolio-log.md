@@ -153,6 +153,117 @@ On the Swift side: `.contentShape(Rectangle())` is essential for any SwiftUI but
 
 ---
 
+## 2026-03-09 — Five Providers: Copilot, Cursor, and the Team Dashboard Vision
+
+**Phase**: The Build — expanding the market, expanding the protocol
+
+**What I Did**: Added GitHub Copilot and Cursor as fully tracked providers, bringing Tokenomics to five AI coding tools. Copilot auth piggybacks on the existing `gh` CLI token — no separate login required. Cursor reads its JWT directly from `state.vscdb`, Cursor's local SQLite database, and decodes the `sub` claim to build the session cookie the cursor.com API expects. Both providers conform to the existing `UsageProvider` protocol and render through the same view layer without modification.
+
+**Why It Matters**: Copilot and Cursor are the most widely deployed AI coding tools in team and enterprise environments. Copilot has massive installed base with team and enterprise subscription tiers; Cursor is growing fast with its own billing model. Supporting both opens a monetization path I hadn't explicitly designed for earlier — engineering managers wanting cross-tool visibility across their org. A "team dashboard" feature that aggregates five provider snapshots per engineer doesn't require new infrastructure; it requires reaching the right breadth of tool support first. This release reaches that threshold.
+
+**Key Decisions**:
+
+1. **Zero-friction auth as a design principle.** The original Codex and Gemini integrations required users to navigate credential files or configure a plan. For Copilot, I made a deliberate choice to do no configuration work on the user's behalf — `gh auth token` gives you the token that's already in the system keyring. For Cursor, `sqlite3` against `state.vscdb` gives you the JWT that Cursor already stored. Neither integration asks the user for anything. The install-and-forget experience is not a feature; it is the reason a user doesn't uninstall the app in the first ten minutes. Every extra setup step is attrition.
+
+2. **Cursor auth: reading a local SQLite DB via the CLI rather than linking libsqlite3.** Cursor stores its auth token in a VSCode-style `state.vscdb` file. Rather than linking `libsqlite3` (which adds a dependency and complicates the non-sandboxed entitlement surface), I shell out to `/usr/bin/sqlite3` — present on every Mac — with a targeted `SELECT` query. The JWT comes back as a plain string; a manual base64url decode extracts the `sub` claim. This is a trade-off: slightly more fragile than a library, but zero new dependencies and readable enough that any future maintainer understands the data source immediately.
+
+3. **Copilot: PAT fallback for users who manually configured tokens before the `gh` CLI integration existed.** The `CopilotKeychainService` path checks for a stored PAT first. This is a compatibility shim — it costs two lines of logic and preserves behavior for anyone who had set up a token before the zero-friction path shipped. Removing it would have been a silent regression.
+
+4. **`longWindow` made optional to handle single-metric providers.** Cursor tracks only premium requests per billing cycle — there is no second window. Making `longWindow: WindowUsage?` optional on `ProviderUsageSnapshot` let Cursor return a clean single-bar view without a protocol change or a dummy second bar. The optionality had been present from the multi-provider architecture; this release was the first time it was exercised for a provider with genuinely one meaningful metric.
+
+**What I Learned**: The `gh auth token` approach for Copilot was not my first instinct — I initially started building a PAT entry flow before stepping back to ask whether that was necessary at all. It wasn't. When a user has already logged into the `gh` CLI to use GitHub Copilot, they have already done the authentication work. Building a second login for Tokenomics is asking them to do it twice. The right design question is always "what has the user already done that I can lean on?" not "what does my feature need?"
+
+**Artifacts to Capture**:
+- Screenshot: popover with all five provider tabs visible — Claude Code, Codex, Gemini, Copilot, Cursor
+- Screenshot: Copilot tab showing chat/completions bars with "X / Y used" sublabel
+- Screenshot: Cursor tab showing Premium Requests bar with billing cycle reset
+- Code snippet: `CopilotProvider.readToken()` — the `gh auth token` subprocess call; shows the zero-friction auth pattern
+- Code snippet: `CursorProvider.readAccessToken()` + `extractUserId(from:)` — SQLite query plus JWT decode; shows two-step local-auth-without-a-library approach
+
+**Story Thread**: This entry extends "The Build" arc. The first three providers proved the architecture was extensible. These two prove it scales to the tools that matter in team environments — which is where the strategic value of Tokenomics sits if it ever becomes a paid product. Each new provider is not just a feature; it is a step toward a market position.
+
+---
+
+## 2026-03-09 — Provider Reorder, Visibility Controls, and Popover Width
+
+**Phase**: The Craft — information density, personalization, and platform convention
+
+**What I Did**: Added Cmd+drag tab reordering, per-provider visibility toggles (eye/eye.slash), and expanded the popover from 320px to 360px. The tab reordering went through three distinct design iterations before landing on the current implementation. The visibility toggle surfaces in the AI Connections screen — hidden providers still poll in the background, they just don't appear as tabs. Hidden state and tab order both persist across app restarts.
+
+**Why It Matters**: With five providers, the popover needs to be configurable. A user who only uses Claude Code and Cursor shouldn't see three other tabs taking up cognitive space. A user who switches between Copilot at work and Claude Code at home has a different preferred order than someone using all five simultaneously. Personalization at this level is not a nice-to-have — it is the difference between an app that fits your workflow and one that insists you adapt to it.
+
+**Key Decisions**:
+
+1. **Cmd+drag for tab reordering, matching macOS menu bar conventions.** The design process here went through three stages. First attempt: SwiftUI's `.onDrag` / `.onDrop` API — standard drag-and-drop that works well in list views but fails in popovers because SwiftUI's drop target detection doesn't fire correctly inside a floating panel. Second attempt: arrow buttons (left/right) on each tab — technically functional but visually noisy and slow to use for anyone reordering more than one item. Third attempt: a custom `DragGesture` gated on `NSEvent.modifierFlags.contains(.command)` — Cmd+drag, exactly like reordering macOS menu bar items. The modifier gate was key: it distinguishes a reorder intent from a normal left-right scroll, and it matches the macOS muscle memory that developers already have.
+
+2. **Eye/eye.slash toggle for visibility, not destructive removal.** The initial mental model I considered was a "remove provider" action — tap to remove, add it back from a list elsewhere. That model creates asymmetry: the action to hide is quick, but the action to restore requires navigation. The toggle model (eye = visible, eye.slash = hidden) is reversible in a single tap from the same screen. It also means the provider keeps polling in the background, which matters: when a user re-enables a tab, they see current data immediately rather than waiting for the first poll to complete.
+
+3. **360px over 320px.** Five provider tabs at 320px required either extremely compact tab labels or a scrolling tab bar — both of which hurt scannability. At 360px, five short labels ("Claude," "Codex," "Gemini," "Copilot," "Cursor") fit comfortably with enough padding that each tab target is confident to tap. This is a straightforward layout math decision made in the context of an actual test with all five providers visible; the problem was obvious the moment I saw it in practice.
+
+4. **Hidden providers continue polling.** This was a deliberate systems decision: if a hidden provider's data goes stale while hidden, the moment a user re-enables it they'll see a timestamp from whenever it was last shown. That's a worse experience than displaying fresh data on reveal. The background polling cost is negligible — file reads for Codex/Gemini/Cursor, a lightweight API call every five minutes for Claude and Copilot.
+
+**What I Learned**: The drag-and-drop design iteration was a good reminder that platform APIs are not interchangeable. SwiftUI's drag-and-drop is built for list views and document-model apps. For a floating popover where you want lightweight, gesture-based reordering, it's the wrong tool. Reaching for `DragGesture` with a manual modifier check was more work, but it produced behavior that feels right rather than behavior that works. Matching platform conventions (Cmd+drag for menu bar reordering) is not just an aesthetic choice — it reduces the user's learning curve to zero.
+
+**Artifacts to Capture**:
+- Screenshot: AI Connections view with eye/eye.slash controls and "Cmd+drag to reorder" hint text
+- Screenshot: Providers view showing a tab being dragged (scale/shadow state on the dragged tab)
+- Before/after: 320px popover with five tabs vs. 360px — shows why the width increase was necessary
+- Code snippet: `ProviderTabView` drag gesture — the `NSEvent.modifierFlags.contains(.command)` gate plus frame-tracking via `GeometryReader`; illustrates the platform-convention-first approach
+
+**Story Thread**: This entry belongs to "The Craft" arc, specifically the part where craft means making a technically functional feature feel right rather than just work. The three-iteration path to Cmd+drag is a clean example of how design decisions that look simple from the outside often require multiple failed attempts before landing on the solution that fits.
+
+---
+
+## 2026-03-09 — Settings Redesign: Information Architecture at 360pt
+
+**Phase**: The Craft — information architecture, visual hierarchy, and scalable structure
+
+**What I Did**: Redesigned the Settings view from a flat eight-item list to a two-section grouped layout ("Preferences" and "Learn") with SF Symbol icons on each row and a condensed action footer. Produced four HTML mockups (Options A–D) to explore different organizational approaches before committing to implementation. Chose Option A — grouped sections with section labels — for its scalability properties.
+
+**Why It Matters**: Flat lists scale poorly. At eight items, the Settings view was already showing the strain — items of very different types (a toggle, navigation rows, a destructive action, informational links) sat at the same visual weight with no grouping signal. Adding a ninth or tenth item to a flat list doesn't make the structure worse in a discrete step; it makes it worse continuously, until a user scanning the list can't predict where a given item lives. Grouped sections with labeled headers solve this at two levels. First, **mental model**: "Preferences" and "Learn" give users a clear cognitive frame — they know where to look before they start scanning. A user who wants to change behavior looks in Preferences; a user who wants to understand the app looks in Learn. Second, **scalability**: a future "Advanced" or "Account" section has a home that doesn't require reorganizing what already exists.
+
+**Key Decisions**:
+
+1. **Produced four explicit design options before choosing one.** Options A–D each explored a different organizational principle: A used section labels (the final choice), B used icon-only differentiation without section headers, C grouped by frequency of use (frequent vs. occasional), D separated destructive actions into their own zone. The exercise mattered not because the options were dramatically different, but because writing out four distinct rationales forces you to articulate what you're actually optimizing for. It also creates a decision record — if someone asks in six months why the settings are organized this way, there's a documented answer.
+
+2. **Option A over B, C, and D because of scalability, not aesthetics.** Option B (icons without section labels) was visually cleaner but relied entirely on icon legibility to communicate grouping — a single ambiguous icon breaks the system. Option C (by frequency) required predicting which settings users access most, which varies by user. Option D (destructive zone isolation) over-engineered a problem that doesn't exist yet — there is currently one destructive-ish action (Quit) and it is not confusing. Option A's section labels create addressable space for future items without touching existing structure: a future "Providers" section, a future "Advanced" section, a future "Account" section can all be added by appending a section, not by reorganizing.
+
+3. **Footer condensed to two inline elements: Check for Updates and Quit with version number.** The original footer had three rows of varying weight. The redesigned footer treats these as secondary actions that live below the list — they're not settings, they're app-level commands. Putting them in a single horizontal row reduces their visual weight appropriately. The version number (`v2.x.x`) moved to sit next to Quit as a subtle annotation — it answers "what version am I on?" without requiring a dedicated row.
+
+4. **SF Symbol icons added to every row — communicate without language.** Icons serve three purposes. First, **visual scanning**: they break the monotony of an all-text list and give the eye anchor points, reducing cognitive load per row. Second, **structural signaling**: the icon + label + trailing control pattern is consistent throughout — icons signal "this is a navigable row" vs. "this is a toggle" without requiring the user to read the label first. Third, **platform alignment**: this is the same pattern used by macOS Sequoia System Settings and iOS Settings, so users arrive with existing muscle memory. The specific icon choices were intentional — `bell` for Notifications, `ladybug` for Report Bugs, `arrow.triangle.2.circlepath` for Check for Updates, `circle.grid.2x2` for AI Connections — each chosen to be immediately recognizable without a label, aligning with macOS 26's continued investment in SF Symbols as a first-class design language.
+
+**What I Learned**: The four-option mockup process is something I do naturally in visual design work but hadn't applied rigorously to a small utility screen before. The instinct at this scale is to just implement the first reasonable solution. But generating alternatives, even for a settings view most users will visit once, forces a level of intentionality that tends to produce better outcomes. Option A would have been the answer either way; having Options B, C, and D makes the reasoning behind it explicit rather than implicit.
+
+**Artifacts to Capture**:
+- Screenshot: redesigned Settings view — grouped sections, icons, condensed footer
+- Before/after: flat eight-item Settings list vs. the two-section grouped layout
+- The four HTML mockup files (A–D) as a process artifact — shows the deliberate exploration before commitment
+- Code snippet: `sectionLabel()` helper and `settingsNavRow()` helper from `PopoverView.swift` — shows the reusable patterns that make the grouped layout extensible
+
+**Story Thread**: This entry belongs to "The Craft" arc. The settings screen is the least glamorous surface in any utility app, and it's also the one that most clearly reveals whether the designer thinks about structure or just about content. Grouped sections with labeled headers is a solution to a scaling problem, not a visual preference. That distinction — designing for the system's future state, not just its current state — is what separates information architecture from decoration.
+
+---
+
+## 2026-03-09 — Signing Fix: The App Group Entitlement Bug
+
+**Phase**: The Build — platform constraints and silent failure modes
+
+**What I Did**: Switched debug builds from the personal Apple Developer team (VJKRVGGNXV) to the program team (RPDDQP7KZ5) in `project.yml`. Both debug and release configurations now use the same team. The symptom that surfaced the bug: widgets were not receiving updated data from the main app — the shared App Group container was silently not shared.
+
+**Why It Matters**: This is a non-obvious platform constraint worth documenting precisely because it produces no error. The app builds. It runs. The widget builds. It runs. The data just doesn't flow between them. When two processes claim to share an App Group but are signed with different team IDs, macOS silently treats them as separate sandboxes — the entitlement key is the same string, but the resolved container path is different for each team. The result is that the main app writes to one location and the widget reads from another, both successfully, producing stale zero data in the widget with no log output to indicate why.
+
+**Key Decision**: The correct fix is to standardize on the program team for all configurations, not to create a special-case path for widgets. Using VJKRVGGNXV for debug was a holdover from the single-target era when the personal team was sufficient for local testing. Once a widget extension with App Group sharing entered the picture, that assumption broke silently. Aligning both configs on RPDDQP7KZ5 means debug and release builds behave identically with respect to entitlements — the behavior tested during development is the behavior that ships.
+
+**What I Learned**: The category of bug here is "correct configuration, wrong scope." The App Group entitlement was correctly declared in both targets. The team ID was correctly set for the release configuration. The error was the assumption that a debug-only configuration difference could be isolated from a cross-process data-sharing feature. It could not. The lesson extends beyond this specific case: any feature that relies on inter-process communication — App Groups, XPC services, iCloud containers — requires both the debug and release configurations to use the same identity. Testing one and shipping the other is not testing the feature at all.
+
+**Artifacts to Capture**:
+- `project.yml` snippet showing both debug and release using `DEVELOPMENT_TEAM: RPDDQP7KZ5` — the fix is two lines but the reasoning is the artifact
+- Note on what the symptom looked like vs. what the root cause was — useful for any portfolio discussion about debugging process
+
+**Story Thread**: This entry belongs to "The Build" arc, specifically the part that deals with platform constraints that aren't documented as constraints. The widget data flow worked correctly in every other respect — the JSON was being serialized, the timeline was refreshing, the views were rendering. The signing mismatch was invisible at every layer except the one that mattered: the user's widget showed the wrong numbers. Finding it required reasoning about the macOS sandbox boundary rather than reading an error message.
+
+---
+
 ## 2026-02-27 — Case Study Narrative: Documenting the Full Arc
 
 **Phase**: The Reflection — making the work legible to the outside world
