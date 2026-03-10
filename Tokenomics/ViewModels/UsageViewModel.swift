@@ -112,7 +112,7 @@ final class UsageViewModel: ObservableObject {
 
     /// Usage state for menu bar icon rendering
     var menuBarState: UsageState {
-        if connectedProviders.isEmpty {
+        if visibleProviders.isEmpty {
             // Check if any provider has a token
             let hasAnyAuth = providerStates.values.contains { state in
                 switch state.connection {
@@ -132,9 +132,9 @@ final class UsageViewModel: ObservableObject {
         return UsageState(utilization: worstUsage.shortWindow.utilization)
     }
 
-    /// Menu bar data for Smart mode (worst-of-N)
+    /// Menu bar data for Smart mode (worst-of-N), respects visibility settings
     func worstOfNUsage() -> ProviderUsageSnapshot? {
-        connectedProviders
+        visibleProviders
             .compactMap { providerStates[$0]?.usage }
             .max(by: { $0.shortWindow.utilization < $1.shortWindow.utilization })
     }
@@ -154,7 +154,7 @@ final class UsageViewModel: ObservableObject {
 
     /// Tooltip text for the menu bar — shows both windows per provider when available
     var menuBarTooltip: String {
-        let parts = connectedProviders.compactMap { id -> String? in
+        let parts = visibleProviders.compactMap { id -> String? in
             guard let usage = providerStates[id]?.usage else { return nil }
             if let longWindow = usage.longWindow {
                 return "\(id.displayName): 5hr \(Int(usage.shortWindow.utilization))% | 7day \(Int(longWindow.utilization))%"

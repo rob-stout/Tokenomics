@@ -25,7 +25,7 @@ struct DisplayModeMenuView: View {
             Label("Pin Tracker:", systemImage: "pin")
                 .font(.caption2)
 
-            ForEach(viewModel.connectedProviders) { provider in
+            ForEach(viewModel.visibleProviders) { provider in
                 Button(action: { viewModel.togglePin(for: provider) }) {
                     HStack {
                         if viewModel.isPinned(provider) {
