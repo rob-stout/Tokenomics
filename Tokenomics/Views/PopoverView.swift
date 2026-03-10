@@ -386,11 +386,10 @@ struct PopoverView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Launch at Login
-                HStack {
-                    Text("Launch at Login")
-                        .font(.caption)
-                    Spacer()
+                // ── Preferences ──
+                sectionLabel("Preferences")
+
+                settingsRow(icon: "checkmark.square", label: "Launch at Login") {
                     Toggle("", isOn: $launchAtLogin)
                         .toggleStyle(.switch)
                         .controlSize(.mini)
@@ -400,139 +399,155 @@ struct PopoverView: View {
                             launchAtLogin = LaunchAtLoginService.isEnabled
                         }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
 
-                Divider()
+                Divider().padding(.horizontal, 16)
 
-                // AI Connections
-                Button(action: { viewModel.showAIConnections = true }) {
-                    HStack {
-                        Text("AI Connections")
-                            .font(.caption)
-                        Spacer()
-                        Text("\(viewModel.connectedProviders.count) connected")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
+                settingsNavRow(
+                    icon: "circle.grid.2x2",
+                    label: "AI Connections",
+                    detail: "\(viewModel.connectedProviders.count) connected"
+                ) {
+                    viewModel.showAIConnections = true
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
 
-                Divider()
+                Divider().padding(.horizontal, 16)
 
-                // Notifications
-                Button(action: { viewModel.showNotifications = true }) {
-                    HStack {
-                        Text("Notifications")
-                            .font(.caption)
-                        Spacer()
-                        Text(viewModel.notificationsSubtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
+                settingsNavRow(
+                    icon: "bell",
+                    label: "Notifications",
+                    detail: viewModel.notificationsSubtitle
+                ) {
+                    viewModel.showNotifications = true
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
 
-                Divider()
+                // ── Learn ──
+                sectionLabel("Learn")
 
-                // How It Works
-                Button(action: { viewModel.showHowItWorks = true }) {
-                    HStack {
-                        Text("How It Works")
-                            .font(.caption)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
+                settingsNavRow(icon: "info.circle", label: "How It Works") {
+                    viewModel.showHowItWorks = true
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
 
-                Divider()
+                Divider().padding(.horizontal, 16)
 
-                // About
-                Button(action: { viewModel.showAbout = true }) {
-                    HStack {
-                        Text("About Tokenomics")
-                            .font(.caption)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
+                settingsNavRow(icon: "star", label: "About Tokenomics") {
+                    viewModel.showAbout = true
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
 
-                Divider()
+                Divider().padding(.horizontal, 16)
 
-                // Feedback
-                Button("Report Bugs / Feedback") {
+                // Report Bugs — opens external link
+                Button {
                     if let url = URL(string: "https://github.com/rob-stout/Tokenomics/issues") {
                         NSWorkspace.shared.open(url)
                     }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "ladybug")
+                            .font(.caption)
+                            .frame(width: 16, height: 16)
+                            .foregroundStyle(.secondary)
+                        Text("Report Bugs / Feedback")
+                            .font(.caption)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .font(.caption)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 9)
+            }
 
-                Divider()
+            // ── Footer ──
+            Divider()
 
+            HStack {
                 // Check for Updates
                 Button(action: { updaterService.checkForUpdates() }) {
-                    HStack {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 11))
                         Text(updaterService.updateAvailable ? "Update Available" : "Check for Updates")
-                            .font(.caption)
+                            .font(.caption2)
                         if updaterService.updateAvailable {
-                            Spacer()
                             Circle()
                                 .fill(.blue)
-                                .frame(width: 8, height: 8)
+                                .frame(width: 6, height: 6)
                         }
                     }
+                    .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
                 .disabled(!updaterService.canCheckForUpdates)
 
-                Divider()
+                Spacer()
 
                 // Quit
-                HStack {
-                    Button("Quit Tokenomics") {
-                        NSApplication.shared.terminate(nil)
-                    }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-
-                    Spacer()
-
-                    Text("v\(appVersion)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .buttonStyle(.plain)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+                Text("v\(appVersion)")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
+    }
+
+    // MARK: - Settings Helpers
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 10, weight: .semibold))
+            .tracking(0.8)
+            .foregroundStyle(.quaternary)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+    }
+
+    private func settingsRow(icon: String, label: String, @ViewBuilder trailing: () -> some View) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption)
+                .frame(width: 16, height: 16)
+                .foregroundStyle(.secondary)
+            Text(label)
+                .font(.caption)
+            Spacer()
+            trailing()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+    }
+
+    private func settingsNavRow(icon: String, label: String, detail: String? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(.secondary)
+                Text(label)
+                    .font(.caption)
+                Spacer()
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
     }
 }
