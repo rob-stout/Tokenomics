@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tokenomics — Settings Layout Options</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #111118;
+      font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+      color: #e5e5e7;
+      padding: 48px 32px 80px;
+      min-width: 1520px;
+    }
+
+    /* ── Page Header ── */
+    .page-header {
+      margin-bottom: 48px;
+    }
+    .page-header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+      margin-bottom: 6px;
+    }
+    .page-header p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.4);
+      line-height: 1.5;
+    }
+
+    /* ── Layout ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 360px);
+      gap: 40px;
+      align-items: start;
+    }
+
+    /* ── Option Column ── */
+    .option {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .option-label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .option-label .tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+    }
+    .option-label h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .option-label p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.38);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    /* ── Popover Shell ── */
+    .popover {
+      width: 360px;
+      background: #1c1c1e;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow:
+        0 0 0 0.5px rgba(0,0,0,0.6),
+        0 20px 60px rgba(0,0,0,0.7),
+        0 4px 12px rgba(0,0,0,0.5);
+      /* Simulate macOS popover arrow */
+      position: relative;
+    }
+    .popover::before {
+      content: '';
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 14px;
+      height: 7px;
+      background: #1c1c1e;
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    }
+
+    /* ── Popover Header ── */
+    .popover-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px 8px;
+    }
+    .popover-header .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      cursor: pointer;
+      user-select: none;
+    }
+    .popover-header .back-btn:hover { color: rgba(255,255,255,0.75); }
+    .popover-header .back-btn svg { width: 7px; height: 12px; }
+    .popover-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: -0.2px;
+    }
+    .popover-header .version-badge {
+      font-size: 11px;
+      color: rgba(255,255,255,0.25);
+      font-variant-numeric: tabular-nums;
+    }
+    .popover-header .spacer-ghost {
+      visibility: hidden;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 0 16px;
+    }
+    .divider.full { margin: 0; }
+
+    /* ── Section Label ── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.28);
+      padding: 8px 16px 4px;
+    }
+
+    /* ── Row ── */
+    .row {
+      display: flex;
+      align-items: center;
+      padding: 9px 16px;
+      cursor: default;
+      transition: background 0.1s ease;
+      gap: 8px;
+    }
+    .row:hover { background: rgba(255,255,255,0.06); }
+    .row.row-danger:hover { background: rgba(255,59,48,0.10); }
+    .row.row-danger .row-label { color: #ff453a; }
+
+    .row-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: rgba(255,255,255,0.45);
+    }
+    .row-icon svg { width: 14px; height: 14px; }
+
+    .row-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.85);
+      flex: 1;
+      white-space: nowrap;
+    }
+    .row-label.secondary { color: rgba(255,255,255,0.45); }
+    .row-meta {
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+      white-space: nowrap;
+    }
+    .row-chevron {
+      color: rgba(255,255,255,0.25);
+      flex-shrink: 0;
+    }
+    .row-chevron svg { width: 6px; height: 11px; }
+
+    /* ── Toggle ── */
+    .toggle {
+      width: 30px;
+      height: 18px;
+      background: #34c759;
+      border-radius: 9px;
+      position: relative;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px;
+      right: 2px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      transition: right 0.15s ease;
+    }
+    .toggle.off { background: rgba(255,255,255,0.15); }
+    .toggle.off::after { right: 14px; }
+
+    /* ── Update Dot ── */
+    .update-dot {
+      width: 8px;
+      height: 8px;
+      background: #0a84ff;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── External Link Icon ── */
+    .ext-icon {
+      color: rgba(255,255,255,0.2);
+    }
+    .ext-icon svg { width: 10px; height: 10px; }
+
+    /* ── Footer Rows (icon-button style) ── */
+    .footer-bar {
+      display: flex;
+      align-items: center;
+      padding: 6px 10px;
+      gap: 2px;
+    }
+    .footer-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      cursor: default;
+      transition: background 0.1s ease;
+      font-size: 11.5px;
+      color: rgba(255,255,255,0.45);
+    }
+    .footer-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75); }
+    .footer-btn svg { width: 12px; height: 12px; }
+    .footer-btn.danger:hover { background: rgba(255,59,48,0.12); color: #ff453a; }
+    .footer-btn .spacer { flex: 1; }
+
+    /* ── 2-Column Grid Footer ── */
+    .two-col-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+    .grid-cell {
+      background: #1c1c1e;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 14px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      cursor: default;
+      transition: background 0.1s ease;
+    }
+    .grid-cell:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+    .grid-cell.danger:hover { background: rgba(255,59,48,0.10); color: #ff453a; }
+    .grid-cell svg { width: 13px; height: 13px; flex-shrink: 0; color: rgba(255,255,255,0.35); }
+    .grid-cell.danger:hover svg { color: #ff453a; }
+
+    /* ── Inline Combo Row ── */
+    .combo-row {
+      display: flex;
+      align-items: center;
+    }
+    .combo-half {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 9px 12px;
+      gap: 6px;
+      cursor: default;
+      transition: background 0.1s ease;
+    }
+    .combo-half:hover { background: rgba(255,255,255,0.06); }
+    .combo-half.danger:hover { background: rgba(255,59,48,0.10); }
+    .combo-half.danger:hover .row-label { color: #ff453a; }
+    .combo-divider-v {
+      width: 1px;
+      height: 30px;
+      background: rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    /* ── Inline header version ── */
+    .header-version {
+      font-size: 10px;
+      color: rgba(255,255,255,0.22);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Badge ── */
+    .badge {
+      font-size: 10px;
+      background: rgba(10,132,255,0.18);
+      color: #0a84ff;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-weight: 600;
+    }
+
+    /* ── Annotation ── */
+    .annotation {
+      margin-top: 8px;
+    }
+    .annotation p {
+      font-size: 11.5px;
+      color: rgba(255,255,255,0.32);
+      line-height: 1.6;
+    }
+    .annotation strong {
+      color: rgba(255,255,255,0.55);
+      font-weight: 600;
+    }
+
+    /* ── Current label ── */
+    .current-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: rgba(255,200,0,0.7);
+      border: 1px solid rgba(255,200,0,0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Tokenomics — Settings Panel Layout Options</h1>
+  <p>360px wide dark popover. Hover rows to see interaction states. Current implementation shown for reference in each label.</p>
+</div>
+
+<div class="grid">
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- OPTION A: Grouped Sections                -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="option">
+    <div class="option-label">
+      <span class="tag">Option A</span>
+      <h2>Grouped Sections</h2>
+      <p>Three named sections with separating labels: Preferences, Learn, and a minimal footer. Reduces perceived density by creating visual anchors between groups.</p>
+    </div>
+
+    <div class="popover">
+      <!-- Header -->
+      <div class="popover-header">
+        <div class="back-btn">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+        <h3>Settings</h3>
+        <div class="spacer-ghost">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+      </div>
+      <div class="divider full"></div>
+
+      <!-- Section: Preferences -->
+      <div class="section-label">Preferences</div>
+
+      <div class="row">
+        <div class="row-icon">
+          <svg viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7L6.5 9L9.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="row-label">Launch at Login</span>
+        <div class="toggle"></div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="row-icon">
+          <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0" stroke="currentColor" stroke-width="1.2"/></svg>
+        </div>
+        <span class="row-label">AI Connections</span>
+        <span class="row-meta">5 connected</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="row-icon">
+          <svg viewBox="0 0 14 14" fill="none"><path d="M7 2v1M7 11v1M2 7H1M13 7h-1M3.64 3.64l-.71-.71M11.07 11.07l-.71-.71M10.36 3.64l.71-.71M2.93 11.07l.71-.71M10 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="row-label">Notifications</span>
+        <span class="row-meta">80% — All providers</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- Section: Learn -->
+      <div class="section-label">Learn</div>
+
+      <div class="row">
+        <div class="row-icon">
+          <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7 6.5v4M7 4.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <span class="row-label">How It Works</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="row-icon">
+          <svg viewBox="0 0 14 14" fill="none"><path d="M7 1l1.5 3H12l-2.7 2 1 3.3L7 7.4 3.7 9.3l1-3.3L2 4h3.5L7 1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="row-label">About Tokenomics</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="row-icon">
+          <svg viewBox="0 0 14 14" fill="none"><path d="M7 9V7M7 5h.01M12.5 7a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="row-label">Report Bugs / Feedback</span>
+        <div class="ext-icon">
+          <svg viewBox="0 0 10 10" fill="none"><path d="M2 8L8 2M5 2h3v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="divider full" style="margin-top:4px;"></div>
+      <div class="footer-bar">
+        <div class="footer-btn">
+          <svg viewBox="0 0 12 12" fill="none"><path d="M6 1v5M3 9a4 4 0 1 0 6 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Check for Updates
+          <span class="update-dot" style="width:6px;height:6px;margin-left:2px;"></span>
+        </div>
+        <div style="flex:1"></div>
+        <div class="footer-btn danger">
+          Quit
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,0.2);padding-right:4px;">v2.4.0</span>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p><strong>Tradeoff:</strong> Section labels add breathing room and cognitive grouping. Footer collapses low-frequency actions into one line. Quit is de-emphasized but accessible. Works especially well once item count grows beyond 8.</p>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- OPTION B: Condensed Icon Footer           -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="option">
+    <div class="option-label">
+      <span class="tag">Option B</span>
+      <h2>Condensed Icon Footer</h2>
+      <p>Primary list kept to 4 high-utility items. Secondary actions (About, How It Works, Feedback, Updates) collapse into a compact icon-button bar at the bottom.</p>
+    </div>
+
+    <div class="popover">
+      <!-- Header -->
+      <div class="popover-header">
+        <div class="back-btn">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+        <h3>Settings</h3>
+        <div class="spacer-ghost">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+      </div>
+      <div class="divider full"></div>
+
+      <!-- Primary list -->
+      <div class="row">
+        <span class="row-label">Launch at Login</span>
+        <div class="toggle"></div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <span class="row-label">AI Connections</span>
+        <span class="row-meta">5 connected</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <span class="row-label">Notifications</span>
+        <span class="row-meta">80% — All providers</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row row-danger">
+        <span class="row-label">Quit Tokenomics</span>
+        <span class="row-meta" style="color:rgba(255,255,255,0.2);">v2.4.0</span>
+      </div>
+
+      <!-- Icon footer bar -->
+      <div class="divider full"></div>
+      <div class="footer-bar" style="justify-content:space-between; padding:6px 8px;">
+        <!-- About -->
+        <div class="footer-btn" title="About Tokenomics" style="flex-direction:column;gap:3px;padding:6px 10px;">
+          <svg viewBox="0 0 12 12" fill="none"><path d="M6 1l1.2 2.4H10L7.9 5.1l.8 2.7L6 6.5 3.3 7.8l.8-2.7L2 3.4h2.8L6 1z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>
+          <span style="font-size:10px;">About</span>
+        </div>
+        <!-- How It Works -->
+        <div class="footer-btn" title="How It Works" style="flex-direction:column;gap:3px;padding:6px 10px;">
+          <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1"/><path d="M6 5.5v3.5M6 3.5v.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <span style="font-size:10px;">How It Works</span>
+        </div>
+        <!-- Report Bugs -->
+        <div class="footer-btn" title="Report Bugs / Feedback" style="flex-direction:column;gap:3px;padding:6px 10px;">
+          <svg viewBox="0 0 12 12" fill="none"><path d="M5 1h2M4.5 1.5C3 2.5 2 4 2 6c0 2.2 1.8 4 4 4s4-1.8 4-4c0-2-1-3.5-2.5-4.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><path d="M4 5h4M4 7.5h4M6 9v1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+          <span style="font-size:10px;">Feedback</span>
+        </div>
+        <!-- Check Updates -->
+        <div class="footer-btn" title="Check for Updates" style="flex-direction:column;gap:3px;padding:6px 10px;position:relative;">
+          <svg viewBox="0 0 12 12" fill="none"><path d="M6 1v5M3 9a4 4 0 1 0 6 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <span style="font-size:10px;">Updates</span>
+          <span style="position:absolute;top:4px;right:7px;width:5px;height:5px;background:#0a84ff;border-radius:50%;"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p><strong>Tradeoff:</strong> The sharpest reduction in list length. Icon buttons feel discoverable but tooltips aren't native to popovers — label text below each icon compensates. Suits power users. "Quit" stays prominent in the list since it's safety-critical (accidental quit is recoverable, but disruptive).</p>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- OPTION C: Two-Column Footer Grid          -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="option">
+    <div class="option-label">
+      <span class="tag">Option C</span>
+      <h2>Two-Column Footer Grid</h2>
+      <p>Primary settings list stays full-width. A 2-column grid below handles all secondary/utility actions. Clear visual boundary between functional and informational.</p>
+    </div>
+
+    <div class="popover">
+      <!-- Header -->
+      <div class="popover-header">
+        <div class="back-btn">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+        <h3>Settings</h3>
+        <div class="spacer-ghost">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+      </div>
+      <div class="divider full"></div>
+
+      <!-- Primary list -->
+      <div class="row">
+        <span class="row-label">Launch at Login</span>
+        <div class="toggle"></div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <span class="row-label">AI Connections</span>
+        <span class="row-meta">5 connected</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <span class="row-label">Notifications</span>
+        <span class="row-meta">80% — All providers</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- 2-col grid -->
+      <div class="divider full" style="margin-top:8px;"></div>
+      <div class="two-col-grid">
+        <div class="grid-cell">
+          <svg viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.1"/><path d="M6.5 5.8v4M6.5 3.8v.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          How It Works
+        </div>
+        <div class="grid-cell">
+          <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.2l1.2 2.5H11L8.7 5.5l.8 2.8-3-1.8-3 1.8.8-2.8L2 3.7h3.3L6.5 1.2z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>
+          About
+        </div>
+        <div class="grid-cell" style="border-top:1px solid rgba(255,255,255,0.08);">
+          <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1v5M3.5 10a4.5 4.5 0 1 0 6 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Check for Updates
+          <span class="update-dot" style="width:6px;height:6px;margin-left:auto;"></span>
+        </div>
+        <div class="grid-cell" style="border-top:1px solid rgba(255,255,255,0.08);">
+          <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 9V7M6.5 5h.01M12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          Feedback
+          <div class="ext-icon" style="margin-left:auto;">
+            <svg viewBox="0 0 10 10" fill="none"><path d="M2 8L8 2M5 2h3v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quit -->
+      <div class="divider full"></div>
+      <div class="footer-bar" style="justify-content:space-between;padding:6px 16px;">
+        <div class="footer-btn danger" style="padding:5px 0;">
+          Quit Tokenomics
+        </div>
+        <span style="font-size:11px;color:rgba(255,255,255,0.2);">v2.4.0</span>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p><strong>Tradeoff:</strong> The grid creates an unambiguous two-tier hierarchy without needing section labels. Primary list stays scannable. Grid cells are easier to hit than icon-only buttons. Risk: grid can feel visually heavy if there's an odd number of items.</p>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- OPTION D: Inline Condensing               -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="option">
+    <div class="option-label">
+      <span class="tag">Option D</span>
+      <h2>Inline Condensing</h2>
+      <p>Version moves to header. About + How It Works merge into one "Learn & About" page. Check Updates and Quit share one split row. Removes one full list item, tightens everything.</p>
+    </div>
+
+    <div class="popover">
+      <!-- Header — version inline -->
+      <div class="popover-header">
+        <div class="back-btn">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+          <h3>Settings</h3>
+          <span class="header-version">v2.4.0</span>
+        </div>
+        <div class="spacer-ghost">
+          <svg viewBox="0 0 7 12" fill="none"><path d="M6 1L1 6L6 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </div>
+      </div>
+      <div class="divider full"></div>
+
+      <!-- Items -->
+      <div class="row">
+        <span class="row-label">Launch at Login</span>
+        <div class="toggle"></div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <span class="row-label">AI Connections</span>
+        <span class="row-meta">5 connected</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <div class="row">
+        <span class="row-label">Notifications</span>
+        <span class="row-meta">80% — All providers</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <!-- Merged: About & How It Works -->
+      <div class="row">
+        <span class="row-label">About &amp; How It Works</span>
+        <div class="row-chevron">
+          <svg viewBox="0 0 6 11" fill="none"><path d="M1 1L5 5.5L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <!-- Feedback -->
+      <div class="row">
+        <span class="row-label">Report Bugs / Feedback</span>
+        <div class="ext-icon">
+          <svg viewBox="0 0 10 10" fill="none"><path d="M2 8L8 2M5 2h3v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="divider"></div>
+
+      <!-- Split row: Updates | Quit -->
+      <div class="combo-row">
+        <div class="combo-half">
+          <svg viewBox="0 0 13 13" fill="none" style="width:13px;height:13px;color:rgba(255,255,255,0.4);flex-shrink:0;"><path d="M6.5 1.5v4.5M3.5 10a4.5 4.5 0 1 0 6 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <span class="row-label" style="font-size:13px;">Check for Updates</span>
+          <span class="update-dot" style="width:7px;height:7px;"></span>
+        </div>
+        <div class="combo-divider-v"></div>
+        <div class="combo-half danger" style="justify-content:flex-end;padding-right:16px;">
+          <span class="row-label" style="font-size:13px;text-align:right;">Quit</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <p><strong>Tradeoff:</strong> The most surgical approach — same items, less visual noise. Merging About + How It Works makes sense since both are low-frequency, informational pages. Version in header is a good precedent (Spotify, 1Password do this). Split row saves one item slot but the combo pattern is slightly unconventional in macOS popover context.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Design Notes ── -->
+<div style="margin-top:56px;max-width:1520px;">
+  <div style="height:1px;background:rgba(255,255,255,0.07);margin-bottom:32px;"></div>
+  <div style="display:grid;grid-template-columns:repeat(4,360px);gap:40px;">
+    <div>
+      <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:10px;">Recommendation</p>
+      <p style="font-size:12.5px;color:rgba(255,255,255,0.5);line-height:1.7;">
+        <strong style="color:rgba(255,255,255,0.7);">Option A</strong> if the settings page will grow over time (more providers = more rows). The section labels create room to absorb new items gracefully without redesigning the whole panel.
+      </p>
+    </div>
+    <div>
+      <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:10px;">Easiest to Implement</p>
+      <p style="font-size:12.5px;color:rgba(255,255,255,0.5);line-height:1.7;">
+        <strong style="color:rgba(255,255,255,0.7);">Option D</strong> is the lowest-diff change to existing SwiftUI code — version to header is 2 lines, merging pages is one new view, split row is a new HStack pattern.
+      </p>
+    </div>
+    <div>
+      <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:10px;">Most Distinctive</p>
+      <p style="font-size:12.5px;color:rgba(255,255,255,0.5);line-height:1.7;">
+        <strong style="color:rgba(255,255,255,0.7);">Option C</strong> — the 2-column grid is the most visually differentiated from a standard macOS list. Highest portfolio signal for intentional IA decision-making.
+      </p>
+    </div>
+    <div>
+      <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:10px;">Behavioral Note</p>
+      <p style="font-size:12.5px;color:rgba(255,255,255,0.5);line-height:1.7;">
+        Quit is the only destructive action here. All options preserve it as a named text row (not icon-only) — important for discoverability without encouraging accidental taps.
+      </p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

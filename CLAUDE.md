@@ -41,5 +41,5 @@ xcodegen generate    # Regenerate Xcode project from project.yml
 - `LSUIElement: true` — runs as menu bar agent, no Dock icon
 - Reads AI tool credentials from local filesystem (~/.claude/, ~/.codex/, ~/.gemini/)
 - Sparkle update feed: appcast.xml on GitHub main branch
-- Current version: 2.2.6 (build 15)
+- Current version: 2.4.0 (build 17)
 - Swift strict concurrency: complete
