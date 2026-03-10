@@ -87,12 +87,15 @@ struct SmallWidgetView: View {
 
 // MARK: - Medium Widget (Multi-Provider Dashboard — Concept B)
 
-/// Shows all connected providers with both usage windows — mirrors the popover mental model
+/// Shows all connected providers with both usage windows — mirrors the popover mental model.
+/// Uses spacious rows for 1–2 providers; compact rows at 3+ to fit the limited height.
 struct MediumWidgetView: View {
     let entry: UsageEntry
 
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
+            let useCompact = snapshot.providers.count >= 3
+
             VStack(alignment: .leading, spacing: 0) {
                 // Header
                 HStack {
@@ -107,28 +110,89 @@ struct MediumWidgetView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, useCompact ? 8 : 10)
 
                 // Provider rows
                 ForEach(Array(snapshot.providers.enumerated()), id: \.element.id) { index, provider in
                     if index > 0 {
                         Divider()
-                            .padding(.vertical, 4)
+                            .padding(.vertical, useCompact ? 4 : 6)
                     }
-                    providerRow(provider)
+                    if useCompact {
+                        CompactProviderRow(provider: provider)
+                    } else {
+                        LargeProviderRow(provider: provider)
+                    }
                 }
 
                 Spacer(minLength: 0)
             }
+            .padding(4)
         } else {
             noDataView
         }
     }
+}
 
-    @ViewBuilder
-    private func providerRow(_ provider: WidgetDataStore.WidgetSnapshot.ProviderEntry) -> some View {
+// MARK: - Large Widget (Spacious Multi-Provider Dashboard)
+
+/// Full-height widget. Uses spacious rows for 1–3 providers; falls back to compact rows at 4+
+/// to avoid overflow, since widgets can't scroll.
+struct LargeWidgetView: View {
+    let entry: UsageEntry
+
+    var body: some View {
+        if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
+            let useCompact = snapshot.providers.count >= 4
+
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack {
+                    Text("Tokenomics")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let updatedAt = entry.snapshot?.updatedAt {
+                        Text(updatedAt, style: .relative)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.bottom, useCompact ? 10 : 12)
+
+                // Provider rows — spacious at 3 or fewer, compact at 4+
+                ForEach(Array(snapshot.providers.enumerated()), id: \.element.id) { index, provider in
+                    if index > 0 {
+                        Divider()
+                            .padding(.vertical, useCompact ? 4 : 6)
+                    }
+                    if useCompact {
+                        CompactProviderRow(provider: provider)
+                    } else {
+                        LargeProviderRow(provider: provider)
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(4)
+        } else {
+            noDataView
+        }
+    }
+}
+
+// MARK: - Provider Row Views
+
+/// Compact single-line row: badge | short window bar | long window bar.
+/// Used by MediumWidgetView and LargeWidgetView (4+ providers).
+private struct CompactProviderRow: View {
+    let provider: WidgetDataStore.WidgetSnapshot.ProviderEntry
+
+    var body: some View {
         HStack(spacing: 12) {
-            // Provider label
+            // Provider badge
             Text(provider.shortLabel)
                 .font(.caption)
                 .fontWeight(.bold)
@@ -179,48 +243,12 @@ struct MediumWidgetView: View {
     }
 }
 
-// MARK: - Large Widget (Spacious Multi-Provider Dashboard)
-
-/// Full-height widget with room for all providers — no truncation at 5+ providers
-struct LargeWidgetView: View {
-    let entry: UsageEntry
+/// Spacious row with a header line (name + plan) plus separate bar rows per window.
+/// Used by LargeWidgetView when there are 3 or fewer providers.
+private struct LargeProviderRow: View {
+    let provider: WidgetDataStore.WidgetSnapshot.ProviderEntry
 
     var body: some View {
-        if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack {
-                    Text("Tokenomics")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if let updatedAt = entry.snapshot?.updatedAt {
-                        Text(updatedAt, style: .relative)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .padding(.bottom, 12)
-
-                // Provider rows with more breathing room
-                ForEach(Array(snapshot.providers.enumerated()), id: \.element.id) { index, provider in
-                    if index > 0 {
-                        Divider()
-                            .padding(.vertical, 6)
-                    }
-                    largeProviderRow(provider)
-                }
-
-                Spacer(minLength: 0)
-            }
-        } else {
-            noDataView
-        }
-    }
-
-    @ViewBuilder
-    private func largeProviderRow(_ provider: WidgetDataStore.WidgetSnapshot.ProviderEntry) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             // Provider name + plan
             HStack {

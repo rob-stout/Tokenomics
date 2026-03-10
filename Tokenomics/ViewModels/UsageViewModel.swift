@@ -448,9 +448,10 @@ final class UsageViewModel: ObservableObject {
         pushToWidgets()
     }
 
-    /// Push current usage data to the shared App Group store for WidgetKit
+    /// Push current usage data to the shared App Group store for WidgetKit.
+    /// Uses visibleProviders so the widget respects the user's sort order and hidden providers.
     private func pushToWidgets() {
-        let entries: [(ProviderId, ProviderUsageSnapshot)] = connectedProviders.compactMap { id in
+        let entries: [(ProviderId, ProviderUsageSnapshot)] = visibleProviders.compactMap { id in
             guard let usage = providerStates[id]?.usage else { return nil }
             return (id, usage)
         }
