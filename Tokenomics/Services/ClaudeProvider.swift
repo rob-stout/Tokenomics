@@ -20,7 +20,8 @@ actor ClaudeProvider: UsageProvider {
 
     func checkConnection() async -> ProviderConnectionState {
         if KeychainService.readAccessToken() != nil {
-            return .connected(plan: "—")
+            let plan = SettingsService.cachedUsage(for: .claude)?.snapshot.planLabel ?? "Pro"
+            return .connected(plan: plan)
         }
         if isClaudeCodeInstalled() { return .installedNoAuth }
         return .notInstalled
