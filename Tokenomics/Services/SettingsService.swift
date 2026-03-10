@@ -74,6 +74,34 @@ enum SettingsService {
         }
     }
 
+    // MARK: - Provider Order & Visibility
+
+    /// Custom provider order. Empty = default enum order.
+    static var providerOrder: [ProviderId] {
+        get {
+            guard let rawArray = defaults.stringArray(forKey: "providerOrder") else {
+                return []
+            }
+            return rawArray.compactMap { ProviderId(rawValue: $0) }
+        }
+        set {
+            defaults.set(newValue.map(\.rawValue), forKey: "providerOrder")
+        }
+    }
+
+    /// Providers hidden from the tab bar (still polled in background)
+    static var hiddenProviders: Set<ProviderId> {
+        get {
+            guard let rawArray = defaults.stringArray(forKey: "hiddenProviders") else {
+                return []
+            }
+            return Set(rawArray.compactMap { ProviderId(rawValue: $0) })
+        }
+        set {
+            defaults.set(newValue.map(\.rawValue), forKey: "hiddenProviders")
+        }
+    }
+
     // MARK: - Selected Tab
 
     /// The last-selected provider tab (persisted across popover open/close)

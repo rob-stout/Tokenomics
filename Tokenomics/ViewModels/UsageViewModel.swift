@@ -20,6 +20,16 @@ final class UsageViewModel: ObservableObject {
         didSet { SettingsService.pinnedProviders = pinnedProviders }
     }
 
+    /// Custom provider display order
+    @Published var providerOrder: [ProviderId] = [] {
+        didSet { SettingsService.providerOrder = providerOrder }
+    }
+
+    /// Providers hidden from the tab bar
+    @Published var hiddenProviders: Set<ProviderId> = [] {
+        didSet { SettingsService.hiddenProviders = hiddenProviders }
+    }
+
     /// Whether onboarding has been completed
     @Published private(set) var hasCompletedOnboarding: Bool
 
@@ -48,7 +58,7 @@ final class UsageViewModel: ObservableObject {
 
     /// Providers that are connected (have usage data or are connected)
     var connectedProviders: [ProviderId] {
-        ProviderId.allCases.filter { id in
+        orderedProviders.filter { id in
             guard let state = providerStates[id] else { return false }
             return state.connection.isConnected
         }
@@ -56,15 +66,29 @@ final class UsageViewModel: ObservableObject {
 
     /// Providers that are at least installed (not .notInstalled)
     var installedProviders: [ProviderId] {
-        ProviderId.allCases.filter { id in
+        orderedProviders.filter { id in
             guard let state = providerStates[id] else { return false }
             return state.connection != .notInstalled
         }
     }
 
-    /// Providers to show as tabs (connected ones, in stable order)
+    /// All providers in display order (custom order with fallback to enum order)
+    var orderedProviders: [ProviderId] {
+        if providerOrder.isEmpty {
+            return ProviderId.allCases.map { $0 }
+        }
+        // Start with custom order, append any new providers not yet in the list
+        var result = providerOrder.filter { ProviderId.allCases.contains($0) }
+        for id in ProviderId.allCases where !result.contains(id) {
+            result.append(id)
+        }
+        return result
+    }
+
+    /// Providers to show as tabs (connected, not hidden, in custom order)
     var visibleProviders: [ProviderId] {
-        ProviderId.allCases.filter { id in
+        orderedProviders.filter { id in
+            guard !hiddenProviders.contains(id) else { return false }
             guard let state = providerStates[id] else { return false }
             switch state.connection {
             case .connected, .authExpired, .unavailable:
@@ -179,6 +203,8 @@ final class UsageViewModel: ObservableObject {
     init() {
         self.hasCompletedOnboarding = SettingsService.hasCompletedOnboarding
         self.pinnedProviders = SettingsService.pinnedProviders
+        self.providerOrder = SettingsService.providerOrder
+        self.hiddenProviders = SettingsService.hiddenProviders
         self.selectedTab = SettingsService.selectedTab
 
         // Pre-populate provider states with cached usage so data shows instantly
@@ -216,7 +242,7 @@ final class UsageViewModel: ObservableObject {
             }
 
             // Register each provider's poll interval
-            for (id, provider) in providerOrder {
+            for (id, provider) in providerPairs {
                 let interval = await provider.pollInterval
                 await pollingService.registerProvider(id, interval: interval)
             }
@@ -252,7 +278,7 @@ final class UsageViewModel: ObservableObject {
             // Manual refresh counts as activity — resets idle timer
             await pollingService.noteActivity()
             // Fetch all providers and reset their poll timers
-            for (id, _) in providerOrder {
+            for (id, _) in providerPairs {
                 await pollingService.markFetched(id)
             }
             await fetchAllProviders()
@@ -293,6 +319,42 @@ final class UsageViewModel: ObservableObject {
         pinnedProviders.removeAll()
     }
 
+    // MARK: - Provider Visibility
+
+    func isHidden(_ provider: ProviderId) -> Bool {
+        hiddenProviders.contains(provider)
+    }
+
+    func toggleVisibility(for provider: ProviderId) {
+        if hiddenProviders.contains(provider) {
+            hiddenProviders.remove(provider)
+        } else {
+            hiddenProviders.insert(provider)
+        }
+        // If we hid the selected tab, move to another
+        if let tab = selectedTab, hiddenProviders.contains(tab) {
+            selectedTab = visibleProviders.first
+        }
+    }
+
+    func swapProviders(_ from: ProviderId, _ to: ProviderId) {
+        var order = orderedProviders
+        guard let fromIndex = order.firstIndex(of: from),
+              let toIndex = order.firstIndex(of: to) else { return }
+        order.swapAt(fromIndex, toIndex)
+        providerOrder = order
+    }
+
+    func moveProvider(_ provider: ProviderId, toIndex: Int) {
+        var order = orderedProviders
+        guard let fromIndex = order.firstIndex(of: provider),
+              fromIndex != toIndex,
+              order.indices.contains(toIndex) else { return }
+        let item = order.remove(at: fromIndex)
+        order.insert(item, at: toIndex)
+        providerOrder = order
+    }
+
     // MARK: - Popover Lifecycle
 
     /// Resets navigation to the home/usage view
@@ -307,14 +369,14 @@ final class UsageViewModel: ObservableObject {
     // MARK: - Private
 
     /// Stable iteration order so detection/fetching is deterministic
-    private var providerOrder: [(ProviderId, any UsageProvider)] {
+    private var providerPairs: [(ProviderId, any UsageProvider)] {
         ProviderId.allCases.compactMap { id in
             providers[id].map { (id, $0) }
         }
     }
 
     private func detectProviders() async {
-        for (id, provider) in providerOrder {
+        for (id, provider) in providerPairs {
             let connection = await provider.checkConnection()
             let existing = providerStates[id] ?? .empty
             providerStates[id] = ProviderState(
@@ -330,7 +392,7 @@ final class UsageViewModel: ObservableObject {
     /// Re-checks only non-connected providers (called when popover opens)
     func redetectProviders() {
         Task {
-            for (id, provider) in providerOrder {
+            for (id, provider) in providerPairs {
                 let current = providerStates[id]?.connection ?? .notInstalled
                 // Skip already-connected providers — no need to re-check
                 guard !current.isConnected else { continue }
@@ -369,7 +431,7 @@ final class UsageViewModel: ObservableObject {
     /// Fetch all providers concurrently (used by manual refresh)
     private func fetchAllProviders() async {
         await withTaskGroup(of: (ProviderId, ProviderState).self) { group in
-            for (id, provider) in providerOrder {
+            for (id, provider) in providerPairs {
                 let currentState = providerStates[id] ?? .empty
                 group.addTask {
                     let newState = await self.fetchSingleProvider(

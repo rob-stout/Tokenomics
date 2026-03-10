@@ -13,6 +13,8 @@ struct TokenomicsWidgetEntryView: View {
             SmallWidgetView(entry: entry)
         case .systemMedium:
             MediumWidgetView(entry: entry)
+        case .systemLarge:
+            LargeWidgetView(entry: entry)
         default:
             MediumWidgetView(entry: entry)
         }
@@ -177,6 +179,112 @@ struct MediumWidgetView: View {
     }
 }
 
+// MARK: - Large Widget (Spacious Multi-Provider Dashboard)
+
+/// Full-height widget with room for all providers — no truncation at 5+ providers
+struct LargeWidgetView: View {
+    let entry: UsageEntry
+
+    var body: some View {
+        if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack {
+                    Text("Tokenomics")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let updatedAt = entry.snapshot?.updatedAt {
+                        Text(updatedAt, style: .relative)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.bottom, 12)
+
+                // Provider rows with more breathing room
+                ForEach(Array(snapshot.providers.enumerated()), id: \.element.id) { index, provider in
+                    if index > 0 {
+                        Divider()
+                            .padding(.vertical, 6)
+                    }
+                    largeProviderRow(provider)
+                }
+
+                Spacer(minLength: 0)
+            }
+        } else {
+            noDataView
+        }
+    }
+
+    @ViewBuilder
+    private func largeProviderRow(_ provider: WidgetDataStore.WidgetSnapshot.ProviderEntry) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Provider name + plan
+            HStack {
+                Text(provider.shortLabel)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .frame(width: 20, height: 20)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                Text(provider.displayName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+
+                Spacer()
+
+                Text(provider.planLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            // Short window
+            HStack(spacing: 8) {
+                Text(provider.shortWindow.label)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40, alignment: .leading)
+
+                WidgetProgressBar(
+                    utilization: provider.shortWindow.utilization,
+                    pace: provider.shortWindow.pace
+                )
+
+                Text("\(Int(provider.shortWindow.utilization))%")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .monospacedDigit()
+                    .frame(width: 30, alignment: .trailing)
+            }
+
+            // Long window
+            if let longWindow = provider.longWindow {
+                HStack(spacing: 8) {
+                    Text(longWindow.label)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 40, alignment: .leading)
+
+                    WidgetProgressBar(
+                        utilization: longWindow.utilization,
+                        pace: longWindow.pace
+                    )
+
+                    Text("\(Int(longWindow.utilization))%")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .monospacedDigit()
+                        .frame(width: 30, alignment: .trailing)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Shared Components
 
 struct WidgetProgressBar: View {
@@ -243,6 +351,12 @@ private var noDataView: some View {
 }
 
 #Preview("Medium", as: .systemMedium) {
+    TokenomicsWidget()
+} timeline: {
+    UsageEntry(date: .now, snapshot: .placeholder, selectedProvider: .smart)
+}
+
+#Preview("Large", as: .systemLarge) {
     TokenomicsWidget()
 } timeline: {
     UsageEntry(date: .now, snapshot: .placeholder, selectedProvider: .smart)

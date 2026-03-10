@@ -168,5 +168,5 @@ struct AboutView: View {
 
 #Preview {
     AboutView(onDismiss: {})
-        .frame(width: 320)
+        .frame(width: 360)
 }

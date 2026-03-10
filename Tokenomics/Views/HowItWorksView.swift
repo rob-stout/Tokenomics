@@ -169,5 +169,5 @@ struct HowItWorksView: View {
 
 #Preview {
     HowItWorksView(onDismiss: {})
-        .frame(width: 320)
+        .frame(width: 360)
 }

@@ -101,5 +101,5 @@ struct UsageBarView: View {
         UsageBarView(label: "5-Hour Window", utilization: 95, pace: 0.9, sublabel: "Resets in 15m")
     }
     .padding()
-    .frame(width: 320)
+    .frame(width: 360)
 }

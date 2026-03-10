@@ -69,7 +69,9 @@ struct PopoverView: View {
             ProviderTabView(
                 providers: viewModel.visibleProviders,
                 selection: $viewModel.selectedTab
-            )
+            ) { provider, toIndex in
+                viewModel.moveProvider(provider, toIndex: toIndex)
+            }
 
             Spacer().frame(height: 4)
         } else {
@@ -445,26 +447,6 @@ struct PopoverView: View {
 
                 Divider()
 
-                // Check for Updates
-                Button(action: { updaterService.checkForUpdates() }) {
-                    HStack {
-                        Text(updaterService.updateAvailable ? "Update Available" : "Check for Updates")
-                            .font(.caption)
-                        if updaterService.updateAvailable {
-                            Spacer()
-                            Circle()
-                                .fill(.blue)
-                                .frame(width: 8, height: 8)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .disabled(!updaterService.canCheckForUpdates)
-
-                Divider()
-
                 // How It Works
                 Button(action: { viewModel.showHowItWorks = true }) {
                     HStack {
@@ -511,6 +493,26 @@ struct PopoverView: View {
                 .font(.caption)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
+
+                Divider()
+
+                // Check for Updates
+                Button(action: { updaterService.checkForUpdates() }) {
+                    HStack {
+                        Text(updaterService.updateAvailable ? "Update Available" : "Check for Updates")
+                            .font(.caption)
+                        if updaterService.updateAvailable {
+                            Spacer()
+                            Circle()
+                                .fill(.blue)
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .disabled(!updaterService.canCheckForUpdates)
 
                 Divider()
 

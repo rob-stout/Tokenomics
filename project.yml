@@ -60,12 +60,13 @@ targets:
         PRODUCT_NAME: Tokenomics
         INFOPLIST_FILE: Tokenomics/Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Tokenomics/Resources/Tokenomics.entitlements
+        ENABLE_APP_SANDBOX: NO
         SWIFT_STRICT_CONCURRENCY: complete
       configs:
         debug:
-          # Personal team for local builds
+          # Program team for App Group support in debug builds
           CODE_SIGN_STYLE: Automatic
-          DEVELOPMENT_TEAM: VJKRVGGNXV
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
           CODE_SIGN_IDENTITY: "Apple Development"
         release:
           # Manual signing for Developer ID distribution
@@ -108,8 +109,9 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
       configs:
         debug:
+          # Program team for App Group support in debug builds
           CODE_SIGN_STYLE: Automatic
-          DEVELOPMENT_TEAM: VJKRVGGNXV
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
           CODE_SIGN_IDENTITY: "Apple Development"
         release:
           CODE_SIGN_STYLE: Manual

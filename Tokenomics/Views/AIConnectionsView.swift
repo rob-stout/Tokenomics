@@ -1,11 +1,15 @@
 import SwiftUI
 
-/// Settings sub-screen showing all providers with pin toggles
+/// Settings sub-screen showing all providers with reorder + show/hide
 struct AIConnectionsView: View {
     @ObservedObject var viewModel: UsageViewModel
     @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
     @State private var showingPATEntry = false
     @State private var patText = ""
+    @State private var draggedRow: ProviderId?
+    @State private var liftedRow: ProviderId?
+    @State private var dropTargetIndex: Int?
+    @State private var rowFrames: [ProviderId: CGRect] = [:]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,7 +27,7 @@ struct AIConnectionsView: View {
 
                 Spacer()
 
-                Text("AI Connections")
+                Text("Providers")
                     .font(.headline)
                     .fontWeight(.medium)
 
@@ -44,17 +48,16 @@ struct AIConnectionsView: View {
             Divider()
 
             VStack(spacing: 0) {
-                ForEach(ProviderId.allCases) { provider in
-                    connectionRow(for: provider)
-                    if provider != ProviderId.allCases.last {
-                        Divider()
-                    }
+                let ordered = viewModel.orderedProviders
+
+                ForEach(Array(ordered.enumerated()), id: \.element) { index, provider in
+                    connectionRow(for: provider, isLast: index == ordered.count - 1)
                 }
 
                 // Hint text
                 VStack(spacing: 0) {
                     Spacer().frame(height: 16)
-                    Text("Tap a letter to pin it to the menu bar. Tap again to return to Smart mode, which shows the most urgent.")
+                    Text("Cmd+drag to reorder. Tap the eye to show or hide. Hidden providers still update in the background.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
@@ -64,19 +67,24 @@ struct AIConnectionsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
+            .coordinateSpace(name: "providerList")
+            .onPreferenceChange(RowFramePreference.self) { rowFrames = $0 }
+            .animation(.easeInOut(duration: 0.2), value: viewModel.orderedProviders)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
     }
 
     @ViewBuilder
-    private func connectionRow(for provider: ProviderId) -> some View {
+    private func connectionRow(for provider: ProviderId, isLast: Bool = false) -> some View {
         let state = viewModel.providerStates[provider]
         let connection = state?.connection ?? .notInstalled
         let isConnected = connection.isConnected
         let isPinned = viewModel.isPinned(provider)
+        let isHidden = viewModel.isHidden(provider)
 
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
+
             // Provider icon — acts as pin toggle for connected providers
             Button(action: {
                 if isConnected {
@@ -95,7 +103,7 @@ struct AIConnectionsView: View {
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .foregroundStyle(iconForeground(connected: isConnected, pinned: isPinned))
-                    .opacity(connection == .notInstalled ? 0.3 : 1)
+                    .opacity(isHidden ? 0.4 : (connection == .notInstalled ? 0.3 : 1))
             }
             .buttonStyle(.plain)
             .disabled(!isConnected)
@@ -104,7 +112,7 @@ struct AIConnectionsView: View {
                 Text(provider.displayName)
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundStyle(connection == .notInstalled ? .secondary : .primary)
+                    .foregroundStyle(isHidden ? .secondary : (connection == .notInstalled ? .secondary : .primary))
 
                 Text(connection.statusText)
                     .font(.caption2)
@@ -142,128 +150,173 @@ struct AIConnectionsView: View {
 
             Spacer()
 
-            // Action buttons for non-connected states
-            switch connection {
-            case .notInstalled:
-                if provider.usesPATAuth {
-                    Button("Connect") {
-                        showingPATEntry = true
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                    .help("Enter a GitHub Personal Access Token")
-                } else {
-                    Button("Install") {
-                        provider.openInstallInTerminal()
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                    .help("Opens Terminal to install \(provider.displayName)")
+            // Visibility toggle for connected providers
+            if isConnected {
+                Button(action: { viewModel.toggleVisibility(for: provider) }) {
+                    Image(systemName: isHidden ? "eye.slash" : "eye")
+                        .font(.caption)
+                        .foregroundStyle(isHidden ? .tertiary : .secondary)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
                 }
-            case .installedNoAuth:
-                if provider.usesPATAuth {
-                    Button("Connect") {
-                        showingPATEntry = true
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                    .help("Enter a GitHub Personal Access Token")
-                } else {
-                    Button("Sign In") {
-                        provider.openLoginInTerminal()
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                    .help("Opens Terminal to sign in")
-                }
-            case .authExpired:
-                if provider.usesPATAuth {
-                    Button("Reconnect") {
-                        showingPATEntry = true
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                    .help("Enter a new GitHub Personal Access Token")
-                } else {
-                    Button("Fix") {
-                        provider.openLoginInTerminal()
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                    .help("Opens Terminal to reconnect")
-                }
-            default:
-                if provider == .copilot && isConnected {
-                    Button("Disconnect") {
-                        CopilotKeychainService.deletePAT()
-                        viewModel.redetectProviders()
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                } else {
-                    EmptyView()
-                }
+                .buttonStyle(.plain)
+                .help(isHidden ? "Show in tabs" : "Hide from tabs")
             }
+
+            // Action buttons for non-connected states
+            actionButton(for: provider, connection: connection)
         }
         .padding(.vertical, 10)
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Rectangle()
+                    .fill(Color(nsColor: .separatorColor))
+                    .frame(height: 0.5)
+            }
+        }
+        .opacity(isHidden ? 0.7 : 1)
+        .background(
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: RowFramePreference.self,
+                    value: [provider: geo.frame(in: .named("providerList"))]
+                )
+            }
+        )
+        .padding(.vertical, liftedRow == provider ? 2 : 0)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(liftedRow == provider ? Color.white.opacity(0.06) : .clear)
+                .animation(.easeInOut(duration: 0.15), value: liftedRow)
+        )
+        .shadow(
+            color: .black.opacity(liftedRow == provider ? 0.25 : 0),
+            radius: liftedRow == provider ? 6 : 0,
+            x: 0,
+            y: liftedRow == provider ? 2 : 0
+        )
+        .zIndex(liftedRow == provider ? 1 : 0)
+        .overlay {
+            // Invisible overlay captures Cmd+drag above all buttons
+            Color.clear
+                .contentShape(Rectangle())
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 5, coordinateSpace: .named("providerList"))
+                        .modifiers(.command)
+                        .onChanged { value in
+                            if draggedRow == nil {
+                                draggedRow = provider
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    liftedRow = provider
+                                }
+                            }
+
+                            let currentY = value.location.y
+                            let ordered = viewModel.orderedProviders
+
+                            guard let dragged = draggedRow,
+                                  let sourceIndex = ordered.firstIndex(of: dragged) else { return }
+
+                            // Only move when cursor passes the target row's midpoint
+                            var targetIndex: Int?
+                            for (idx, id) in ordered.enumerated() {
+                                guard idx != sourceIndex,
+                                      let frame = rowFrames[id] else { continue }
+                                // Moving down: cursor must pass below the target's midpoint
+                                // Moving up: cursor must pass above the target's midpoint
+                                if idx > sourceIndex && currentY > frame.midY {
+                                    targetIndex = idx
+                                } else if idx < sourceIndex && currentY < frame.midY {
+                                    targetIndex = targetIndex ?? idx
+                                }
+                            }
+
+                            guard let target = targetIndex, target != sourceIndex else { return }
+
+                            viewModel.moveProvider(dragged, toIndex: target)
+                        }
+                        .onEnded { _ in
+                            draggedRow = nil
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                liftedRow = nil
+                                dropTargetIndex = nil
+                            }
+                        }
+                )
+        }
         .sheet(isPresented: $showingPATEntry) {
             patEntrySheet
         }
     }
 
+    @ViewBuilder
+    private func actionButton(for provider: ProviderId, connection: ProviderConnectionState) -> some View {
+        switch connection {
+        case .notInstalled:
+            if provider.usesPATAuth {
+                smallActionButton("Connect") { showingPATEntry = true }
+                    .help("Enter a GitHub Personal Access Token")
+            } else {
+                smallActionButton("Install") { provider.openInstallInTerminal() }
+                    .help("Opens Terminal to install \(provider.displayName)")
+            }
+        case .installedNoAuth:
+            if provider.usesPATAuth {
+                smallActionButton("Connect") { showingPATEntry = true }
+                    .help("Enter a GitHub Personal Access Token")
+            } else {
+                smallActionButton("Sign In") { provider.openLoginInTerminal() }
+                    .help("Opens Terminal to sign in")
+            }
+        case .authExpired:
+            if provider.usesPATAuth {
+                smallActionButton("Reconnect") { showingPATEntry = true }
+                    .help("Enter a new GitHub Personal Access Token")
+            } else {
+                smallActionButton("Fix") { provider.openLoginInTerminal() }
+                    .help("Opens Terminal to reconnect")
+            }
+        default:
+            if provider == .copilot && connection.isConnected {
+                smallActionButton("Disconnect") {
+                    CopilotKeychainService.deletePAT()
+                    viewModel.redetectProviders()
+                }
+            } else {
+                EmptyView()
+            }
+        }
+    }
+
+    private func smallActionButton(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Drop Indicator
+
+    @ViewBuilder
+    private func dropIndicator(visible: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 1)
+            .fill(Color.accentColor)
+            .frame(height: visible ? 2 : 0)
+            .padding(.horizontal, 4)
+            .opacity(visible ? 1 : 0)
+            .animation(.easeInOut(duration: 0.15), value: visible)
+    }
+
     // MARK: - Icon Styling
 
-    /// ON state: filled background like bar track
-    /// OFF state: transparent with outline
     private func iconBackground(connected: Bool, pinned: Bool) -> Color {
         if connected && pinned {
             return Color(nsColor: .quaternaryLabelColor)
@@ -336,6 +389,15 @@ struct AIConnectionsView: View {
             }
         }
         .padding(20)
-        .frame(width: 320)
+        .frame(width: 360)
+    }
+}
+
+// MARK: - Preference Key for Row Geometry
+
+private struct RowFramePreference: PreferenceKey {
+    static var defaultValue: [ProviderId: CGRect] = [:]
+    static func reduce(value: inout [ProviderId: CGRect], nextValue: () -> [ProviderId: CGRect]) {
+        value.merge(nextValue()) { _, new in new }
     }
 }

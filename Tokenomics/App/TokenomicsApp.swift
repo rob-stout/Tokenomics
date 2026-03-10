@@ -8,7 +8,7 @@ struct TokenomicsApp: App {
     var body: some Scene {
         MenuBarExtra {
             PopoverView(viewModel: viewModel, updaterService: updaterService)
-                .frame(width: 320)
+                .frame(width: 360)
         } label: {
             MenuBarLabel(viewModel: viewModel)
                 .onAppear {

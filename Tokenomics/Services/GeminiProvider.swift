@@ -92,18 +92,16 @@ actor GeminiProvider: UsageProvider {
 
     /// Gemini timestamps include milliseconds (e.g. "2026-03-03T16:02:55.528Z")
     /// which the default .iso8601 strategy doesn't handle
-    private static let geminiDateStrategy: JSONDecoder.DateDecodingStrategy = {
+    private static let geminiDateStrategy: JSONDecoder.DateDecodingStrategy = .custom { decoder in
+        let container = try decoder.singleValueContainer()
+        let string = try container.decode(String.self)
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
-        return .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let string = try container.decode(String.self)
-            if let date = formatter.date(from: string) { return date }
-            if let date = fallback.date(from: string) { return date }
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(string)")
-        }
-    }()
+        if let date = formatter.date(from: string) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        if let date = formatter.date(from: string) { return date }
+        throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(string)")
+    }
 
     // MARK: - Session File Parsing
 

@@ -55,7 +55,7 @@ struct TokenomicsWidget: Widget {
         }
         .configurationDisplayName("AI Usage")
         .description("Track your AI coding tool usage at a glance.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
