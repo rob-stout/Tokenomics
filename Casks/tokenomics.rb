@@ -14,8 +14,12 @@ cask "tokenomics" do
 
   app "Tokenomics.app"
 
+  uninstall_preflight do
+    system_command "/usr/bin/pkill", args: ["-x", "Tokenomics"], sudo: false
+    sleep 1
+  end
+
   postflight do
-    sleep 2
     system_command "/usr/bin/open", args: ["/Applications/Tokenomics.app"], sudo: false
   end
 
