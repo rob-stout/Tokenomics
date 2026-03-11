@@ -19,10 +19,14 @@ cask "tokenomics" do
   preflight do
     system_command "/usr/bin/osascript",
                    args: ["-e", 'quit app "Tokenomics"'],
-                   sudo: false
+                   sudo: false,
+                   must_succeed: false
     sleep 1
     # Fallback: force kill if graceful quit didn't work
-    system_command "/usr/bin/pkill", args: ["-x", "Tokenomics"], sudo: false
+    system_command "/usr/bin/pkill",
+                   args: ["-x", "Tokenomics"],
+                   sudo: false,
+                   must_succeed: false
     sleep 1
   end
 
