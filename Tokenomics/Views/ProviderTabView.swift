@@ -20,7 +20,14 @@ struct ProviderTabView: View {
                 ForEach(providers) { provider in
                     let isDragging = draggedProvider == provider
 
-                    Text(provider.tabLabel)
+                    HStack(spacing: 5) {
+                        providerTabIcon(for: provider)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 12, height: 12)
+                            .opacity((selection == provider) ? 0.9 : 0.5)
+                        Text(provider.tabLabel)
+                    }
                         .font(.caption)
                         .fontWeight(.medium)
                         .padding(.vertical, 6)
@@ -87,6 +94,14 @@ struct ProviderTabView: View {
         .padding(.horizontal, 16)
         .padding(.top, 12)
     }
+}
+
+private func providerTabIcon(for provider: ProviderId) -> Image {
+    let name = "\(provider.rawValue.prefix(1).uppercased())\(provider.rawValue.dropFirst())-white"
+    if let nsImage = NSImage(named: name) {
+        return Image(nsImage: nsImage)
+    }
+    return Image(systemName: "questionmark.square")
 }
 
 private struct TabFramePreference: PreferenceKey {

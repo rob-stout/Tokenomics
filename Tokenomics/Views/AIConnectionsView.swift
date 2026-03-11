@@ -86,7 +86,7 @@ struct AIConnectionsView: View {
         let isPinned = viewModel.isPinned(provider)
         let isHidden = viewModel.isHidden(provider)
 
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
 
             // Provider icon — acts as pin toggle for connected providers
             Button(action: {
@@ -94,9 +94,10 @@ struct AIConnectionsView: View {
                     viewModel.togglePin(for: provider)
                 }
             }) {
-                Text(provider.shortLabel)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                providerIcon(for: provider)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
                     .frame(width: 26, height: 26)
                     .contentShape(Rectangle())
                     .background(iconBackground(connected: isConnected, pinned: isPinned))
@@ -105,7 +106,6 @@ struct AIConnectionsView: View {
                             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .foregroundStyle(iconForeground(connected: isConnected, pinned: isPinned))
                     .opacity(isHidden ? 0.4 : (connection == .notInstalled ? 0.3 : 1))
             }
             .buttonStyle(.plain)
@@ -312,6 +312,15 @@ struct AIConnectionsView: View {
     }
 
     // MARK: - Icon Styling
+
+    private func providerIcon(for provider: ProviderId) -> Image {
+        let name = "\(provider.rawValue.prefix(1).uppercased())\(provider.rawValue.dropFirst())-white"
+        if let nsImage = NSImage(named: name) {
+            return Image(nsImage: nsImage)
+        }
+        // Fallback to letter if image not found
+        return Image(systemName: "questionmark.square")
+    }
 
     private func iconBackground(connected: Bool, pinned: Bool) -> Color {
         if connected && pinned {

@@ -189,8 +189,7 @@ private struct CompactProviderRow: View {
     var body: some View {
         HStack(spacing: 20) {
             // Provider icon
-            Image(provider.id.capitalized + "-white")
-                .renderingMode(.original)
+            providerIcon(provider.id)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 20, height: 20)
@@ -334,6 +333,15 @@ struct WidgetProgressBar: View {
         }
         .frame(height: 4)
     }
+}
+
+/// Load a provider icon PNG from the widget extension bundle
+func providerIcon(_ id: String) -> Image {
+    let name = "\(id.prefix(1).uppercased())\(id.dropFirst())-white"
+    if let nsImage = Bundle.main.image(forResource: name) {
+        return Image(nsImage: nsImage)
+    }
+    return Image(systemName: "questionmark.square")
 }
 
 /// Color based on utilization level — matches main app's UsageState

@@ -38,13 +38,15 @@ targets:
         buildPhase: resources
       - path: Tokenomics/Resources/PrivacyInfo.xcprivacy
         buildPhase: resources
+      - path: Tokenomics/Resources/Provider Icons/PNG
+        buildPhase: resources
     info:
       path: Tokenomics/Resources/Info.plist
       properties:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
-        CFBundleShortVersionString: "2.4.5"
-        CFBundleVersion: "22"
+        CFBundleShortVersionString: "2.4.6"
+        CFBundleVersion: "23"
         LSUIElement: true
         SUFeedURL: https://raw.githubusercontent.com/rob-stout/Tokenomics/main/appcast.xml
         SUPublicEDKey: iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=
@@ -90,8 +92,8 @@ targets:
       path: TokenomicsWidgets/Info.plist
       properties:
         CFBundleDisplayName: Tokenomics Widgets
-        CFBundleShortVersionString: "2.4.5"
-        CFBundleVersion: "22"
+        CFBundleShortVersionString: "2.4.6"
+        CFBundleVersion: "23"
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
