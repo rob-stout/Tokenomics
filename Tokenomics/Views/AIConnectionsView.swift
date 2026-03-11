@@ -196,54 +196,47 @@ struct AIConnectionsView: View {
             y: liftedRow == provider ? 2 : 0
         )
         .zIndex(liftedRow == provider ? 1 : 0)
-        .overlay {
-            // Invisible overlay captures Cmd+drag above all buttons
-            Color.clear
-                .contentShape(Rectangle())
-                .highPriorityGesture(
-                    DragGesture(minimumDistance: 5, coordinateSpace: .named("providerList"))
-                        .modifiers(.command)
-                        .onChanged { value in
-                            if draggedRow == nil {
-                                draggedRow = provider
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    liftedRow = provider
-                                }
-                            }
-
-                            let currentY = value.location.y
-                            let ordered = viewModel.orderedProviders
-
-                            guard let dragged = draggedRow,
-                                  let sourceIndex = ordered.firstIndex(of: dragged) else { return }
-
-                            // Only move when cursor passes the target row's midpoint
-                            var targetIndex: Int?
-                            for (idx, id) in ordered.enumerated() {
-                                guard idx != sourceIndex,
-                                      let frame = rowFrames[id] else { continue }
-                                // Moving down: cursor must pass below the target's midpoint
-                                // Moving up: cursor must pass above the target's midpoint
-                                if idx > sourceIndex && currentY > frame.midY {
-                                    targetIndex = idx
-                                } else if idx < sourceIndex && currentY < frame.midY {
-                                    targetIndex = targetIndex ?? idx
-                                }
-                            }
-
-                            guard let target = targetIndex, target != sourceIndex else { return }
-
-                            viewModel.moveProvider(dragged, toIndex: target)
+        .gesture(
+            // Cmd+drag to reorder — uses .gesture (not overlay) so buttons remain tappable
+            DragGesture(minimumDistance: 5, coordinateSpace: .named("providerList"))
+                .modifiers(.command)
+                .onChanged { value in
+                    if draggedRow == nil {
+                        draggedRow = provider
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            liftedRow = provider
                         }
-                        .onEnded { _ in
-                            draggedRow = nil
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                liftedRow = nil
-                                dropTargetIndex = nil
-                            }
+                    }
+
+                    let currentY = value.location.y
+                    let ordered = viewModel.orderedProviders
+
+                    guard let dragged = draggedRow,
+                          let sourceIndex = ordered.firstIndex(of: dragged) else { return }
+
+                    var targetIndex: Int?
+                    for (idx, id) in ordered.enumerated() {
+                        guard idx != sourceIndex,
+                              let frame = rowFrames[id] else { continue }
+                        if idx > sourceIndex && currentY > frame.midY {
+                            targetIndex = idx
+                        } else if idx < sourceIndex && currentY < frame.midY {
+                            targetIndex = targetIndex ?? idx
                         }
-                )
-        }
+                    }
+
+                    guard let target = targetIndex, target != sourceIndex else { return }
+
+                    viewModel.moveProvider(dragged, toIndex: target)
+                }
+                .onEnded { _ in
+                    draggedRow = nil
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        liftedRow = nil
+                        dropTargetIndex = nil
+                    }
+                }
+        )
         .sheet(isPresented: $showingPATEntry) {
             patEntrySheet
         }

@@ -44,9 +44,10 @@ struct PopoverView: View {
             .frame(width: 0, height: 0)
             .opacity(0)
         }
-        // Re-detect providers when popover opens (user may have signed in externally)
+        // Re-detect providers and select contextual tab when popover opens
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             viewModel.redetectProviders()
+            viewModel.selectContextualTab()
         }
         // Reset to home view when popover closes
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in

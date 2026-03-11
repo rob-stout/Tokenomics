@@ -357,6 +357,18 @@ final class UsageViewModel: ObservableObject {
 
     // MARK: - Popover Lifecycle
 
+    /// Selects the most contextually relevant tab when the popover opens.
+    /// Priority: pinned provider → worst-of-N (smart mode) → last selected tab.
+    func selectContextualTab() {
+        if let pinned = pinnedProviders.first, visibleProviders.contains(pinned) {
+            selectedTab = pinned
+        } else if pinnedProviders.isEmpty, let worst = worstOfNUsage(),
+                  let worstId = visibleProviders.first(where: { providerStates[$0]?.usage?.shortWindow.utilization == worst.shortWindow.utilization }) {
+            selectedTab = worstId
+        }
+        // Otherwise keep the persisted selectedTab as-is
+    }
+
     /// Resets navigation to the home/usage view
     func resetNavigation() {
         showSettings = false
