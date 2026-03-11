@@ -25,9 +25,11 @@ enum KeychainService {
         readCredentials()?.accessToken
     }
 
-    /// Read full OAuth credentials (token + refresh token + expiry)
+    /// Read full OAuth credentials (token + refresh token + expiry).
+    /// Prefers file → security CLI → Security framework (last resort, may prompt).
     static func readCredentials() -> OAuthCredentials? {
         if let creds = readCredentialsFromFile() { return creds }
+        if let creds = readCredentialsViaCLI() { return creds }
         return readCredentialsFromKeychain()
     }
 
@@ -49,7 +51,57 @@ enum KeychainService {
         return OAuthCredentials(accessToken: token, refreshToken: refreshToken, expiresAt: expiresAt)
     }
 
-    // MARK: - Keychain (fallback)
+    // MARK: - Security CLI (avoids keychain prompt)
+
+    /// Reads credentials via /usr/bin/security, which is permanently trusted in the
+    /// keychain ACL. This avoids the password prompt that occurs when Tokenomics's own
+    /// binary signature changes between builds or when Claude Code rewrites the item.
+    private static func readCredentialsViaCLI() -> OAuthCredentials? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = ["find-generic-password", "-s", serviceName, "-w"]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            log.debug("security CLI failed to launch: \(error.localizedDescription)")
+            return nil
+        }
+
+        guard process.terminationStatus == 0 else {
+            log.debug("security CLI exited with status \(process.terminationStatus)")
+            return nil
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let raw = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else {
+            return nil
+        }
+
+        // The password value is JSON — parse it the same way as the keychain path
+        guard let jsonData = raw.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let oauth = json["claudeAiOauth"] as? [String: Any],
+              let token = oauth["accessToken"] as? String,
+              token.hasPrefix("sk-ant-") else {
+            return nil
+        }
+
+        let refreshToken = oauth["refreshToken"] as? String
+        let expiresAt: Date? = {
+            guard let ms = oauth["expiresAt"] as? Double else { return nil }
+            return Date(timeIntervalSince1970: ms / 1000)
+        }()
+        return OAuthCredentials(accessToken: token, refreshToken: refreshToken, expiresAt: expiresAt)
+    }
+
+    // MARK: - Keychain (last resort, may prompt)
 
     private static func readCredentialsFromKeychain() -> OAuthCredentials? {
         let query: [String: Any] = [
