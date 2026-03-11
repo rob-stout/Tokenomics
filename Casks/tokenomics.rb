@@ -25,7 +25,7 @@ cask "tokenomics" do
   ]
 
   caveats <<~EOS
-    Tokenomics updates automatically via Sparkle.
-    You don't need to use `brew upgrade` — updates are handled in-app.
+    Tokenomics updates automatically in-app via Sparkle.
+    Use the built-in updater — `brew upgrade` is not supported for this cask.
   EOS
 end
