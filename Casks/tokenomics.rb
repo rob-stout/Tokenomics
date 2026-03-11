@@ -15,8 +15,7 @@ cask "tokenomics" do
   app "Tokenomics.app"
 
   postflight do
-    system_command "/usr/bin/pkill", args: ["-f", "Tokenomics.app"], sudo: false
-    sleep 1
+    sleep 2
     system_command "/usr/bin/open", args: ["/Applications/Tokenomics.app"], sudo: false
   end
 
