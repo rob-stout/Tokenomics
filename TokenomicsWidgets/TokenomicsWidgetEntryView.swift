@@ -95,6 +95,9 @@ struct MediumWidgetView: View {
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
             let useCompact = snapshot.providers.count >= 3
+            let maxVisible = 4
+            let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
+            let overflowCount = snapshot.providers.count - maxVisible
 
             VStack(alignment: .leading, spacing: 0) {
                 // Header
@@ -114,13 +117,21 @@ struct MediumWidgetView: View {
 
                 // Provider rows
                 VStack(alignment: .leading, spacing: useCompact ? 16 : 14) {
-                    ForEach(snapshot.providers, id: \.id) { provider in
+                    ForEach(visibleProviders, id: \.id) { provider in
                         if useCompact {
                             CompactProviderRow(provider: provider)
                         } else {
                             LargeProviderRow(provider: provider)
                         }
                     }
+                }
+
+                if overflowCount > 0 {
+                    Spacer(minLength: 4)
+                    Text("+\(overflowCount) more in app")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
 
                 Spacer(minLength: 0)
@@ -160,7 +171,7 @@ struct LargeWidgetView: View {
                 .padding(.bottom, useCompact ? 10 : 12)
 
                 // Provider rows — spacious at 3 or fewer, compact at 4+
-                VStack(alignment: .leading, spacing: useCompact ? 16 : 14) {
+                VStack(alignment: .leading, spacing: useCompact ? 20 : 14) {
                     ForEach(snapshot.providers, id: \.id) { provider in
                         if useCompact {
                             CompactProviderRow(provider: provider)
@@ -187,7 +198,7 @@ private struct CompactProviderRow: View {
     let provider: WidgetDataStore.WidgetSnapshot.ProviderEntry
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 12) {
             // Provider icon
             providerIcon(provider.id)
                 .resizable()

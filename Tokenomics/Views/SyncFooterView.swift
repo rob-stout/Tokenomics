@@ -47,7 +47,7 @@ struct SyncFooterView: View {
             // Refresh button
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
-                    .font(.caption)
+                    .font(.system(size: 13))
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
                     .rotationEffect(.degrees(isLoading ? 360 : 0))
@@ -75,7 +75,7 @@ struct SyncFooterView: View {
             // Settings gear
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
-                    .font(.caption)
+                    .font(.system(size: 13))
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
                     .overlay(alignment: .topTrailing) {

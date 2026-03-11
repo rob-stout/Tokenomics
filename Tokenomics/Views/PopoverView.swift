@@ -437,7 +437,7 @@ struct PopoverView: View {
                     viewModel.showAbout = true
                 }
 
-                Divider().padding(.horizontal, 16)
+                sectionLabel("Extras")
 
                 // Report Bugs — opens external link
                 Button {
@@ -459,46 +459,54 @@ struct PopoverView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 9)
-            }
 
-            // ── Footer ──
-            Divider()
+                Divider().padding(.horizontal, 16)
 
-            HStack {
-                // Check for Updates
                 Button(action: { updaterService.checkForUpdates() }) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 8) {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 11))
+                            .font(.caption)
+                            .frame(width: 16, height: 16)
+                            .foregroundStyle(.secondary)
                         Text(updaterService.updateAvailable ? "Update Available" : "Check for Updates")
-                            .font(.caption2)
+                            .font(.caption)
                         if updaterService.updateAvailable {
                             Circle()
                                 .fill(.blue)
                                 .frame(width: 6, height: 6)
                         }
+                        Spacer()
+                        Text("v\(appVersion)")
+                            .font(.caption)
+                            .foregroundStyle(.quaternary)
                     }
-                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(!updaterService.canCheckForUpdates)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 9)
 
-                Spacer()
+                Divider().padding(.horizontal, 16)
 
-                // Quit
-                Button("Quit") {
+                Button {
                     NSApplication.shared.terminate(nil)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "power")
+                            .font(.caption)
+                            .frame(width: 16, height: 16)
+                            .foregroundStyle(.secondary)
+                        Text("Quit Tokenomics")
+                            .font(.caption)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-                Text("v\(appVersion)")
-                    .font(.caption2)
-                    .foregroundStyle(.quaternary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 9)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
         }
     }
 

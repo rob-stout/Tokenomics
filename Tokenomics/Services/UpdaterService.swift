@@ -22,6 +22,9 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUS
             userDriverDelegate: self
         )
 
+        // Ensure automatic checks are enabled (overrides any stale UserDefaults preference)
+        updaterController.updater.automaticallyChecksForUpdates = true
+
         // Observe Sparkle's canCheckForUpdates property via KVO
         updaterController.updater.publisher(for: \.canCheckForUpdates)
             .assign(to: &$canCheckForUpdates)
