@@ -14,7 +14,14 @@ cask "tokenomics" do
 
   app "Tokenomics.app"
 
-  uninstall_preflight do
+  # Quit before installing new version (preflight runs during upgrade/reinstall;
+  # uninstall_preflight is skipped by Homebrew during upgrades)
+  preflight do
+    system_command "/usr/bin/osascript",
+                   args: ["-e", 'quit app "Tokenomics"'],
+                   sudo: false
+    sleep 1
+    # Fallback: force kill if graceful quit didn't work
     system_command "/usr/bin/pkill", args: ["-x", "Tokenomics"], sudo: false
     sleep 1
   end
@@ -22,6 +29,9 @@ cask "tokenomics" do
   postflight do
     system_command "/usr/bin/open", args: ["/Applications/Tokenomics.app"], sudo: false
   end
+
+  # For `brew uninstall` (not upgrade)
+  uninstall quit: "com.robstout.tokenomics"
 
   zap trash: [
     "~/Library/Application Support/Tokenomics",
