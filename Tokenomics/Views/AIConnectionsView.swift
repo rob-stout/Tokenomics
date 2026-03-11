@@ -10,6 +10,9 @@ struct AIConnectionsView: View {
     @State private var liftedRow: ProviderId?
     @State private var dropTargetIndex: Int?
     @State private var rowFrames: [ProviderId: CGRect] = [:]
+    @State private var dragOffset: CGFloat = 0
+    @State private var dragBase: CGFloat = 0
+    @State private var dragEndedAt: Date = .distantPast
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,7 +63,7 @@ struct AIConnectionsView: View {
                 // Hint text
                 VStack(spacing: 0) {
                     Spacer().frame(height: 16)
-                    Text("Cmd+drag to reorder. Tap the eye to show or hide. Hidden providers still update in the background.")
+                    Text("Cmd+drag to reorder. Tap the icon to pin. Tap the eye to show or hide. Hidden providers still update in the background.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
@@ -72,7 +75,7 @@ struct AIConnectionsView: View {
             }
             .coordinateSpace(name: "providerList")
             .onPreferenceChange(RowFramePreference.self) { rowFrames = $0 }
-            .animation(.easeInOut(duration: 0.2), value: viewModel.orderedProviders)
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.orderedProviders)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
@@ -90,23 +93,33 @@ struct AIConnectionsView: View {
 
             // Provider icon — acts as pin toggle for connected providers
             Button(action: {
-                if isConnected {
-                    viewModel.togglePin(for: provider)
-                }
+                // Suppress pin toggle during and briefly after drag
+                guard draggedRow == nil,
+                      Date().timeIntervalSince(dragEndedAt) > 0.3,
+                      isConnected else { return }
+                viewModel.togglePin(for: provider)
             }) {
-                providerIcon(for: provider)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
-                    .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
-                    .background(iconBackground(connected: isConnected, pinned: isPinned))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .opacity(isHidden ? 0.4 : (connection == .notInstalled ? 0.3 : 1))
+                ZStack {
+                    providerIcon(for: provider)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                        .opacity(isPinned ? 0 : 1)
+
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.primary)
+                        .opacity(isPinned ? 1 : 0)
+                }
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+                .background(iconBackground(connected: isConnected, pinned: isPinned))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .opacity(isHidden ? 0.4 : (connection == .notInstalled ? 0.3 : 1))
             }
             .buttonStyle(.plain)
             .disabled(!isConnected)
@@ -188,28 +201,34 @@ struct AIConnectionsView: View {
         )
         .padding(.vertical, liftedRow == provider ? 2 : 0)
         .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(liftedRow == provider ? Color.white.opacity(0.06) : .clear)
-                .animation(.easeInOut(duration: 0.15), value: liftedRow)
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.ultraThinMaterial)
+                .opacity(liftedRow == provider ? 0.6 : 0)
         )
         .shadow(
-            color: .black.opacity(liftedRow == provider ? 0.25 : 0),
+            color: .black.opacity(liftedRow == provider ? 0.3 : 0),
             radius: liftedRow == provider ? 6 : 0,
             x: 0,
             y: liftedRow == provider ? 2 : 0
         )
-        .zIndex(liftedRow == provider ? 1 : 0)
-        .gesture(
-            // Cmd+drag to reorder — uses .gesture (not overlay) so buttons remain tappable
+        .scaleEffect(liftedRow == provider ? 1.02 : 1.0)
+        .offset(y: draggedRow == provider ? dragOffset : 0)
+        .zIndex(draggedRow == provider ? 10 : 0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: liftedRow)
+        .simultaneousGesture(
+            // Cmd+drag to reorder — simultaneousGesture so buttons don't block the drag
             DragGesture(minimumDistance: 5, coordinateSpace: .named("providerList"))
                 .modifiers(.command)
                 .onChanged { value in
                     if draggedRow == nil {
                         draggedRow = provider
+                        dragBase = 0
                         withAnimation(.easeInOut(duration: 0.15)) {
                             liftedRow = provider
                         }
                     }
+
+                    dragOffset = value.translation.height - dragBase
 
                     let currentY = value.location.y
                     let ordered = viewModel.orderedProviders
@@ -230,11 +249,18 @@ struct AIConnectionsView: View {
 
                     guard let target = targetIndex, target != sourceIndex else { return }
 
+                    // Snap base to current translation so offset resets after reorder
+                    dragBase = value.translation.height
+                    dragOffset = 0
+
                     viewModel.moveProvider(dragged, toIndex: target)
                 }
                 .onEnded { _ in
-                    draggedRow = nil
+                    dragEndedAt = Date()
                     withAnimation(.easeInOut(duration: 0.15)) {
+                        dragOffset = 0
+                        dragBase = 0
+                        draggedRow = nil
                         liftedRow = nil
                         dropTargetIndex = nil
                     }

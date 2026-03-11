@@ -192,7 +192,7 @@ private struct CompactProviderRow: View {
             providerIcon(provider.id)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 20, height: 20)
+                .frame(width: 17, height: 17)
 
             // Short window bar
             VStack(alignment: .leading, spacing: 2) {
@@ -246,11 +246,10 @@ private struct LargeProviderRow: View {
         VStack(alignment: .leading, spacing: 8) {
             // Provider name + plan
             HStack(spacing: 10) {
-                Image(provider.id.capitalized + "-white")
-                    .renderingMode(.original)
+                providerIcon(provider.id)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 20, height: 20)
+                    .frame(width: 17, height: 17)
 
                 Text(provider.displayName)
                     .font(.caption)
