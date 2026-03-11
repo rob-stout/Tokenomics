@@ -14,6 +14,12 @@ cask "tokenomics" do
 
   app "Tokenomics.app"
 
+  postflight do
+    system_command "/usr/bin/pkill", args: ["-f", "Tokenomics.app"], sudo: false
+    sleep 1
+    system_command "/usr/bin/open", args: ["/Applications/Tokenomics.app"], sudo: false
+  end
+
   zap trash: [
     "~/Library/Application Support/Tokenomics",
     "~/Library/Caches/com.robstout.tokenomics",
