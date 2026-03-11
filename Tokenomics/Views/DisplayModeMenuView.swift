@@ -40,12 +40,13 @@ struct DisplayModeMenuView: View {
                 Image(systemName: viewModel.isSmartMode ? "circle.circle" : "pin.fill")
                     .font(.caption)
                     .imageScale(.small)
-                    .frame(width: 16, height: 16)
                     .foregroundStyle(.secondary)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 6, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
+            .frame(width: 28, height: 28)
+            .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .fixedSize()

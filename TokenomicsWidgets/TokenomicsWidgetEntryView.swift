@@ -113,15 +113,13 @@ struct MediumWidgetView: View {
                 .padding(.bottom, useCompact ? 8 : 10)
 
                 // Provider rows
-                ForEach(Array(snapshot.providers.enumerated()), id: \.element.id) { index, provider in
-                    if index > 0 {
-                        Divider()
-                            .padding(.vertical, useCompact ? 4 : 6)
-                    }
-                    if useCompact {
-                        CompactProviderRow(provider: provider)
-                    } else {
-                        LargeProviderRow(provider: provider)
+                VStack(alignment: .leading, spacing: useCompact ? 16 : 14) {
+                    ForEach(snapshot.providers, id: \.id) { provider in
+                        if useCompact {
+                            CompactProviderRow(provider: provider)
+                        } else {
+                            LargeProviderRow(provider: provider)
+                        }
                     }
                 }
 
@@ -162,15 +160,13 @@ struct LargeWidgetView: View {
                 .padding(.bottom, useCompact ? 10 : 12)
 
                 // Provider rows — spacious at 3 or fewer, compact at 4+
-                ForEach(Array(snapshot.providers.enumerated()), id: \.element.id) { index, provider in
-                    if index > 0 {
-                        Divider()
-                            .padding(.vertical, useCompact ? 4 : 6)
-                    }
-                    if useCompact {
-                        CompactProviderRow(provider: provider)
-                    } else {
-                        LargeProviderRow(provider: provider)
+                VStack(alignment: .leading, spacing: useCompact ? 16 : 14) {
+                    ForEach(snapshot.providers, id: \.id) { provider in
+                        if useCompact {
+                            CompactProviderRow(provider: provider)
+                        } else {
+                            LargeProviderRow(provider: provider)
+                        }
                     }
                 }
 
@@ -191,14 +187,13 @@ private struct CompactProviderRow: View {
     let provider: WidgetDataStore.WidgetSnapshot.ProviderEntry
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Provider badge
-            Text(provider.shortLabel)
-                .font(.caption)
-                .fontWeight(.bold)
+        HStack(spacing: 20) {
+            // Provider icon
+            Image(provider.id.capitalized + "-white")
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
                 .frame(width: 20, height: 20)
-                .background(Color.white.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
 
             // Short window bar
             VStack(alignment: .leading, spacing: 2) {
@@ -249,15 +244,14 @@ private struct LargeProviderRow: View {
     let provider: WidgetDataStore.WidgetSnapshot.ProviderEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             // Provider name + plan
-            HStack {
-                Text(provider.shortLabel)
-                    .font(.caption)
-                    .fontWeight(.bold)
+            HStack(spacing: 10) {
+                Image(provider.id.capitalized + "-white")
+                    .renderingMode(.original)
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 20, height: 20)
-                    .background(Color.white.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
 
                 Text(provider.displayName)
                     .font(.caption)

@@ -360,6 +360,9 @@ struct PopoverView: View {
                         Text("Back")
                     }
                     .font(.caption)
+                    .padding(.vertical, 4)
+                    .padding(.trailing, 8)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)

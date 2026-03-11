@@ -331,6 +331,10 @@ final class UsageViewModel: ObservableObject {
         } else {
             hiddenProviders.insert(provider)
         }
+        // If we hid a pinned provider, revert to smart mode
+        if pinnedProviders.contains(provider) && hiddenProviders.contains(provider) {
+            pinnedProviders.removeAll()
+        }
         // If we hid the selected tab, move to another
         if let tab = selectedTab, hiddenProviders.contains(tab) {
             selectedTab = visibleProviders.first

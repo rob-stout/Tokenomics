@@ -48,7 +48,8 @@ struct SyncFooterView: View {
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
                     .font(.caption)
-                    .frame(height: 16)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
                     .rotationEffect(.degrees(isLoading ? 360 : 0))
                     .animation(
                         isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default,
@@ -75,7 +76,8 @@ struct SyncFooterView: View {
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
                     .font(.caption)
-                    .frame(height: 16)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
                     .overlay(alignment: .topTrailing) {
                         if updateAvailable {
                             Circle()

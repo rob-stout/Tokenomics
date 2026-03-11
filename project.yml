@@ -43,8 +43,8 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
-        CFBundleShortVersionString: "2.4.4"
-        CFBundleVersion: "21"
+        CFBundleShortVersionString: "2.4.5"
+        CFBundleVersion: "22"
         LSUIElement: true
         SUFeedURL: https://raw.githubusercontent.com/rob-stout/Tokenomics/main/appcast.xml
         SUPublicEDKey: iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=
@@ -84,12 +84,14 @@ targets:
       - path: TokenomicsWidgets
       - path: Tokenomics/Services/WidgetDataStore.swift
         type: file
+      - path: Tokenomics/Resources/Provider Icons/PNG
+        buildPhase: resources
     info:
       path: TokenomicsWidgets/Info.plist
       properties:
         CFBundleDisplayName: Tokenomics Widgets
-        CFBundleShortVersionString: "2.4.4"
-        CFBundleVersion: "21"
+        CFBundleShortVersionString: "2.4.5"
+        CFBundleVersion: "22"
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

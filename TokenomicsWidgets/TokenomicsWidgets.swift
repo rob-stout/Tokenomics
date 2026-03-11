@@ -33,8 +33,8 @@ struct UsageTimelineProvider: AppIntentTimelineProvider {
             selectedProvider: configuration.provider
         )
 
-        // Refresh every 15 minutes — the main app pushes updates more frequently
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: .now) ?? .now
+        // Refresh every 5 minutes as a fallback — the main app also pushes on each fetch
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: .now) ?? .now
         return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
 }
