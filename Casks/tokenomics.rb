@@ -12,29 +12,10 @@ cask "tokenomics" do
     strategy :github_latest
   end
 
+  auto_updates true
+
   app "Tokenomics.app"
 
-  # Quit before installing new version (preflight runs during upgrade/reinstall;
-  # uninstall_preflight is skipped by Homebrew during upgrades)
-  preflight do
-    system_command "/usr/bin/osascript",
-                   args: ["-e", 'quit app "Tokenomics"'],
-                   sudo: false,
-                   must_succeed: false
-    sleep 1
-    # Fallback: force kill if graceful quit didn't work
-    system_command "/usr/bin/pkill",
-                   args: ["-x", "Tokenomics"],
-                   sudo: false,
-                   must_succeed: false
-    sleep 1
-  end
-
-  postflight do
-    system_command "/usr/bin/open", args: ["/Applications/Tokenomics.app"], sudo: false
-  end
-
-  # For `brew uninstall` (not upgrade)
   uninstall quit: "com.robstout.tokenomics"
 
   zap trash: [
@@ -42,4 +23,9 @@ cask "tokenomics" do
     "~/Library/Caches/com.robstout.tokenomics",
     "~/Library/Preferences/com.robstout.tokenomics.plist",
   ]
+
+  caveats <<~EOS
+    Tokenomics updates automatically via Sparkle.
+    You don't need to use `brew upgrade` — updates are handled in-app.
+  EOS
 end
