@@ -166,14 +166,18 @@ struct MediumWidgetView: View {
 
 // MARK: - Large Widget (Spacious Multi-Provider Dashboard)
 
-/// Full-height widget. Uses spacious rows for 1–3 providers; falls back to compact rows at 4+
-/// to avoid overflow, since widgets can't scroll.
+/// Full-height widget. Uses spacious rows for 1–3 providers; falls back to compact rows at 4+.
+/// Shows up to 7 compact providers; 8+ gets overflow footer.
 struct LargeWidgetView: View {
     let entry: UsageEntry
 
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
             let useCompact = snapshot.providers.count >= 4
+            let maxVisible = 7
+            let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
+            let overflowCount = snapshot.providers.count - maxVisible
+            let hasOverflow = overflowCount > 0
 
             VStack(alignment: .leading, spacing: 0) {
                 // Header — timer top-right
@@ -189,23 +193,42 @@ struct LargeWidgetView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, hasOverflow ? 14 : 20)
 
                 // Provider rows — spacious at 3 or fewer, compact at 4+
-                VStack(alignment: .leading, spacing: useCompact ? 24 : 20) {
-                    ForEach(snapshot.providers, id: \.id) { provider in
-                        if useCompact {
+                if useCompact {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
+                            if index > 0 {
+                                Spacer(minLength: 0)
+                            }
                             CompactProviderRow(provider: provider)
-                        } else {
+                        }
+                    }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    VStack(alignment: .leading, spacing: 20) {
+                        ForEach(visibleProviders, id: \.id) { provider in
                             LargeProviderRow(provider: provider)
                         }
                     }
                 }
 
-                Spacer(minLength: 0)
+                if !useCompact {
+                    Spacer(minLength: 0)
+                }
+
+                // Footer — overflow indicator
+                if hasOverflow {
+                    Text("+\(overflowCount) in app")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 12)
+                }
             }
             .padding(.top, 14)
-            .padding(.bottom, 18)
+            .padding(.bottom, hasOverflow ? 14 : 18)
             .padding(.horizontal, 16)
         } else {
             noDataView
