@@ -146,15 +146,19 @@ struct MediumWidgetView: View {
 
                 Spacer(minLength: 0)
 
-                // Footer — overflow indicator
+                // Footer — overflow indicator or share CTA
                 if overflowCount > 0 {
                     Text("+\(overflowCount) in app")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 10)
+                } else if visibleProviders.count <= 2 {
+                    ShareCTA()
+                        .padding(.top, 10)
                 }
             }
+            .widgetURL(URL(string: "tokenomics://open"))
             .padding(.top, 14)
             .padding(.bottom, 18)
             .padding(.horizontal, 16)
@@ -225,15 +229,19 @@ struct LargeWidgetView: View {
 
                 Spacer(minLength: 0)
 
-                // Footer — overflow indicator
+                // Footer — overflow indicator or share CTA
                 if hasOverflow {
                     Text("+\(overflowCount) in app")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 12)
+                } else if useCompact && visibleProviders.count <= 6 {
+                    ShareCTA()
+                        .padding(.top, 12)
                 }
             }
+            .widgetURL(URL(string: "tokenomics://open"))
             .padding(.top, 14)
             .padding(.bottom, hasOverflow ? 14 : 18)
             .padding(.horizontal, 16)
@@ -365,6 +373,24 @@ private struct LargeProviderRow: View {
                         .frame(width: 30, alignment: .trailing)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Share CTA
+
+/// Subtle "Share Tokenomics" link shown when there's spare vertical space
+private struct ShareCTA: View {
+    var body: some View {
+        Link(destination: URL(string: "tokenomics://share")!) {
+            HStack(spacing: 4) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 9))
+                Text("Tokenomics")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary.opacity(0.4))
+            .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 }

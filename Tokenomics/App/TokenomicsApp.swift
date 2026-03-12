@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @main
@@ -22,6 +23,9 @@ struct TokenomicsApp: App {
         MenuBarExtra {
             PopoverView(viewModel: viewModel, updaterService: updaterService)
                 .frame(width: popoverWidth)
+                .onOpenURL { url in
+                    handleURL(url)
+                }
         } label: {
             MenuBarLabel(viewModel: viewModel)
                 .onAppear {
@@ -29,6 +33,32 @@ struct TokenomicsApp: App {
                 }
         }
         .menuBarExtraStyle(.window)
+    }
+
+    private func handleURL(_ url: URL) {
+        guard url.scheme == "tokenomics" else { return }
+
+        switch url.host {
+        case "share":
+            showShareSheet()
+        case "open":
+            // Default widget tap — popover opens automatically via MenuBarExtra
+            break
+        default:
+            break
+        }
+    }
+
+    private func showShareSheet() {
+        let shareURL = URL(string: "https://github.com/rob-stout/Tokenomics")!
+        let shareText = "Tokenomics — see your AI coding tool usage at a glance. Free and open source."
+        let items: [Any] = [shareText, shareURL]
+
+        let picker = NSSharingServicePicker(items: items)
+        if let window = NSApp.windows.first(where: { $0.isVisible }) {
+            let view = window.contentView ?? window.contentViewController?.view ?? NSView()
+            picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+        }
     }
 }
 

@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tokenomics — Medium & Large Widget States</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+    padding: 60px 20px;
+    color: white;
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    margin-top: 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 8px;
+    width: 360px;
+    text-align: center;
+  }
+
+  .label {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 12px;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  /* Medium widget */
+  .widget {
+    width: 328px;
+    height: 155px;
+    background: linear-gradient(145deg, rgba(30,42,70,0.95), rgba(18,28,50,0.98));
+    border-radius: 20px;
+    padding: 14px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+  }
+
+  /* Large widget */
+  .widget-large {
+    width: 328px;
+    height: 345px;
+    padding: 14px 16px 18px;
+  }
+  .widget-large .header { margin-bottom: 20px; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .header-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+  }
+  .header-timer {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+  }
+  .spacer { flex: 1; }
+
+  /* Compact 2-column row (medium + large compact) */
+  .providers {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-between;
+  }
+  .provider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .provider-icon {
+    width: 17px;
+    height: 17px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .icon-claude { background: rgba(217,169,119,0.25); color: #d9a977; }
+  .icon-codex { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); }
+  .icon-gemini { background: rgba(130,180,255,0.2); color: #82b4ff; }
+  .icon-copilot { background: rgba(100,200,150,0.2); color: #64c896; }
+  .icon-cursor { background: rgba(160,120,255,0.2); color: #a078ff; }
+
+  .window-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .window-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .window-label {
+    font-size: 9px;
+    color: rgba(255,255,255,0.45);
+  }
+  .window-pct {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Progress bar */
+  .bar-track {
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.5);
+  }
+
+  /* Spacious single-column row (large provider) */
+  .large-providers {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+  }
+  .large-provider {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .large-provider-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .large-provider-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+  }
+  .large-plan {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+  }
+  .large-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .large-bar-row .bar-track { flex: 1; }
+  .large-bar-label {
+    font-size: 9px;
+    color: rgba(255,255,255,0.45);
+    width: 48px;
+    flex-shrink: 0;
+  }
+  .large-bar-pct {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    font-variant-numeric: tabular-nums;
+    width: 30px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Compact providers for large widget */
+  .compact-providers {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 24px;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    padding-top: 10px;
+  }
+
+  /* Share CTA */
+  .share-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding-top: 8px;
+    color: rgba(255,255,255,0.2);
+    font-size: 10px;
+  }
+  .share-cta svg {
+    width: 10px;
+    height: 10px;
+    fill: none;
+    stroke: rgba(255,255,255,0.2);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================ -->
+<h2>Medium Widget</h2>
+<!-- ============================================ -->
+
+<!-- #1 -->
+<div>
+  <div class="label">#1 — Medium: 1 provider (spacious single-column)</div>
+  <div class="widget">
+    <div class="header" style="margin-bottom: 20px;">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">30 sec</span>
+    </div>
+    <div class="large-provider">
+      <div class="large-provider-header">
+        <div class="provider-icon icon-claude">✦</div>
+        <span class="large-provider-name">Claude Code</span>
+        <span class="spacer"></span>
+        <span class="large-plan">Pro</span>
+      </div>
+      <div class="large-bar-row">
+        <span class="large-bar-label">5-Hour</span>
+        <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        <span class="large-bar-pct">0%</span>
+      </div>
+      <div class="large-bar-row">
+        <span class="large-bar-label">7-Day</span>
+        <div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div>
+        <span class="large-bar-pct">33%</span>
+      </div>
+    </div>
+    <span class="spacer"></span>
+    <div class="share-cta">
+      <svg viewBox="0 0 12 12"><path d="M6 1v7"/><path d="M3 3.5 6 1l3 2.5"/><path d="M2.5 7v3.5h7V7"/></svg>
+      <span>Tokenomics</span>
+    </div>
+  </div>
+</div>
+
+<!-- #2 -->
+<div>
+  <div class="label">#2 — Medium: 2 providers (compact 2-column)</div>
+  <div class="widget">
+    <div class="header" style="margin-bottom: 20px;">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">30 sec</span>
+    </div>
+    <div class="providers" style="justify-content: flex-start; gap: 20px;">
+      <div class="provider-row">
+        <div class="provider-icon icon-claude">✦</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">7-Day</span><span class="window-pct">33%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div>
+        </div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-codex">⊛</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">1%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">Context</span><span class="window-pct">13%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div>
+        </div>
+      </div>
+    </div>
+    <span class="spacer"></span>
+    <div class="share-cta">
+      <svg viewBox="0 0 12 12"><path d="M6 1v7"/><path d="M3 3.5 6 1l3 2.5"/><path d="M2.5 7v3.5h7V7"/></svg>
+      <span>Tokenomics</span>
+    </div>
+  </div>
+</div>
+
+<!-- #3 -->
+<div>
+  <div class="label">#3 — Medium: 3 providers (compact, fills space)</div>
+  <div class="widget">
+    <div class="header">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">30 sec</span>
+    </div>
+    <div class="providers">
+      <div class="provider-row">
+        <div class="provider-icon icon-claude">✦</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">7-Day</span><span class="window-pct">33%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div>
+        </div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-codex">⊛</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">1%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">Context</span><span class="window-pct">13%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div>
+        </div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-gemini">◇</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">Requests</span><span class="window-pct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- #4 -->
+<div>
+  <div class="label">#4 — Medium: 4+ providers (compact + "+1 in app")</div>
+  <div class="widget">
+    <div class="header">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">30 sec</span>
+    </div>
+    <div class="providers">
+      <div class="provider-row">
+        <div class="provider-icon icon-claude">✦</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">7-Day</span><span class="window-pct">33%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div>
+        </div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-codex">⊛</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">1%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">Context</span><span class="window-pct">13%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div>
+        </div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-gemini">◇</div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="window-col">
+          <div class="window-header"><span class="window-label">Requests</span><span class="window-pct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">+1 in app</div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<h2>Large Widget</h2>
+<!-- ============================================ -->
+
+<!-- #5 -->
+<div>
+  <div class="label">#5 — Large: 4 providers (spacious single-column)</div>
+  <div class="widget widget-large">
+    <div class="header">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">21 sec</span>
+    </div>
+    <div class="large-providers" style="gap: 17px;">
+      <div class="large-provider">
+        <div class="large-provider-header">
+          <div class="provider-icon icon-claude">✦</div>
+          <span class="large-provider-name">Claude Code</span>
+          <span class="spacer"></span>
+          <span class="large-plan">Pro</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">5-Hour</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+          <span class="large-bar-pct">0%</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">7-Day</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div>
+          <span class="large-bar-pct">33%</span>
+        </div>
+      </div>
+      <div class="large-provider">
+        <div class="large-provider-header">
+          <div class="provider-icon icon-copilot">⬡</div>
+          <span class="large-provider-name">Copilot</span>
+          <span class="spacer"></span>
+          <span class="large-plan">Pro</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">Premium</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 42%"></div></div>
+          <span class="large-bar-pct">42%</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">Requests</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 18%"></div></div>
+          <span class="large-bar-pct">18%</span>
+        </div>
+      </div>
+      <div class="large-provider">
+        <div class="large-provider-header">
+          <div class="provider-icon icon-codex">⊛</div>
+          <span class="large-provider-name">Codex CLI</span>
+          <span class="spacer"></span>
+          <span class="large-plan">Free</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">5-Hour</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div>
+          <span class="large-bar-pct">1%</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">Context</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div>
+          <span class="large-bar-pct">13%</span>
+        </div>
+      </div>
+      <div class="large-provider">
+        <div class="large-provider-header">
+          <div class="provider-icon icon-gemini">◇</div>
+          <span class="large-provider-name">Gemini CLI</span>
+          <span class="spacer"></span>
+          <span class="large-plan">Free</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">Tokens</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+          <span class="large-bar-pct">0%</span>
+        </div>
+        <div class="large-bar-row">
+          <span class="large-bar-label">Requests</span>
+          <div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div>
+          <span class="large-bar-pct">0%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- #6 -->
+<div>
+  <div class="label">#6 — Large: 5 providers (compact 2-column)</div>
+  <div class="widget widget-large">
+    <div class="header">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">21 sec</span>
+    </div>
+    <div class="compact-providers">
+      <div class="provider-row">
+        <div class="provider-icon icon-claude">✦</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">7-Day</span><span class="window-pct">33%</span></div><div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-copilot">⬡</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">42%</span></div><div class="bar-track"><div class="bar-fill" style="width: 42%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">18%</span></div><div class="bar-track"><div class="bar-fill" style="width: 18%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-codex">⊛</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">1%</span></div><div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Context</span><span class="window-pct">13%</span></div><div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-gemini">◇</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-cursor">◈</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">8%</span></div><div class="bar-track"><div class="bar-fill" style="width: 8%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">12%</span></div><div class="bar-track"><div class="bar-fill" style="width: 12%"></div></div></div>
+      </div>
+    </div>
+    <span class="spacer"></span>
+    <div class="share-cta">
+      <svg viewBox="0 0 12 12"><path d="M6 1v7"/><path d="M3 3.5 6 1l3 2.5"/><path d="M2.5 7v3.5h7V7"/></svg>
+      <span>Tokenomics</span>
+    </div>
+  </div>
+</div>
+
+<!-- #7 -->
+<div>
+  <div class="label">#7 — Large: 6 providers (compact 2-column)</div>
+  <div class="widget widget-large">
+    <div class="header">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">21 sec</span>
+    </div>
+    <div class="compact-providers">
+      <div class="provider-row">
+        <div class="provider-icon icon-claude">✦</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">7-Day</span><span class="window-pct">33%</span></div><div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-copilot">⬡</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">42%</span></div><div class="bar-track"><div class="bar-fill" style="width: 42%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">18%</span></div><div class="bar-track"><div class="bar-fill" style="width: 18%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-codex">⊛</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">1%</span></div><div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Context</span><span class="window-pct">13%</span></div><div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-gemini">◇</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-cursor">◈</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">8%</span></div><div class="bar-track"><div class="bar-fill" style="width: 8%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">12%</span></div><div class="bar-track"><div class="bar-fill" style="width: 12%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon" style="background: rgba(0,200,200,0.2); color: #00c8c8;">W</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Credits</span><span class="window-pct">25%</span></div><div class="bar-track"><div class="bar-fill" style="width: 25%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">15%</span></div><div class="bar-track"><div class="bar-fill" style="width: 15%"></div></div></div>
+      </div>
+    </div>
+    <span class="spacer"></span>
+    <div class="share-cta">
+      <svg viewBox="0 0 12 12"><path d="M6 1v7"/><path d="M3 3.5 6 1l3 2.5"/><path d="M2.5 7v3.5h7V7"/></svg>
+      <span>Tokenomics</span>
+    </div>
+  </div>
+</div>
+
+<!-- #8 -->
+<div>
+  <div class="label">#8 — Large: 7 providers (compact, all visible)</div>
+  <div class="widget widget-large">
+    <div class="header">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">21 sec</span>
+    </div>
+    <div class="compact-providers">
+      <div class="provider-row">
+        <div class="provider-icon icon-claude">✦</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">7-Day</span><span class="window-pct">33%</span></div><div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-copilot">⬡</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">42%</span></div><div class="bar-track"><div class="bar-fill" style="width: 42%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">18%</span></div><div class="bar-track"><div class="bar-fill" style="width: 18%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-codex">⊛</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">1%</span></div><div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Context</span><span class="window-pct">13%</span></div><div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-gemini">◇</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-cursor">◈</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">8%</span></div><div class="bar-track"><div class="bar-fill" style="width: 8%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">12%</span></div><div class="bar-track"><div class="bar-fill" style="width: 12%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon" style="background: rgba(0,200,200,0.2); color: #00c8c8;">W</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Credits</span><span class="window-pct">25%</span></div><div class="bar-track"><div class="bar-fill" style="width: 25%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">15%</span></div><div class="bar-track"><div class="bar-fill" style="width: 15%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon" style="background: rgba(255,200,50,0.2); color: #ffc832;">A</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">5%</span></div><div class="bar-track"><div class="bar-fill" style="width: 5%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Cost</span><span class="window-pct">3%</span></div><div class="bar-track"><div class="bar-fill" style="width: 3%"></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- #9 -->
+<div>
+  <div class="label">#9 — Large: 8+ providers (7 visible + "+1 in app")</div>
+  <div class="widget widget-large" style="padding-bottom: 14px;">
+    <div class="header" style="margin-bottom: 14px;">
+      <span class="header-title">Tokenomics</span>
+      <span class="spacer"></span>
+      <span class="header-timer">21 sec</span>
+    </div>
+    <div class="compact-providers" style="gap: 0; justify-content: space-between; flex: 1;">
+      <div class="provider-row">
+        <div class="provider-icon icon-claude">✦</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">7-Day</span><span class="window-pct">33%</span></div><div class="bar-track"><div class="bar-fill" style="width: 33%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-copilot">⬡</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">42%</span></div><div class="bar-track"><div class="bar-fill" style="width: 42%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">18%</span></div><div class="bar-track"><div class="bar-fill" style="width: 18%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-codex">⊛</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">5-Hour</span><span class="window-pct">1%</span></div><div class="bar-track"><div class="bar-fill" style="width: 1%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Context</span><span class="window-pct">13%</span></div><div class="bar-track"><div class="bar-fill" style="width: 13%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-gemini">◇</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">0%</span></div><div class="bar-track"><div class="bar-fill" style="width: 0%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon icon-cursor">◈</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Premium</span><span class="window-pct">8%</span></div><div class="bar-track"><div class="bar-fill" style="width: 8%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">12%</span></div><div class="bar-track"><div class="bar-fill" style="width: 12%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon" style="background: rgba(0,200,200,0.2); color: #00c8c8;">W</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Credits</span><span class="window-pct">25%</span></div><div class="bar-track"><div class="bar-fill" style="width: 25%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Requests</span><span class="window-pct">15%</span></div><div class="bar-track"><div class="bar-fill" style="width: 15%"></div></div></div>
+      </div>
+      <div class="provider-row">
+        <div class="provider-icon" style="background: rgba(255,200,50,0.2); color: #ffc832;">A</div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Tokens</span><span class="window-pct">5%</span></div><div class="bar-track"><div class="bar-fill" style="width: 5%"></div></div></div>
+        <div class="window-col"><div class="window-header"><span class="window-label">Cost</span><span class="window-pct">3%</span></div><div class="bar-track"><div class="bar-fill" style="width: 3%"></div></div></div>
+      </div>
+    </div>
+    <div class="footer" style="padding-top: 12px;">+1 in app</div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -48,6 +48,10 @@ targets:
         CFBundleShortVersionString: "2.4.9"
         CFBundleVersion: "26"
         LSUIElement: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.robstout.tokenomics
+            CFBundleURLSchemes:
+              - tokenomics
         SUFeedURL: https://raw.githubusercontent.com/rob-stout/Tokenomics/main/appcast.xml
         SUPublicEDKey: iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=
         SUEnableAutomaticChecks: true
