@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tokenomics Widget Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a2332;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: #e0e0e0;
+    padding: 40px;
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .widget {
+    background: linear-gradient(135deg, #1e2d3d 0%, #162230 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+    position: relative;
+  }
+  .widget-large { width: 338px; height: 354px; }
+  .widget-medium { width: 338px; height: 170px; }
+
+  .widget-inner {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+  }
+  .header-time {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+  }
+
+  .providers {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .provider-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .provider-icon {
+    width: var(--icon-size, 17px);
+    height: var(--icon-size, 17px);
+    min-width: var(--icon-size, 17px);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.05);
+  }
+
+  .bars-group {
+    flex: 1;
+    display: flex;
+    gap: 20px;
+  }
+
+  .bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .bar-label {
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+  }
+
+  .bar-value {
+    font-size: 10px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar-track {
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.6);
+  }
+  .bar-fill.orange { background: #f0a030; }
+
+  .overflow-text {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    text-align: center;
+    margin-top: auto;
+    padding-top: 4px;
+  }
+
+  .spacer { flex: 1; }
+
+  /* Controls */
+  .controls {
+    background: #111;
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 280px;
+  }
+  .controls h3 {
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 4px;
+  }
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .control-row label {
+    font-size: 12px;
+    color: #888;
+    min-width: 140px;
+  }
+  .control-row input[type="range"] {
+    flex: 1;
+  }
+  .control-row .value {
+    font-size: 12px;
+    color: #ccc;
+    min-width: 40px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  h2 {
+    font-size: 14px;
+    color: #666;
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h3>Spacing Controls</h3>
+
+  <div class="control-row">
+    <label>Icon → Bars gap</label>
+    <input type="range" id="iconGap" min="0" max="24" value="12">
+    <span class="value" id="iconGapVal">12px</span>
+  </div>
+
+  <div class="control-row">
+    <label>Provider row gap (large)</label>
+    <input type="range" id="rowGapLarge" min="8" max="32" value="20">
+    <span class="value" id="rowGapLargeVal">20px</span>
+  </div>
+
+  <div class="control-row">
+    <label>Provider row gap (medium)</label>
+    <input type="range" id="rowGapMedium" min="8" max="32" value="16">
+    <span class="value" id="rowGapMediumVal">16px</span>
+  </div>
+
+  <div class="control-row">
+    <label>Widget padding</label>
+    <input type="range" id="widgetPadding" min="0" max="24" value="4">
+    <span class="value" id="widgetPaddingVal">4px</span>
+  </div>
+
+  <div class="control-row">
+    <label>Icon size</label>
+    <input type="range" id="iconSize" min="12" max="24" value="17">
+    <span class="value" id="iconSizeVal">17px</span>
+  </div>
+
+  <div class="control-row">
+    <label>Header bottom pad (compact)</label>
+    <input type="range" id="headerPad" min="0" max="20" value="8">
+    <span class="value" id="headerPadVal">8px</span>
+  </div>
+</div>
+
+<div>
+  <h2>Large Widget (5 providers, compact mode)</h2>
+  <div class="widget widget-large" id="largeWidget">
+    <div class="widget-inner" id="largeInner">
+      <div class="header">
+        <span class="header-title">Tokenomics</span>
+        <span class="header-time">5 hr, 50 min</span>
+      </div>
+      <div class="providers" id="largeProviders">
+        <!-- Claude -->
+        <div class="provider-row">
+          <div class="provider-icon">✳</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">29%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:29%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">7-Day</span><span class="bar-value">29%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:29%"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Gemini -->
+        <div class="provider-row">
+          <div class="provider-icon">◇</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Tokens</span><span class="bar-value">0%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Requests</span><span class="bar-value">0%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- ChatGPT -->
+        <div class="provider-row">
+          <div class="provider-icon">⊛</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">1%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:1%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Context</span><span class="bar-value">13%</span></div>
+              <div class="bar-track"><div class="bar-fill orange" style="width:13%"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Copilot -->
+        <div class="provider-row">
+          <div class="provider-icon">⊕</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Chat</span><span class="bar-value">2%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:2%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Completions</span><span class="bar-value">0%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Cursor -->
+        <div class="provider-row">
+          <div class="provider-icon">⬡</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Premium Requests</span><span class="bar-value">8%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:8%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <h2>Medium Widget (5 providers, capped at 4)</h2>
+  <div class="widget widget-medium" id="mediumWidget">
+    <div class="widget-inner" id="mediumInner">
+      <div class="header">
+        <span class="header-title">Tokenomics</span>
+        <span class="header-time">5 hr, 50 min</span>
+      </div>
+      <div class="providers" id="mediumProviders">
+        <!-- Claude -->
+        <div class="provider-row">
+          <div class="provider-icon">✳</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">29%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:29%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">7-Day</span><span class="bar-value">29%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:29%"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Gemini -->
+        <div class="provider-row">
+          <div class="provider-icon">◇</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Tokens</span><span class="bar-value">0%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Requests</span><span class="bar-value">0%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- ChatGPT -->
+        <div class="provider-row">
+          <div class="provider-icon">⊛</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">1%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:1%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Context</span><span class="bar-value">13%</span></div>
+              <div class="bar-track"><div class="bar-fill orange" style="width:13%"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Copilot -->
+        <div class="provider-row">
+          <div class="provider-icon">⊕</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Chat</span><span class="bar-value">2%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:2%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Completions</span><span class="bar-value">0%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="overflow-text">+1 more in app</div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function update() {
+  const iconGap = document.getElementById('iconGap').value;
+  const rowGapLarge = document.getElementById('rowGapLarge').value;
+  const rowGapMedium = document.getElementById('rowGapMedium').value;
+  const widgetPadding = document.getElementById('widgetPadding').value;
+  const iconSize = document.getElementById('iconSize').value;
+  const headerPad = document.getElementById('headerPad').value;
+
+  document.getElementById('iconGapVal').textContent = iconGap + 'px';
+  document.getElementById('rowGapLargeVal').textContent = rowGapLarge + 'px';
+  document.getElementById('rowGapMediumVal').textContent = rowGapMedium + 'px';
+  document.getElementById('widgetPaddingVal').textContent = widgetPadding + 'px';
+  document.getElementById('iconSizeVal').textContent = iconSize + 'px';
+  document.getElementById('headerPadVal').textContent = headerPad + 'px';
+
+  // Apply icon gap to all provider rows
+  document.querySelectorAll('.provider-row').forEach(row => {
+    row.style.gap = iconGap + 'px';
+  });
+
+  // Apply row gaps
+  document.getElementById('largeProviders').style.gap = rowGapLarge + 'px';
+  document.getElementById('mediumProviders').style.gap = rowGapMedium + 'px';
+
+  // Apply widget padding (simulating SwiftUI .padding(4) + WidgetKit margins)
+  // WidgetKit adds ~16px margins by default, so total = widgetPadding + 16
+  const totalPad = parseInt(widgetPadding) + 16;
+  document.getElementById('largeInner').style.padding = totalPad + 'px';
+  document.getElementById('mediumInner').style.padding = totalPad + 'px';
+
+  // Apply header bottom padding
+  document.querySelectorAll('.header').forEach(h => {
+    h.style.marginBottom = headerPad + 'px';
+  });
+
+  // Apply icon size
+  document.querySelectorAll('.provider-icon').forEach(icon => {
+    icon.style.setProperty('--icon-size', iconSize + 'px');
+    icon.style.width = iconSize + 'px';
+    icon.style.height = iconSize + 'px';
+    icon.style.minWidth = iconSize + 'px';
+  });
+}
+
+// Bind all sliders
+document.querySelectorAll('input[type="range"]').forEach(input => {
+  input.addEventListener('input', update);
+});
+
+// Initial render
+update();
+</script>
+</body>
+</html>

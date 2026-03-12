@@ -94,13 +94,13 @@ struct MediumWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
-            let useCompact = snapshot.providers.count >= 3
-            let maxVisible = 4
+            let useCompact = snapshot.providers.count >= 2
+            let maxVisible = 3
             let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
             let overflowCount = snapshot.providers.count - maxVisible
 
             VStack(alignment: .leading, spacing: 0) {
-                // Header
+                // Header — timer always top-right
                 HStack {
                     Text("Tokenomics")
                         .font(.caption)
@@ -113,30 +113,51 @@ struct MediumWidgetView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .padding(.bottom, useCompact ? 8 : 10)
+                .padding(.bottom, 20)
 
                 // Provider rows
-                VStack(alignment: .leading, spacing: useCompact ? 16 : 14) {
-                    ForEach(visibleProviders, id: \.id) { provider in
-                        if useCompact {
-                            CompactProviderRow(provider: provider)
-                        } else {
-                            LargeProviderRow(provider: provider)
+                if useCompact {
+                    // 2-3 providers: compact 2-column rows
+                    if visibleProviders.count == 3 {
+                        // 3 providers fill vertical space evenly
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
+                                if index > 0 {
+                                    Spacer(minLength: 0)
+                                }
+                                CompactProviderRow(provider: provider)
+                            }
                         }
+                        .frame(maxHeight: .infinity)
+                    } else {
+                        // 2 providers: fixed 20pt gap
+                        VStack(alignment: .leading, spacing: 20) {
+                            ForEach(visibleProviders, id: \.id) { provider in
+                                CompactProviderRow(provider: provider)
+                            }
+                        }
+                    }
+                } else {
+                    // 1 provider: spacious single-column
+                    ForEach(visibleProviders, id: \.id) { provider in
+                        LargeProviderRow(provider: provider)
                     }
                 }
 
+                Spacer(minLength: 0)
+
+                // Footer — overflow indicator
                 if overflowCount > 0 {
-                    Spacer(minLength: 4)
-                    Text("+\(overflowCount) more in app")
+                    Text("+\(overflowCount) in app")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 10)
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding(4)
+            .padding(.top, 14)
+            .padding(.bottom, 18)
+            .padding(.horizontal, 16)
         } else {
             noDataView
         }
@@ -155,7 +176,7 @@ struct LargeWidgetView: View {
             let useCompact = snapshot.providers.count >= 4
 
             VStack(alignment: .leading, spacing: 0) {
-                // Header
+                // Header — timer top-right
                 HStack {
                     Text("Tokenomics")
                         .font(.caption)
@@ -168,10 +189,10 @@ struct LargeWidgetView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .padding(.bottom, useCompact ? 10 : 12)
+                .padding(.bottom, 20)
 
                 // Provider rows — spacious at 3 or fewer, compact at 4+
-                VStack(alignment: .leading, spacing: useCompact ? 20 : 14) {
+                VStack(alignment: .leading, spacing: useCompact ? 24 : 20) {
                     ForEach(snapshot.providers, id: \.id) { provider in
                         if useCompact {
                             CompactProviderRow(provider: provider)
@@ -183,7 +204,9 @@ struct LargeWidgetView: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(4)
+            .padding(.top, 14)
+            .padding(.bottom, 18)
+            .padding(.horizontal, 16)
         } else {
             noDataView
         }
@@ -278,7 +301,7 @@ private struct LargeProviderRow: View {
                 Text(provider.shortWindow.label)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
-                    .frame(width: 40, alignment: .leading)
+                    .frame(width: 48, alignment: .leading)
 
                 WidgetProgressBar(
                     utilization: provider.shortWindow.utilization,
@@ -298,7 +321,7 @@ private struct LargeProviderRow: View {
                     Text(longWindow.label)
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
-                        .frame(width: 40, alignment: .leading)
+                        .frame(width: 48, alignment: .leading)
 
                     WidgetProgressBar(
                         utilization: longWindow.utilization,
