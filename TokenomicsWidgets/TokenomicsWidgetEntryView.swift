@@ -166,14 +166,14 @@ struct MediumWidgetView: View {
 
 // MARK: - Large Widget (Spacious Multi-Provider Dashboard)
 
-/// Full-height widget. Uses spacious rows for 1–3 providers; falls back to compact rows at 4+.
-/// Shows up to 7 compact providers; 8+ gets overflow footer.
+/// Full-height widget. 1–4 providers: spacious single-column. 5–7: compact 2-column with
+/// fixed 24pt gap. 8+: compact 2-column, space-between + overflow footer.
 struct LargeWidgetView: View {
     let entry: UsageEntry
 
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
-            let useCompact = snapshot.providers.count >= 4
+            let useCompact = snapshot.providers.count >= 5
             let maxVisible = 7
             let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
             let overflowCount = snapshot.providers.count - maxVisible
@@ -195,8 +195,9 @@ struct LargeWidgetView: View {
                 }
                 .padding(.bottom, hasOverflow ? 14 : 20)
 
-                // Provider rows — spacious at 3 or fewer, compact at 4+
-                if useCompact {
+                // Provider rows
+                if useCompact && hasOverflow {
+                    // 8+ providers: space-between for max density
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
                             if index > 0 {
@@ -206,7 +207,15 @@ struct LargeWidgetView: View {
                         }
                     }
                     .frame(maxHeight: .infinity)
+                } else if useCompact {
+                    // 5–7 providers: compact with fixed 24pt gap
+                    VStack(alignment: .leading, spacing: 24) {
+                        ForEach(visibleProviders, id: \.id) { provider in
+                            CompactProviderRow(provider: provider)
+                        }
+                    }
                 } else {
+                    // 1–4 providers: spacious single-column with fixed 20pt gap
                     VStack(alignment: .leading, spacing: 20) {
                         ForEach(visibleProviders, id: \.id) { provider in
                             LargeProviderRow(provider: provider)
@@ -214,9 +223,7 @@ struct LargeWidgetView: View {
                     }
                 }
 
-                if !useCompact {
-                    Spacer(minLength: 0)
-                }
+                Spacer(minLength: 0)
 
                 // Footer — overflow indicator
                 if hasOverflow {
