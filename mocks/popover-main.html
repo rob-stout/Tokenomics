@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Popover Main — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+.mock-label {
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+/* Side-by-side container */
+.mock-row {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+.mock-col {
+  display: flex;
+  flex-direction: column;
+}
+.mode-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  margin-bottom: 8px;
+}
+
+/* ── DARK MODE ── */
+.popover {
+  width: 360px;
+  background: #282828;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.sf-icon {
+  font-size: 8px;
+  color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, sans-serif;
+  white-space: nowrap;
+}
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+.header {
+  padding: 12px 16px 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,1.0);
+  flex: 1;
+}
+.plan-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  background: rgba(255,255,255,0.25);
+  padding: 2px 6px;
+  border-radius: 100px;
+}
+.share-icon {
+  display: flex;
+  align-items: center;
+}
+.tab-bar-wrap {
+  padding: 12px 16px 0 16px;
+}
+.tab-bar {
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 2px;
+  display: flex;
+  gap: 2px;
+}
+.tab-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  cursor: default;
+}
+.tab-item.selected {
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,1.0);
+}
+.tab-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab-icon svg { width: 12px; height: 12px; fill: currentColor; }
+.tab-spacer { height: 4px; }
+.usage-content {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.usage-bar { display: flex; flex-direction: column; gap: 6px; }
+.usage-bar-row {
+  display: flex;
+  align-items: center;
+}
+.usage-bar-label {
+  font-size: 12px;
+  color: rgba(255,255,255,1.0);
+  flex: 1;
+}
+.usage-pct {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.55);
+}
+.usage-pct.red { color: #FF453A; }
+.bar-track {
+  position: relative;
+  height: 6px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 100px;
+  overflow: visible;
+}
+.bar-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 6px;
+  border-radius: 100px;
+  background: rgba(255,255,255,0.5);
+}
+.bar-fill.red { background: #FF453A; }
+.bar-fill.orange { background: #FF9F0A; }
+.pace-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.usage-sublabel {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+}
+.extra-usage { display: flex; flex-direction: column; gap: 4px; }
+.extra-header { display: flex; align-items: center; }
+.extra-label { font-size: 12px; color: rgba(255,255,255,1.0); flex: 1; }
+.extra-amount {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.55);
+}
+.credits-row { display: flex; align-items: center; }
+.credits-label { font-size: 12px; color: rgba(255,255,255,1.0); flex: 1; }
+.credits-amount {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.55);
+}
+.footer {
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.footer-sync {
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  flex: 1;
+}
+.footer-sync.stale { color: #FF9F0A; }
+.footer-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.footer-vdivider {
+  width: 1px;
+  height: 12px;
+  background: rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+
+/* ── LIGHT MODE ── */
+.popover-light {
+  width: 360px;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.09);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.sf-icon-light {
+  font-size: 8px;
+  color: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.05);
+  border-radius: 3px;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, sans-serif;
+  white-space: nowrap;
+}
+.divider-light {
+  height: 1px;
+  background: rgba(0,0,0,0.09);
+  flex-shrink: 0;
+}
+.header-light {
+  padding: 12px 16px 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-title-light {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(0,0,0,0.85);
+  flex: 1;
+}
+.plan-badge-light {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(0,0,0,0.50);
+  background: rgba(0,0,0,0.08);
+  padding: 2px 6px;
+  border-radius: 100px;
+}
+.tab-bar-wrap-light {
+  padding: 12px 16px 0 16px;
+}
+.tab-bar-light {
+  background: rgba(0,0,0,0.05);
+  border-radius: 8px;
+  padding: 2px;
+  display: flex;
+  gap: 2px;
+}
+.tab-item-light {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(0,0,0,0.40);
+  cursor: default;
+}
+.tab-item-light.selected {
+  background: rgba(0,0,0,0.08);
+  color: rgba(0,0,0,0.85);
+}
+.usage-content-light {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.usage-bar-light { display: flex; flex-direction: column; gap: 6px; }
+.usage-bar-row-light {
+  display: flex;
+  align-items: center;
+}
+.usage-bar-label-light {
+  font-size: 12px;
+  color: rgba(0,0,0,0.85);
+  flex: 1;
+}
+.usage-pct-light {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0,0,0,0.40);
+}
+.usage-pct-light.red { color: #BE2D35; }
+.bar-track-light {
+  position: relative;
+  height: 6px;
+  background: rgba(0,0,0,0.07);
+  border-radius: 100px;
+  overflow: visible;
+}
+.bar-fill-light {
+  position: absolute;
+  top: 0; left: 0;
+  height: 6px;
+  border-radius: 100px;
+  background: #367CAF;
+}
+.bar-fill-light.red { background: #BE2D35; }
+.bar-fill-light.orange { background: #D97757; }
+.pace-dot-light {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: #1B425E;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.usage-sublabel-light {
+  font-size: 11px;
+  color: rgba(0,0,0,0.45);
+}
+.extra-usage-light { display: flex; flex-direction: column; gap: 4px; }
+.extra-header-light { display: flex; align-items: center; }
+.extra-label-light { font-size: 12px; color: rgba(0,0,0,0.85); flex: 1; }
+.extra-amount-light {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0,0,0,0.45);
+}
+.credits-row-light { display: flex; align-items: center; }
+.credits-label-light { font-size: 12px; color: rgba(0,0,0,0.85); flex: 1; }
+.credits-amount-light {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0,0,0,0.45);
+}
+.footer-light {
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #f7f6f4;
+}
+.footer-sync-light {
+  font-size: 11px;
+  color: rgba(0,0,0,0.30);
+  flex: 1;
+}
+.footer-sync-light.stale { color: #D97757; }
+.footer-btn-light {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.footer-vdivider-light {
+  width: 1px;
+  height: 12px;
+  background: rgba(0,0,0,0.10);
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     A — Single provider: Claude Pro, two usage bars (45% / 33%)
+     ═══════════════════════════════════════════════════════ -->
+<div>
+  <div class="mock-label">A — Claude Pro · single provider · 5-Hour 45% · 7-Day 33%</div>
+  <div class="mock-row">
+
+    <!-- DARK -->
+    <div class="mock-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="header-title">Tokenomics</div>
+          <div class="plan-badge">Pro</div>
+          <div class="share-icon"><span class="sf-icon">square.and.arrow.up</span></div>
+        </div>
+        <div class="divider"></div>
+        <div class="usage-content">
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">5-Hour Window</div>
+              <div class="usage-pct">45%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:45%;"></div>
+              <div class="pace-dot" style="left:30%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 2h 45m</div>
+          </div>
+          <div class="divider"></div>
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">7-Day Window</div>
+              <div class="usage-pct">33%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:33%;"></div>
+              <div class="pace-dot" style="left:55%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 4d 12h</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Updated just now</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT -->
+    <div class="mock-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="header-title-light">Tokenomics</div>
+          <div class="plan-badge-light">Pro</div>
+          <div class="share-icon"><span class="sf-icon-light">square.and.arrow.up</span></div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="usage-content-light">
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">5-Hour Window</div>
+              <div class="usage-pct-light">45%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light" style="width:45%;"></div>
+              <div class="pace-dot-light" style="left:30%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 2h 45m</div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">7-Day Window</div>
+              <div class="usage-pct-light">33%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light" style="width:33%;"></div>
+              <div class="pace-dot-light" style="left:55%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 4d 12h</div>
+          </div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Updated just now</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     B — Claude Max with Extra Usage section
+     ═══════════════════════════════════════════════════════ -->
+<div>
+  <div class="mock-label">B — Claude Max · Extra Usage $18.40 / $35.00 (53%)</div>
+  <div class="mock-row">
+
+    <!-- DARK -->
+    <div class="mock-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="header-title">Tokenomics</div>
+          <div class="plan-badge">Max</div>
+          <div class="share-icon"><span class="sf-icon">square.and.arrow.up</span></div>
+        </div>
+        <div class="divider"></div>
+        <div class="usage-content">
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">5-Hour Window</div>
+              <div class="usage-pct">62%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:62%;"></div>
+              <div class="pace-dot" style="left:48%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 1h 52m</div>
+          </div>
+          <div class="divider"></div>
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">7-Day Window</div>
+              <div class="usage-pct">41%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:41%;"></div>
+              <div class="pace-dot" style="left:60%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 3d 8h</div>
+          </div>
+          <div class="divider"></div>
+          <div class="extra-usage">
+            <div class="extra-header">
+              <div class="extra-label">Extra Usage</div>
+              <div class="extra-amount">$18.40 / $35.00</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill orange" style="width:52.6%;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Updated 3m ago</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT -->
+    <div class="mock-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="header-title-light">Tokenomics</div>
+          <div class="plan-badge-light">Max</div>
+          <div class="share-icon"><span class="sf-icon-light">square.and.arrow.up</span></div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="usage-content-light">
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">5-Hour Window</div>
+              <div class="usage-pct-light">62%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light" style="width:62%;"></div>
+              <div class="pace-dot-light" style="left:48%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 1h 52m</div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">7-Day Window</div>
+              <div class="usage-pct-light">41%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light" style="width:41%;"></div>
+              <div class="pace-dot-light" style="left:60%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 3d 8h</div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="extra-usage-light">
+            <div class="extra-header-light">
+              <div class="extra-label-light">Extra Usage</div>
+              <div class="extra-amount-light">$18.40 / $35.00</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light orange" style="width:52.6%;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Updated 3m ago</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     C — Multi-provider tab bar: Claude selected, Codex, Gemini
+     ═══════════════════════════════════════════════════════ -->
+<div>
+  <div class="mock-label">C — Multi-provider · Claude tab selected · Codex · Gemini</div>
+  <div class="mock-row">
+
+    <!-- DARK -->
+    <div class="mock-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="header-title">Tokenomics</div>
+          <div class="plan-badge">Pro</div>
+          <div class="share-icon"><span class="sf-icon">square.and.arrow.up</span></div>
+        </div>
+        <div class="tab-bar-wrap">
+          <div class="tab-bar">
+            <div class="tab-item selected">
+              <div class="tab-icon" style="color:#d9a977; opacity:0.9;">
+                <svg viewBox="0 0 1080 1080" fill="none"><path d="M234.966 706.846L430.537 597.114L433.825 587.584L430.537 582.282H421.007L388.322 580.268L276.577 577.248L179.664 573.222L85.7718 568.188L62.1477 563.154L40 533.96L42.2819 519.396L62.1477 506.04L90.604 508.523L153.49 512.819L247.852 519.329L316.309 523.356L417.718 533.893H433.825L436.107 527.383L430.604 523.356L426.309 519.329L328.658 453.154L222.953 383.222L167.584 342.953L137.651 322.55L122.55 303.423L116.04 261.678L143.221 231.745L179.732 234.228L189.06 236.711L226.04 265.168L305.034 326.309L408.188 402.282L423.289 414.832L429.329 410.537L430.067 407.517L423.289 396.175L367.181 294.765L307.315 191.611L280.671 148.859L273.624 123.222C271.141 112.685 269.329 103.826 269.329 93.0202L300.268 51.0068L317.383 45.5034L358.658 51.0068L376.04 66.1075L401.678 124.765L443.221 217.114L507.651 342.685L526.51 379.933L536.577 414.43L540.336 424.967H546.846V418.926L552.148 348.188L561.946 261.342L571.476 149.597L574.765 118.121L590.336 80.4027L621.275 60.0001L645.436 71.5437L665.302 100L662.55 118.389L650.738 195.168L627.584 315.436L612.483 395.973H621.275L631.342 385.906L672.081 331.812L740.537 246.242L770.738 212.282L805.973 174.765L828.591 156.913H871.342L902.819 203.691L888.725 252.013L844.698 307.852L808.188 355.168L755.839 425.638L723.154 482.014L726.174 486.51L733.96 485.772L852.215 460.604L916.107 449.06L992.349 435.973L1026.85 452.08L1030.6 468.456L1017.05 501.946L935.503 522.081L839.866 541.208L697.45 574.899L695.705 576.175L697.718 578.658L761.879 584.698L789.329 586.175H856.51L981.611 595.503L1014.3 617.114L1033.89 643.557L1030.6 663.691L980.268 689.329L912.349 673.222L753.826 635.503L699.463 621.946H691.946V626.443L737.248 670.738L820.268 745.705L924.228 842.349L929.53 866.242L916.174 885.101L902.081 883.087L810.738 814.362L775.503 783.423L695.705 716.242H690.403V723.289L708.792 750.201L805.906 896.175L810.94 940.94L803.893 955.503L778.725 964.295L751.074 959.262L694.228 879.463L635.57 789.597L588.255 709.06L582.483 712.349L554.564 1013.09L541.476 1028.46L511.275 1040L486.107 1020.87L472.752 989.933L486.107 928.792L502.215 848.993L515.302 785.57L527.114 706.779L534.161 680.604L533.691 678.859L527.92 679.597L468.523 761.141L378.188 883.222L306.711 959.732L289.597 966.51L259.933 951.141L262.685 923.691L279.262 899.262L378.188 773.423L437.852 695.436L476.376 650.403L476.107 643.893H473.826L211.074 814.497L164.295 820.537L144.161 801.678L146.644 770.738L156.174 760.671L235.168 706.309L234.899 706.577L234.966 706.846Z" fill="currentColor"/></svg>
+              </div>
+              Claude
+            </div>
+            <div class="tab-item">
+              <div class="tab-icon" style="color:rgba(255,255,255,0.7); opacity:0.5;">
+                <svg viewBox="0 0 1080 1080" fill="none"><g><path d="M968.297 448.962C976.743 423.585 981.051 397.013 981.055 370.267C981.052 326.01 969.264 282.553 946.901 244.361C901.968 166.144 818.612 117.854 728.397 117.854C710.649 117.854 692.871 119.729 675.521 123.453C652.147 97.1177 623.455 76.036 591.339 61.5985C559.222 47.1609 524.41 39.6955 489.198 39.6943H487.617C487.455 39.6998 487.208 39.6998 487.024 39.6998C377.76 39.6998 280.864 110.204 247.272 214.146C176.933 228.526 116.211 272.639 80.7096 335.001C58.4166 373.424 46.6685 417.054 46.6543 461.476C46.6632 523.904 69.8379 584.108 111.691 630.429C103.242 655.806 98.9335 682.378 98.9299 709.124C98.9337 753.381 110.721 796.838 133.081 835.03C178.012 913.269 261.375 961.532 351.599 961.532C369.362 961.533 387.076 959.656 404.445 955.933C427.823 982.268 456.517 1003.35 488.636 1017.79C520.755 1032.23 555.57 1039.69 590.785 1039.69H592.366L593.008 1039.69C702.332 1039.69 799.198 969.187 832.79 865.152C903.129 850.764 963.851 806.654 999.352 744.288C1021.62 705.901 1033.35 662.309 1033.34 617.929C1033.33 555.501 1010.16 495.297 968.308 448.976L968.297 448.962Z" fill="currentColor"/></g></svg>
+              </div>
+              Codex
+            </div>
+            <div class="tab-item">
+              <div class="tab-icon" style="color:#82b4ff; opacity:0.5;">
+                <svg viewBox="0 0 1080 1080" fill="none"><path d="M539.193 106.924C545.247 125.583 552.163 143.958 559.928 161.989C594.743 242.881 642.651 313.932 703.544 374.825C764.466 435.732 835.499 483.639 916.376 518.455C934.415 526.219 952.794 533.135 971.457 539.188C952.794 545.243 934.414 552.162 916.379 559.928C835.486 594.744 764.452 642.652 703.547 703.54C642.652 764.468 594.745 835.499 559.929 916.376C552.163 934.411 545.243 952.79 539.187 971.452C533.129 952.789 526.208 934.41 518.439 916.376C483.639 835.485 435.747 764.448 374.822 703.54C313.918 642.652 242.883 594.744 161.99 559.928C143.965 552.165 125.595 545.248 106.943 539.193C125.594 533.139 143.961 526.222 161.984 518.458C242.88 483.658 313.934 435.748 374.828 374.837C435.736 313.944 483.641 242.894 518.455 162.007C526.22 143.97 533.138 125.589 539.193 106.924Z" stroke="currentColor" stroke-width="70" fill="none"/></svg>
+              </div>
+              Gemini
+            </div>
+          </div>
+        </div>
+        <div class="tab-spacer"></div>
+        <div class="usage-content">
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">5-Hour Window</div>
+              <div class="usage-pct">45%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:45%;"></div>
+              <div class="pace-dot" style="left:30%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 2h 45m</div>
+          </div>
+          <div class="divider"></div>
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">7-Day Window</div>
+              <div class="usage-pct">33%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:33%;"></div>
+              <div class="pace-dot" style="left:55%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 4d 12h</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Updated just now</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">rectangle.3.offgrid</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT -->
+    <div class="mock-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="header-title-light">Tokenomics</div>
+          <div class="plan-badge-light">Pro</div>
+          <div class="share-icon"><span class="sf-icon-light">square.and.arrow.up</span></div>
+        </div>
+        <div class="tab-bar-wrap-light">
+          <div class="tab-bar-light">
+            <div class="tab-item-light selected">
+              <div class="tab-icon" style="color:#d9a977; opacity:0.9;">
+                <svg viewBox="0 0 1080 1080" fill="none"><path d="M234.966 706.846L430.537 597.114L433.825 587.584L430.537 582.282H421.007L388.322 580.268L276.577 577.248L179.664 573.222L85.7718 568.188L62.1477 563.154L40 533.96L42.2819 519.396L62.1477 506.04L90.604 508.523L153.49 512.819L247.852 519.329L316.309 523.356L417.718 533.893H433.825L436.107 527.383L430.604 523.356L426.309 519.329L328.658 453.154L222.953 383.222L167.584 342.953L137.651 322.55L122.55 303.423L116.04 261.678L143.221 231.745L179.732 234.228L189.06 236.711L226.04 265.168L305.034 326.309L408.188 402.282L423.289 414.832L429.329 410.537L430.067 407.517L423.289 396.175L367.181 294.765L307.315 191.611L280.671 148.859L273.624 123.222C271.141 112.685 269.329 103.826 269.329 93.0202L300.268 51.0068L317.383 45.5034L358.658 51.0068L376.04 66.1075L401.678 124.765L443.221 217.114L507.651 342.685L526.51 379.933L536.577 414.43L540.336 424.967H546.846V418.926L552.148 348.188L561.946 261.342L571.476 149.597L574.765 118.121L590.336 80.4027L621.275 60.0001L645.436 71.5437L665.302 100L662.55 118.389L650.738 195.168L627.584 315.436L612.483 395.973H621.275L631.342 385.906L672.081 331.812L740.537 246.242L770.738 212.282L805.973 174.765L828.591 156.913H871.342L902.819 203.691L888.725 252.013L844.698 307.852L808.188 355.168L755.839 425.638L723.154 482.014L726.174 486.51L733.96 485.772L852.215 460.604L916.107 449.06L992.349 435.973L1026.85 452.08L1030.6 468.456L1017.05 501.946L935.503 522.081L839.866 541.208L697.45 574.899L695.705 576.175L697.718 578.658L761.879 584.698L789.329 586.175H856.51L981.611 595.503L1014.3 617.114L1033.89 643.557L1030.6 663.691L980.268 689.329L912.349 673.222L753.826 635.503L699.463 621.946H691.946V626.443L737.248 670.738L820.268 745.705L924.228 842.349L929.53 866.242L916.174 885.101L902.081 883.087L810.738 814.362L775.503 783.423L695.705 716.242H690.403V723.289L708.792 750.201L805.906 896.175L810.94 940.94L803.893 955.503L778.725 964.295L751.074 959.262L694.228 879.463L635.57 789.597L588.255 709.06L582.483 712.349L554.564 1013.09L541.476 1028.46L511.275 1040L486.107 1020.87L472.752 989.933L486.107 928.792L502.215 848.993L515.302 785.57L527.114 706.779L534.161 680.604L533.691 678.859L527.92 679.597L468.523 761.141L378.188 883.222L306.711 959.732L289.597 966.51L259.933 951.141L262.685 923.691L279.262 899.262L378.188 773.423L437.852 695.436L476.376 650.403L476.107 643.893H473.826L211.074 814.497L164.295 820.537L144.161 801.678L146.644 770.738L156.174 760.671L235.168 706.309L234.899 706.577L234.966 706.846Z" fill="currentColor"/></svg>
+              </div>
+              Claude
+            </div>
+            <div class="tab-item-light">
+              <div class="tab-icon" style="color:rgba(0,0,0,0.4); opacity:0.5;">
+                <svg viewBox="0 0 1080 1080" fill="none"><g><path d="M968.297 448.962C976.743 423.585 981.051 397.013 981.055 370.267C981.052 326.01 969.264 282.553 946.901 244.361C901.968 166.144 818.612 117.854 728.397 117.854C710.649 117.854 692.871 119.729 675.521 123.453C652.147 97.1177 623.455 76.036 591.339 61.5985C559.222 47.1609 524.41 39.6955 489.198 39.6943H487.617C487.455 39.6998 487.208 39.6998 487.024 39.6998C377.76 39.6998 280.864 110.204 247.272 214.146C176.933 228.526 116.211 272.639 80.7096 335.001C58.4166 373.424 46.6685 417.054 46.6543 461.476C46.6632 523.904 69.8379 584.108 111.691 630.429C103.242 655.806 98.9335 682.378 98.9299 709.124C98.9337 753.381 110.721 796.838 133.081 835.03C178.012 913.269 261.375 961.532 351.599 961.532C369.362 961.533 387.076 959.656 404.445 955.933C427.823 982.268 456.517 1003.35 488.636 1017.79C520.755 1032.23 555.57 1039.69 590.785 1039.69H592.366L593.008 1039.69C702.332 1039.69 799.198 969.187 832.79 865.152C903.129 850.764 963.851 806.654 999.352 744.288C1021.62 705.901 1033.35 662.309 1033.34 617.929C1033.33 555.501 1010.16 495.297 968.308 448.976L968.297 448.962Z" fill="currentColor"/></g></svg>
+              </div>
+              Codex
+            </div>
+            <div class="tab-item-light">
+              <div class="tab-icon" style="color:#367CAF; opacity:0.5;">
+                <svg viewBox="0 0 1080 1080" fill="none"><path d="M539.193 106.924C545.247 125.583 552.163 143.958 559.928 161.989C594.743 242.881 642.651 313.932 703.544 374.825C764.466 435.732 835.499 483.639 916.376 518.455C934.415 526.219 952.794 533.135 971.457 539.188C952.794 545.243 934.414 552.162 916.379 559.928C835.486 594.744 764.452 642.652 703.547 703.54C642.652 764.468 594.745 835.499 559.929 916.376C552.163 934.411 545.243 952.79 539.187 971.452C533.129 952.789 526.208 934.41 518.439 916.376C483.639 835.485 435.747 764.448 374.822 703.54C313.918 642.652 242.883 594.744 161.99 559.928C143.965 552.165 125.595 545.248 106.943 539.193C125.594 533.139 143.961 526.222 161.984 518.458C242.88 483.658 313.934 435.748 374.828 374.837C435.736 313.944 483.641 242.894 518.455 162.007C526.22 143.97 533.138 125.589 539.193 106.924Z" stroke="currentColor" stroke-width="70" fill="none"/></svg>
+              </div>
+              Gemini
+            </div>
+          </div>
+        </div>
+        <div class="tab-spacer"></div>
+        <div class="usage-content-light">
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">5-Hour Window</div>
+              <div class="usage-pct-light">45%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light" style="width:45%;"></div>
+              <div class="pace-dot-light" style="left:30%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 2h 45m</div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">7-Day Window</div>
+              <div class="usage-pct-light">33%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light" style="width:33%;"></div>
+              <div class="pace-dot-light" style="left:55%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 4d 12h</div>
+          </div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Updated just now</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">rectangle.3.offgrid</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     D — High usage: 5-Hour at 95% (red), 7-Day at 88% (red)
+     ═══════════════════════════════════════════════════════ -->
+<div>
+  <div class="mock-label">D — High usage · 5-Hour 95% red · 7-Day 88% red · stale data</div>
+  <div class="mock-row">
+
+    <!-- DARK -->
+    <div class="mock-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="header-title">Tokenomics</div>
+          <div class="plan-badge">Pro</div>
+          <div class="share-icon"><span class="sf-icon">square.and.arrow.up</span></div>
+        </div>
+        <div class="divider"></div>
+        <div class="usage-content">
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">5-Hour Window</div>
+              <div class="usage-pct red">95%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill red" style="width:95%;"></div>
+              <div class="pace-dot" style="left:72%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 18m</div>
+          </div>
+          <div class="divider"></div>
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">7-Day Window</div>
+              <div class="usage-pct red">88%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill red" style="width:88%;"></div>
+              <div class="pace-dot" style="left:65%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 1d 4h</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync stale">Updated 14m ago</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT -->
+    <div class="mock-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="header-title-light">Tokenomics</div>
+          <div class="plan-badge-light">Pro</div>
+          <div class="share-icon"><span class="sf-icon-light">square.and.arrow.up</span></div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="usage-content-light">
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">5-Hour Window</div>
+              <div class="usage-pct-light red">95%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light red" style="width:95%;"></div>
+              <div class="pace-dot-light" style="left:72%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 18m</div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">7-Day Window</div>
+              <div class="usage-pct-light red">88%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light red" style="width:88%;"></div>
+              <div class="pace-dot-light" style="left:65%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 1d 4h</div>
+          </div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light stale">Updated 14m ago</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

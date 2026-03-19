@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Popover States — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  align-items: flex-start;
+}
+.mock-block { display: flex; flex-direction: column; gap: 32px; }
+.mock-label {
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.mode-row { display: flex; gap: 32px; align-items: flex-start; }
+.mode-col { display: flex; flex-direction: column; }
+.mode-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  margin-bottom: 8px;
+}
+
+/* ── DARK ── */
+.popover {
+  width: 360px;
+  background: #282828;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.sf-icon {
+  font-size: 8px;
+  color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, sans-serif;
+  white-space: nowrap;
+}
+.divider { height: 1px; background: rgba(255,255,255,0.12); flex-shrink: 0; }
+.header { padding: 12px 16px 8px 16px; display: flex; align-items: center; gap: 8px; }
+.header-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,1.0); flex: 1; }
+.plan-badge { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.25); padding: 2px 6px; border-radius: 100px; }
+.footer { padding: 8px 16px; display: flex; align-items: center; }
+.footer-sync { font-size: 11px; color: rgba(255,255,255,0.25); flex: 1; }
+.footer-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+.footer-vdivider { width: 1px; height: 12px; background: rgba(255,255,255,0.12); }
+.state-body { padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.state-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,1.0); }
+.state-helper { font-size: 11px; color: rgba(255,255,255,0.55); max-width: 240px; }
+.btn-primary { background: #0A84FF; color: #ffffff; font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 6px; border: none; cursor: default; display: inline-block; }
+.btn-bordered { background: transparent; color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.25); cursor: default; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.15); border-top-color: rgba(255,255,255,0.55); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+.login-body { padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+.login-title { font-size: 12px; color: rgba(255,255,255,0.55); max-width: 240px; }
+.login-body-text { font-size: 11px; color: rgba(255,255,255,0.25); max-width: 240px; }
+.btn-primary-regular { background: #0A84FF; color: #ffffff; font-size: 13px; font-weight: 500; padding: 6px 16px; border-radius: 7px; border: none; cursor: default; display: inline-block; }
+.login-link { font-size: 11px; color: #0A84FF; }
+.usage-content { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+.usage-bar { display: flex; flex-direction: column; gap: 6px; }
+.usage-bar-row { display: flex; align-items: center; }
+.usage-bar-label { font-size: 12px; color: rgba(255,255,255,1.0); flex: 1; }
+.usage-pct { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.55); }
+.bar-track { position: relative; height: 6px; background: rgba(255,255,255,0.10); border-radius: 100px; overflow: visible; }
+.bar-fill { position: absolute; top:0; left:0; height:6px; border-radius:100px; background: rgba(255,255,255,0.5); }
+.pace-dot { position: absolute; top:50%; transform: translate(-50%,-50%); width:6px; height:6px; background:#fff; border-radius:50%; }
+.usage-sublabel { font-size: 11px; color: rgba(255,255,255,0.55); }
+.credits-row { display: flex; align-items: center; }
+.credits-label { font-size: 12px; color: rgba(255,255,255,1.0); flex: 1; }
+.credits-amount { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.55); }
+
+/* ── LIGHT ── */
+.popover-light {
+  width: 360px;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.09);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.sf-icon-light {
+  font-size: 8px;
+  color: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.05);
+  border-radius: 3px;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, sans-serif;
+  white-space: nowrap;
+}
+.divider-light { height: 1px; background: rgba(0,0,0,0.09); flex-shrink: 0; }
+.header-light { padding: 12px 16px 8px 16px; display: flex; align-items: center; gap: 8px; }
+.header-title-light { font-size: 13px; font-weight: 500; color: rgba(0,0,0,0.85); flex: 1; }
+.plan-badge-light { font-size: 10px; font-weight: 500; color: rgba(0,0,0,0.50); background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 100px; }
+.footer-light { padding: 8px 16px; display: flex; align-items: center; background: #f7f6f4; }
+.footer-sync-light { font-size: 11px; color: rgba(0,0,0,0.30); flex: 1; }
+.footer-btn-light { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+.footer-vdivider-light { width: 1px; height: 12px; background: rgba(0,0,0,0.10); }
+.state-body-light { padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.state-title-light { font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.85); }
+.state-helper-light { font-size: 11px; color: rgba(0,0,0,0.45); max-width: 240px; }
+.btn-primary-light { background: #286195; color: #ffffff; font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 6px; border: none; cursor: default; display: inline-block; }
+.btn-bordered-light { background: transparent; color: rgba(0,0,0,0.55); font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.18); cursor: default; display: inline-block; }
+.spinner-light { width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.10); border-top-color: #367CAF; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+.login-body-light { padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+.login-title-light { font-size: 12px; color: rgba(0,0,0,0.45); max-width: 240px; }
+.login-body-text-light { font-size: 11px; color: rgba(0,0,0,0.30); max-width: 240px; }
+.btn-primary-regular-light { background: #286195; color: #ffffff; font-size: 13px; font-weight: 500; padding: 6px 16px; border-radius: 7px; border: none; cursor: default; display: inline-block; }
+.login-link-light { font-size: 11px; color: #286195; }
+.usage-content-light { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+.usage-bar-light { display: flex; flex-direction: column; gap: 6px; }
+.usage-bar-row-light { display: flex; align-items: center; }
+.usage-bar-label-light { font-size: 12px; color: rgba(0,0,0,0.85); flex: 1; }
+.usage-pct-light { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; color: rgba(0,0,0,0.40); }
+.bar-track-light { position: relative; height: 6px; background: rgba(0,0,0,0.07); border-radius: 100px; overflow: visible; }
+.bar-fill-light { position: absolute; top:0; left:0; height:6px; border-radius:100px; background: #367CAF; }
+.pace-dot-light { position: absolute; top:50%; transform: translate(-50%,-50%); width:6px; height:6px; background:#1B425E; border-radius:50%; }
+.usage-sublabel-light { font-size: 11px; color: rgba(0,0,0,0.45); }
+.credits-row-light { display: flex; align-items: center; }
+.credits-label-light { font-size: 12px; color: rgba(0,0,0,0.85); flex: 1; }
+.credits-amount-light { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: rgba(0,0,0,0.45); }
+</style>
+</head>
+<body>
+
+<!-- A — Loading -->
+<div class="mock-block">
+  <div class="mock-label">A — Loading</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header"><div class="header-title">Tokenomics</div></div>
+        <div class="divider"></div>
+        <div class="state-body">
+          <div class="spinner"></div>
+          <div style="font-size:11px; color:rgba(255,255,255,0.55);">Loading usage data...</div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Not yet synced</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light"><div class="header-title-light">Tokenomics</div></div>
+        <div class="divider-light"></div>
+        <div class="state-body-light">
+          <div class="spinner-light"></div>
+          <div style="font-size:11px; color:rgba(0,0,0,0.45);">Loading usage data...</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Not yet synced</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- B — Auth expired -->
+<div class="mock-block">
+  <div class="mock-label">B — Auth expired (Claude — hasAutoAuth)</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="header-title">Tokenomics</div>
+          <div class="plan-badge">Pro</div>
+          <span class="sf-icon">square.and.arrow.up</span>
+        </div>
+        <div class="divider"></div>
+        <div class="state-body">
+          <div style="color:#FF9F0A; display:flex; align-items:center;"><span class="sf-icon" style="font-size:17px; background:none; color:#FF9F0A; padding:0;">exclamationmark.triangle</span></div>
+          <div class="state-title">Claude authentication expired</div>
+          <div class="btn-primary">Open Claude</div>
+          <div class="state-helper">Sign in to Claude,<br>then click Refresh.</div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Updated 5m ago</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="header-title-light">Tokenomics</div>
+          <div class="plan-badge-light">Pro</div>
+          <span class="sf-icon-light">square.and.arrow.up</span>
+        </div>
+        <div class="divider-light"></div>
+        <div class="state-body-light">
+          <div style="color:#D97757; display:flex; align-items:center;"><span class="sf-icon-light" style="font-size:17px; background:none; color:#D97757; padding:0;">exclamationmark.triangle</span></div>
+          <div class="state-title-light">Claude authentication expired</div>
+          <div class="btn-primary-light">Open Claude</div>
+          <div class="state-helper-light">Sign in to Claude,<br>then click Refresh.</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Updated 5m ago</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- C — Coming soon -->
+<div class="mock-block">
+  <div class="mock-label">C — Coming soon (Copilot)</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header"><div class="header-title">Tokenomics</div><span class="sf-icon">square.and.arrow.up</span></div>
+        <div class="divider"></div>
+        <div class="state-body">
+          <div style="font-size:17px; color:rgba(255,255,255,0.55); display:flex; align-items:center; justify-content:center;"><span class="sf-icon" style="font-size:17px; background:none; color:rgba(255,255,255,0.55); padding:0;">chart.bar.doc.horizontal</span></div>
+          <div class="state-title">Usage tracking coming soon</div>
+          <div class="state-helper">Copilot doesn't expose rate-limit data yet. We'll add support as soon as it's available.</div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Updated just now</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light"><div class="header-title-light">Tokenomics</div><span class="sf-icon-light">square.and.arrow.up</span></div>
+        <div class="divider-light"></div>
+        <div class="state-body-light">
+          <div style="font-size:17px; color:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center;"><span class="sf-icon-light" style="font-size:17px; background:none; color:rgba(0,0,0,0.35); padding:0;">chart.bar.doc.horizontal</span></div>
+          <div class="state-title-light">Usage tracking coming soon</div>
+          <div class="state-helper-light">Copilot doesn't expose rate-limit data yet. We'll add support as soon as it's available.</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Updated just now</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- D — Error state -->
+<div class="mock-block">
+  <div class="mock-label">D — Error state</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header"><div class="header-title">Tokenomics</div><span class="sf-icon">square.and.arrow.up</span></div>
+        <div class="divider"></div>
+        <div class="state-body">
+          <div style="color:#FF9F0A; display:flex; align-items:center;"><span class="sf-icon" style="font-size:17px; background:none; color:#FF9F0A; padding:0;">exclamationmark.triangle</span></div>
+          <div class="state-helper">Unable to fetch usage data. Check your connection.</div>
+          <div class="btn-bordered">Check Now</div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Updated 8m ago</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light"><div class="header-title-light">Tokenomics</div><span class="sf-icon-light">square.and.arrow.up</span></div>
+        <div class="divider-light"></div>
+        <div class="state-body-light">
+          <div style="color:#D97757; display:flex; align-items:center;"><span class="sf-icon-light" style="font-size:17px; background:none; color:#D97757; padding:0;">exclamationmark.triangle</span></div>
+          <div class="state-helper-light">Unable to fetch usage data. Check your connection.</div>
+          <div class="btn-bordered-light">Check Now</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Updated 8m ago</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- E — Login -->
+<div class="mock-block">
+  <div class="mock-label">E — Login (no credentials found)</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header"><div class="header-title">Tokenomics</div></div>
+        <div class="divider"></div>
+        <div class="login-body">
+          <div style="font-size:32px; color:rgba(255,255,255,0.55);"><span class="sf-icon" style="font-size:32px; background:none; color:rgba(255,255,255,0.55); padding:0;">gauge.medium</span></div>
+          <div class="login-title">Track your AI coding usage.</div>
+          <div class="login-body-text">Tokenomics reads your credentials automatically. Just sign in to at least one supported tool.</div>
+          <div class="btn-primary-regular">Connect</div>
+          <div class="login-link">Setup Guide</div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Not yet synced</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light"><div class="header-title-light">Tokenomics</div></div>
+        <div class="divider-light"></div>
+        <div class="login-body-light">
+          <div style="font-size:32px; color:rgba(0,0,0,0.35);"><span class="sf-icon-light" style="font-size:32px; background:none; color:rgba(0,0,0,0.35); padding:0;">gauge.medium</span></div>
+          <div class="login-title-light">Track your AI coding usage.</div>
+          <div class="login-body-text-light">Tokenomics reads your credentials automatically. Just sign in to at least one supported tool.</div>
+          <div class="btn-primary-regular-light">Connect</div>
+          <div class="login-link-light">Setup Guide</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Not yet synced</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- F — Credits balance (Codex) -->
+<div class="mock-block">
+  <div class="mock-label">F — Codex with Credits Balance</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="header-title">Tokenomics</div>
+          <div class="plan-badge">Pay-as-you-go</div>
+          <span class="sf-icon">square.and.arrow.up</span>
+        </div>
+        <div class="divider"></div>
+        <div class="usage-content">
+          <div class="usage-bar">
+            <div class="usage-bar-row">
+              <div class="usage-bar-label">Rate Limit Window</div>
+              <div class="usage-pct">28%</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:28%;"></div>
+              <div class="pace-dot" style="left:40%;"></div>
+            </div>
+            <div class="usage-sublabel">Resets in 3h 12m</div>
+          </div>
+          <div class="divider"></div>
+          <div class="credits-row">
+            <div class="credits-label">Credits Balance</div>
+            <div class="credits-amount">$24.18</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <div class="footer-sync">Updated just now</div>
+          <div class="footer-btn"><span class="sf-icon">arrow.clockwise</span></div>
+          <div class="footer-vdivider"></div>
+          <div class="footer-btn"><span class="sf-icon">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="header-title-light">Tokenomics</div>
+          <div class="plan-badge-light">Pay-as-you-go</div>
+          <span class="sf-icon-light">square.and.arrow.up</span>
+        </div>
+        <div class="divider-light"></div>
+        <div class="usage-content-light">
+          <div class="usage-bar-light">
+            <div class="usage-bar-row-light">
+              <div class="usage-bar-label-light">Rate Limit Window</div>
+              <div class="usage-pct-light">28%</div>
+            </div>
+            <div class="bar-track-light">
+              <div class="bar-fill-light" style="width:28%;"></div>
+              <div class="pace-dot-light" style="left:40%;"></div>
+            </div>
+            <div class="usage-sublabel-light">Resets in 3h 12m</div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="credits-row-light">
+            <div class="credits-label-light">Credits Balance</div>
+            <div class="credits-amount-light">$24.18</div>
+          </div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="footer-light">
+          <div class="footer-sync-light">Updated just now</div>
+          <div class="footer-btn-light"><span class="sf-icon-light">arrow.clockwise</span></div>
+          <div class="footer-vdivider-light"></div>
+          <div class="footer-btn-light"><span class="sf-icon-light">gearshape</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

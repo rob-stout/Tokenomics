@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How It Works — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+.mock-col { display: flex; flex-direction: column; }
+.mode-label { font-size: 9px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.2); margin-bottom: 8px; }
+
+/* DARK */
+.popover { width: 360px; background: #282828; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.sf-icon { font-size: 8px; color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider { height: 1px; background: rgba(255,255,255,0.12); }
+.header { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.55); padding: 4px 8px 4px 0; cursor: default; }
+.header-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,1.0); flex: 1; text-align: center; }
+.back-btn-hidden { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.scroll-content { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section-header { font-size: 12px; font-weight: 600; color: rgba(255,255,255,1.0); }
+.legend-row { display: flex; align-items: flex-start; gap: 10px; }
+.legend-icon { width: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding-top: 1px; }
+.legend-body { display: flex; flex-direction: column; gap: 2px; }
+.legend-title { font-size: 11px; font-weight: 500; color: rgba(255,255,255,1.0); }
+.legend-desc { font-size: 10px; color: rgba(255,255,255,0.55); line-height: 1.4; }
+
+/* LIGHT */
+.popover-light { width: 360px; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.09); box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.sf-icon-light { font-size: 8px; color: rgba(0,0,0,0.35); background: rgba(0,0,0,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider-light { height: 1px; background: rgba(0,0,0,0.09); }
+.header-light { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn-light { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(0,0,0,0.45); padding: 4px 8px 4px 0; cursor: default; }
+.header-title-light { font-size: 13px; font-weight: 500; color: rgba(0,0,0,0.85); flex: 1; text-align: center; }
+.back-btn-hidden-light { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.scroll-content-light { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section-header-light { font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.85); }
+.legend-title-light { font-size: 11px; font-weight: 500; color: rgba(0,0,0,0.85); }
+.legend-desc-light { font-size: 10px; color: rgba(0,0,0,0.50); line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<!-- DARK -->
+<div class="mock-col">
+  <div class="mode-label">Dark</div>
+  <div class="popover">
+    <div class="header">
+      <div class="back-btn"><span class="sf-icon">chevron.left</span> Back</div>
+      <div class="header-title">How It Works</div>
+      <div class="back-btn-hidden"><span class="sf-icon">chevron.left</span> Back</div>
+    </div>
+    <div class="divider"></div>
+    <div class="scroll-content">
+      <div class="section-header">How Tokenomics Fetches Data</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">lock.shield</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Local Only</div>
+          <div class="legend-desc">Tokenomics reads credentials stored by each AI tool on your Mac, then calls their rate-limit APIs directly. No account is required in Tokenomics itself, and no data is sent to any server we operate. Your usage numbers never leave your machine.</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-header">Menu Bar Icon</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">circle.inset.filled</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Outer Ring</div>
+          <div class="legend-desc">The broader picture — a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">circle.fill</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Inner Ring</div>
+          <div class="legend-desc">Your most immediate constraint — the limit you're closest to hitting. Fills clockwise as usage increases.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">smallcircle.filled.circle</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Pace Dots</div>
+          <div class="legend-desc">Show where you'd be if usage were spread evenly across the window. Dot ahead of fill means you're under pace. Only shown on time-based windows.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">percent</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Percentage</div>
+          <div class="legend-desc">Your inner ring value as a number — the limit you're closest to hitting.</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-header">Usage Panel</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">chart.bar.fill</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Usage Bars</div>
+          <div class="legend-desc">Show how much of each rate limit window you've consumed. The bar fills from left to right as usage increases.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon" style="color:rgba(255,255,255,0.7);">circle.fill</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Pace Indicator</div>
+          <div class="legend-desc">The white dot on each bar marks where even usage would be at this point in the window.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">clock.arrow.circlepath</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Reset Time</div>
+          <div class="legend-desc">When the current window resets. Time-based windows show a countdown; non-time-based windows show remaining capacity instead.</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-header">Plan &amp; Extras</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">person.text.rectangle</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Plan Badge</div>
+          <div class="legend-desc">Shows your plan tier for each provider. Claude, Codex, and Copilot plans are detected automatically.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">dollarsign.circle</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Extra Usage</div>
+          <div class="legend-desc">Visible on Max plans with extra usage enabled. Shows how much of your monthly spending limit you've used.</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-header">Desktop Widgets</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon">square.grid.2x2</span></div>
+        <div class="legend-body">
+          <div class="legend-title">Widget Extension</div>
+          <div class="legend-desc">Tokenomics shares usage data with its own widget extension so you can add widgets to your desktop. No data leaves your Mac or is shared with any other app.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHT -->
+<div class="mock-col">
+  <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+  <div class="popover-light">
+    <div class="header-light">
+      <div class="back-btn-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+      <div class="header-title-light">How It Works</div>
+      <div class="back-btn-hidden-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+    </div>
+    <div class="divider-light"></div>
+    <div class="scroll-content-light">
+      <div class="section-header-light">How Tokenomics Fetches Data</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">lock.shield</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Local Only</div>
+          <div class="legend-desc-light">Tokenomics reads credentials stored by each AI tool on your Mac, then calls their rate-limit APIs directly. No account is required in Tokenomics itself, and no data is sent to any server we operate. Your usage numbers never leave your machine.</div>
+        </div>
+      </div>
+      <div class="divider-light"></div>
+      <div class="section-header-light">Menu Bar Icon</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">circle.inset.filled</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Outer Ring</div>
+          <div class="legend-desc-light">The broader picture — a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">circle.fill</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Inner Ring</div>
+          <div class="legend-desc-light">Your most immediate constraint — the limit you're closest to hitting. Fills clockwise as usage increases.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">smallcircle.filled.circle</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Pace Dots</div>
+          <div class="legend-desc-light">Show where you'd be if usage were spread evenly across the window. Dot ahead of fill means you're under pace. Only shown on time-based windows.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">percent</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Percentage</div>
+          <div class="legend-desc-light">Your inner ring value as a number — the limit you're closest to hitting.</div>
+        </div>
+      </div>
+      <div class="divider-light"></div>
+      <div class="section-header-light">Usage Panel</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">chart.bar.fill</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Usage Bars</div>
+          <div class="legend-desc-light">Show how much of each rate limit window you've consumed. The bar fills from left to right as usage increases.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light" style="color:rgba(0,0,0,0.4);">circle.fill</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Pace Indicator</div>
+          <div class="legend-desc-light">The dot on each bar marks where even usage would be at this point in the window.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">clock.arrow.circlepath</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Reset Time</div>
+          <div class="legend-desc-light">When the current window resets. Time-based windows show a countdown; non-time-based windows show remaining capacity instead.</div>
+        </div>
+      </div>
+      <div class="divider-light"></div>
+      <div class="section-header-light">Plan &amp; Extras</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">person.text.rectangle</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Plan Badge</div>
+          <div class="legend-desc-light">Shows your plan tier for each provider. Claude, Codex, and Copilot plans are detected automatically.</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">dollarsign.circle</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Extra Usage</div>
+          <div class="legend-desc-light">Visible on Max plans with extra usage enabled. Shows how much of your monthly spending limit you've used.</div>
+        </div>
+      </div>
+      <div class="divider-light"></div>
+      <div class="section-header-light">Desktop Widgets</div>
+      <div class="legend-row">
+        <div class="legend-icon"><span class="sf-icon-light">square.grid.2x2</span></div>
+        <div class="legend-body">
+          <div class="legend-title-light">Widget Extension</div>
+          <div class="legend-desc-light">Tokenomics shares usage data with its own widget extension so you can add widgets to your desktop. No data leaves your Mac or is shared with any other app.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

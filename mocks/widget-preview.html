@@ -338,6 +338,44 @@
     .dot-healthy { background: var(--ring-healthy); }
     .dot-caution { background: var(--ring-caution); }
     .dot-warning { background: var(--ring-warning); }
+
+    /* ------------------------------------------------------------------ */
+    /* Light mode override — Warm (EBE6DB)                                 */
+    /* ------------------------------------------------------------------ */
+    .light-mode {
+      --widget-bg:        #EBE6DB;
+      --text-primary:     #1B425E;
+      --text-secondary:   rgba(27,66,94,0.60);
+      --text-tertiary:    rgba(27,66,94,0.40);
+      --bar-track:        rgba(27,66,94,0.10);
+      --bar-fill-healthy: #367CAF;
+      --bar-fill-caution: #D97757;
+      --bar-fill-warning: #BE2D35;
+      --ring-track:       rgba(27,66,94,0.10);
+      --ring-healthy:     #367CAF;
+      --ring-caution:     #D97757;
+      --ring-warning:     #BE2D35;
+      --badge-bg:         rgba(27,66,94,0.10);
+    }
+    .light-mode .widget {
+      box-shadow:
+        inset 0 0.5px 0 rgba(255,255,255,0.6),
+        0 4px 16px rgba(0,0,0,0.10),
+        0 1px 4px rgba(0,0,0,0.07);
+    }
+    .light-mode .divider { background: rgba(27,66,94,0.08); }
+    .light-mode .section-label { color: rgba(27,66,94,0.40); }
+    .light-mode .widget-caption { color: rgba(27,66,94,0.40); }
+    .light-mode .bar-percent.caution { color: #D97757; }
+    .light-mode .bar-percent.warning { color: #BE2D35; }
+    .light-mode .page-header h1 { color: #1B425E; }
+    .light-mode .page-header p { color: rgba(27,66,94,0.60); }
+    .light-mode .spec-key { color: rgba(27,66,94,0.40); }
+    .light-mode .spec-val { color: rgba(27,66,94,0.60); }
+    .light-mode .threshold-item { color: rgba(27,66,94,0.60); }
+    .light-mode .dot-healthy { background: #367CAF; }
+    .light-mode .dot-caution { background: #D97757; }
+    .light-mode .dot-warning { background: #BE2D35; }
   </style>
 </head>
 <body>
@@ -768,7 +806,137 @@
   <div class="divider"></div>
 
   <!-- ================================================================== -->
-  <!-- Spec annotations                                                     */
+  <!-- LIGHT MODE — Warm cream (#EBE6DB) theme                            -->
+  <!-- ================================================================== -->
+  <div class="light-mode">
+
+  <section class="section">
+    <div class="section-label">Small Widget — Light Warm — Ring States</div>
+    <div class="widget-row">
+
+      <!-- Healthy -->
+      <div class="widget-group">
+        <div class="widget widget-small">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="44" fill="none" stroke="rgba(27,66,94,0.10)" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="55" cy="55" r="44" fill="none" stroke="#367CAF" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="160.4"/>
+            </svg>
+            <div class="ring-center-text"><span class="ring-percent">42%</span></div>
+          </div>
+          <div class="ring-provider">Claude Code</div>
+          <div class="ring-reset">2h 30m</div>
+        </div>
+        <div class="widget-caption">Healthy — &lt;70%</div>
+      </div>
+
+      <!-- Caution -->
+      <div class="widget-group">
+        <div class="widget widget-small">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="44" fill="none" stroke="rgba(27,66,94,0.10)" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="55" cy="55" r="44" fill="none" stroke="#D97757" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="49.8"/>
+            </svg>
+            <div class="ring-center-text"><span class="ring-percent" style="color:#D97757;">82%</span></div>
+          </div>
+          <div class="ring-provider">Codex CLI</div>
+          <div class="ring-reset">45m</div>
+        </div>
+        <div class="widget-caption">Caution — 70–89%</div>
+      </div>
+
+      <!-- Warning -->
+      <div class="widget-group">
+        <div class="widget widget-small">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="44" fill="none" stroke="rgba(27,66,94,0.10)" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="55" cy="55" r="44" fill="none" stroke="#BE2D35" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="13.8"/>
+            </svg>
+            <div class="ring-center-text"><span class="ring-percent" style="color:#BE2D35;">95%</span></div>
+          </div>
+          <div class="ring-provider">Gemini CLI</div>
+          <div class="ring-reset">12m</div>
+        </div>
+        <div class="widget-caption">Warning — 90%+</div>
+      </div>
+
+    </div>
+
+    <div class="threshold-legend">
+      <div class="threshold-item"><div class="threshold-dot dot-healthy"></div>Blue — healthy (&lt;70%)</div>
+      <div class="threshold-item"><div class="threshold-dot dot-caution"></div>Orange — caution (70–89%)</div>
+      <div class="threshold-item"><div class="threshold-dot dot-warning"></div>Red — warning (90%+)</div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section">
+    <div class="section-label">Medium Widget — Light Warm — Dashboard</div>
+    <div class="widget-row">
+
+      <div class="widget-group">
+        <div class="widget widget-medium">
+          <div class="dashboard-header">
+            <span class="dashboard-title">Tokenomics</span>
+            <span class="dashboard-time">3m ago</span>
+          </div>
+          <div class="provider-list">
+            <div class="provider-row">
+              <div class="provider-badge">C</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta"><span class="bar-label">5-Hour</span><span class="bar-percent">42%</span></div>
+                  <div class="bar-track"><div class="bar-fill" style="width:42%"></div></div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta"><span class="bar-label">7-Day</span><span class="bar-percent">28%</span></div>
+                  <div class="bar-track"><div class="bar-fill" style="width:28%"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="provider-row">
+              <div class="provider-badge">X</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta"><span class="bar-label">5-Hour</span><span class="bar-percent caution">85%</span></div>
+                  <div class="bar-track"><div class="bar-fill caution" style="width:85%"></div></div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta"><span class="bar-label">Context</span><span class="bar-percent">41%</span></div>
+                  <div class="bar-track"><div class="bar-fill" style="width:41%"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="provider-row">
+              <div class="provider-badge">G</div>
+              <div class="bar-group">
+                <div class="bar-block">
+                  <div class="bar-meta"><span class="bar-label">Tokens</span><span class="bar-percent">15%</span></div>
+                  <div class="bar-track"><div class="bar-fill" style="width:15%"></div></div>
+                </div>
+                <div class="bar-block">
+                  <div class="bar-meta"><span class="bar-label">Requests</span><span class="bar-percent">8%</span></div>
+                  <div class="bar-track"><div class="bar-fill" style="width:8%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="widget-caption">Nominal + Caution state</div>
+      </div>
+
+    </div>
+  </section>
+
+  </div><!-- .light-mode -->
+
+  <div class="divider"></div>
+
+  <!-- ================================================================== -->
+  <!-- Spec annotations                                                     -->
   <!-- ================================================================== -->
   <section class="section">
     <div class="section-label">Design Specifications</div>

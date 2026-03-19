@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+.mock-col { display: flex; flex-direction: column; }
+.mode-label { font-size: 9px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.2); margin-bottom: 8px; }
+
+/* DARK */
+.popover { width: 360px; background: #282828; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.sf-icon { font-size: 8px; color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider { height: 1px; background: rgba(255,255,255,0.12); }
+.header { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.55); padding: 4px 8px 4px 0; cursor: default; }
+.header-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,1.0); flex: 1; text-align: center; }
+.back-btn-hidden { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.scroll-content { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.app-identity { display: flex; align-items: center; gap: 12px; }
+.app-icon-box { width: 48px; height: 48px; border-radius: 10px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgba(255,255,255,0.25); text-align: center; }
+.app-meta { display: flex; flex-direction: column; gap: 2px; }
+.app-name { font-size: 15px; font-weight: 600; color: rgba(255,255,255,1.0); }
+.app-version { font-size: 11px; color: rgba(255,255,255,0.25); }
+.description { font-size: 11px; color: rgba(255,255,255,0.55); line-height: 1.5; }
+.built-by { font-size: 11px; font-weight: 500; color: rgba(255,255,255,1.0); }
+.link-list { display: flex; flex-direction: column; }
+.link-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: default; }
+.link-icon { width: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.link-label { font-size: 11px; color: rgba(255,255,255,1.0); flex: 1; }
+.link-arrow { font-size: 10px; color: rgba(255,255,255,0.25); }
+.legal-header { font-size: 12px; font-weight: 600; color: rgba(255,255,255,1.0); }
+.legal-links { display: flex; gap: 16px; }
+.legal-link { font-size: 11px; color: #0A84FF; }
+.disclaimer { font-size: 10px; color: rgba(255,255,255,0.25); line-height: 1.5; }
+
+/* LIGHT */
+.popover-light { width: 360px; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.09); box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.sf-icon-light { font-size: 8px; color: rgba(0,0,0,0.35); background: rgba(0,0,0,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider-light { height: 1px; background: rgba(0,0,0,0.09); }
+.header-light { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn-light { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(0,0,0,0.45); padding: 4px 8px 4px 0; cursor: default; }
+.header-title-light { font-size: 13px; font-weight: 500; color: rgba(0,0,0,0.85); flex: 1; text-align: center; }
+.back-btn-hidden-light { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.scroll-content-light { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.app-icon-box-light { width: 48px; height: 48px; border-radius: 10px; background: rgba(40,97,149,0.10); border: 1px solid rgba(40,97,149,0.18); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgba(40,97,149,0.45); text-align: center; }
+.app-name-light { font-size: 15px; font-weight: 600; color: rgba(0,0,0,0.85); }
+.app-version-light { font-size: 11px; color: rgba(0,0,0,0.30); }
+.description-light { font-size: 11px; color: rgba(0,0,0,0.50); line-height: 1.5; }
+.built-by-light { font-size: 11px; font-weight: 500; color: rgba(0,0,0,0.85); }
+.link-label-light { font-size: 11px; color: rgba(0,0,0,0.85); flex: 1; }
+.link-arrow-light { font-size: 10px; color: rgba(0,0,0,0.25); }
+.legal-header-light { font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.85); }
+.legal-link-light { font-size: 11px; color: #286195; }
+.disclaimer-light { font-size: 10px; color: rgba(0,0,0,0.30); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- DARK -->
+<div class="mock-col">
+  <div class="mode-label">Dark</div>
+  <div class="popover">
+    <div class="header">
+      <div class="back-btn"><span class="sf-icon">chevron.left</span> Back</div>
+      <div class="header-title">About</div>
+      <div class="back-btn-hidden"><span class="sf-icon">chevron.left</span> Back</div>
+    </div>
+    <div class="divider"></div>
+    <div class="scroll-content">
+      <div class="app-identity">
+        <div class="app-icon-box">app icon</div>
+        <div class="app-meta">
+          <div class="app-name">Tokenomics</div>
+          <div class="app-version">v2.5.0</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="description">A menu bar tool for developers using AI coding assistants. Glance at your rate limits without leaving your editor.</div>
+      <div class="divider"></div>
+      <div class="built-by">Built by Rob Stout</div>
+      <div class="link-list">
+        <div class="link-row">
+          <div class="link-icon"><span class="sf-icon">person.circle</span></div>
+          <div class="link-label">Rob Stout — Portfolio</div>
+          <div class="link-arrow"><span class="sf-icon" style="font-size:7px; padding:1px 3px; background:none; color:rgba(255,255,255,0.25);">arrow.up.right</span></div>
+        </div>
+        <div class="divider"></div>
+        <div class="link-row">
+          <div class="link-icon"><span class="sf-icon">chevron.left.forwardslash.chevron.right</span></div>
+          <div class="link-label">View Source on GitHub</div>
+          <div class="link-arrow"><span class="sf-icon" style="font-size:7px; padding:1px 3px; background:none; color:rgba(255,255,255,0.25);">arrow.up.right</span></div>
+        </div>
+        <div class="divider"></div>
+        <div class="link-row">
+          <div class="link-icon"><span class="sf-icon">cup.and.saucer</span></div>
+          <div class="link-label">Buy Me a Coffee</div>
+          <div class="link-arrow"><span class="sf-icon" style="font-size:7px; padding:1px 3px; background:none; color:rgba(255,255,255,0.25);">arrow.up.right</span></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="legal-header">Legal</div>
+      <div class="legal-links">
+        <div class="legal-link">Privacy Policy</div>
+        <div class="legal-link">License</div>
+      </div>
+      <div class="disclaimer">Tokenomics is not affiliated with, endorsed by, or sponsored by Anthropic PBC, OpenAI Inc., or Google LLC.</div>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHT -->
+<div class="mock-col">
+  <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+  <div class="popover-light">
+    <div class="header-light">
+      <div class="back-btn-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+      <div class="header-title-light">About</div>
+      <div class="back-btn-hidden-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+    </div>
+    <div class="divider-light"></div>
+    <div class="scroll-content-light">
+      <div class="app-identity">
+        <div class="app-icon-box-light">app icon</div>
+        <div class="app-meta">
+          <div class="app-name-light">Tokenomics</div>
+          <div class="app-version-light">v2.5.0</div>
+        </div>
+      </div>
+      <div class="divider-light"></div>
+      <div class="description-light">A menu bar tool for developers using AI coding assistants. Glance at your rate limits without leaving your editor.</div>
+      <div class="divider-light"></div>
+      <div class="built-by-light">Built by Rob Stout</div>
+      <div class="link-list">
+        <div class="link-row">
+          <div class="link-icon"><span class="sf-icon-light">person.circle</span></div>
+          <div class="link-label-light">Rob Stout — Portfolio</div>
+          <div class="link-arrow-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px; background:none; color:rgba(0,0,0,0.25);">arrow.up.right</span></div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="link-row">
+          <div class="link-icon"><span class="sf-icon-light">chevron.left.forwardslash.chevron.right</span></div>
+          <div class="link-label-light">View Source on GitHub</div>
+          <div class="link-arrow-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px; background:none; color:rgba(0,0,0,0.25);">arrow.up.right</span></div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="link-row">
+          <div class="link-icon"><span class="sf-icon-light">cup.and.saucer</span></div>
+          <div class="link-label-light">Buy Me a Coffee</div>
+          <div class="link-arrow-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px; background:none; color:rgba(0,0,0,0.25);">arrow.up.right</span></div>
+        </div>
+      </div>
+      <div class="divider-light"></div>
+      <div class="legal-header-light">Legal</div>
+      <div class="legal-links">
+        <div class="legal-link-light">Privacy Policy</div>
+        <div class="legal-link-light">License</div>
+      </div>
+      <div class="disclaimer-light">Tokenomics is not affiliated with, endorsed by, or sponsored by Anthropic PBC, OpenAI Inc., or Google LLC.</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

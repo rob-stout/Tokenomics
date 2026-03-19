@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>macOS Widget Frames — Figma Reference</title>
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      background: #f0f0f0;
+      padding: 48px;
+      color: #1d1d1f;
+    }
+
+    /* ── Section headings ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #86868b;
+      margin-bottom: 16px;
+    }
+
+    .section {
+      margin-bottom: 56px;
+    }
+
+    /* ── Widget rows ── */
+    .widget-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 32px;
+    }
+
+    .widget-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .widget-caption {
+      font-size: 11px;
+      color: #86868b;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .widget-caption strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 2px;
+    }
+
+    /* ── Row 1: Outer frames ── */
+    .frame-outer {
+      background: #ffffff;
+      border: 1px solid #d2d2d7;
+      border-radius: 22px;
+      position: relative;
+    }
+
+    .frame-outer.small  { width: 164px; height: 164px; }
+    .frame-outer.medium { width: 344px; height: 164px; }
+    .frame-outer.large  { width: 344px; height: 344px; }
+
+    /* ── Row 2: Content area frames ── */
+    .frame-content-outer {
+      border: 1px solid #d2d2d7;
+      border-radius: 22px;
+      background: #fafafa;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .frame-content-outer.small  { width: 164px; height: 164px; }
+    .frame-content-outer.medium { width: 344px; height: 164px; }
+    .frame-content-outer.large  { width: 344px; height: 344px; }
+
+    .frame-content-inner {
+      border: 1.5px dashed #a1a1a6;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .frame-content-inner.small  { width: 128px; height: 128px; }
+    .frame-content-inner.medium { width: 308px; height: 128px; }
+    .frame-content-inner.large  { width: 308px; height: 308px; }
+
+    .content-dim-label {
+      font-size: 10px;
+      color: #a1a1a6;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* Padding annotation lines */
+    .pad-label {
+      position: absolute;
+      font-size: 9px;
+      color: #c7c7cc;
+      white-space: nowrap;
+    }
+
+    /* ── Row 3: Desktop grid layout ── */
+    .desktop-grid {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .grid-row {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .grid-widget {
+      background: #ffffff;
+      border: 1px solid #d2d2d7;
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .grid-widget.small  { width: 164px; height: 164px; }
+    .grid-widget.medium { width: 344px; height: 164px; }
+    .grid-widget.large  { width: 344px; height: 344px; }
+
+    .grid-widget-label {
+      font-size: 11px;
+      color: #c7c7cc;
+      font-weight: 500;
+    }
+
+    /* Gap annotations */
+    .gap-annotation {
+      font-size: 9px;
+      color: #a1a1a6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .gap-h {
+      width: 16px;
+      height: 164px;
+      writing-mode: vertical-rl;
+    }
+
+    .gap-v {
+      width: 344px;
+      height: 16px;
+    }
+
+    /* ── Dimension annotations on frames ── */
+    .dim-width {
+      position: absolute;
+      bottom: -22px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 9px;
+      color: #c7c7cc;
+    }
+
+    .dim-height {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      right: -28px;
+      display: flex;
+      align-items: center;
+      font-size: 9px;
+      color: #c7c7cc;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+    }
+
+    .dim-wrapper {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- ROW 1 — Outer frames (as measured)                    -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Row 1 — Outer Widget Frames (measured, macOS Sequoia)</div>
+    <div class="widget-row">
+
+      <div class="widget-item">
+        <div class="dim-wrapper">
+          <div class="frame-outer small"></div>
+          <div class="dim-width">164 pt</div>
+          <div class="dim-height">164 pt</div>
+        </div>
+        <div class="widget-caption" style="margin-top: 28px;">
+          <strong>Small</strong>
+          164 × 164 pt
+        </div>
+      </div>
+
+      <div class="widget-item">
+        <div class="dim-wrapper">
+          <div class="frame-outer medium"></div>
+          <div class="dim-width">344 pt</div>
+          <div class="dim-height">164 pt</div>
+        </div>
+        <div class="widget-caption" style="margin-top: 28px;">
+          <strong>Medium</strong>
+          344 × 164 pt
+        </div>
+      </div>
+
+      <div class="widget-item">
+        <div class="dim-wrapper">
+          <div class="frame-outer large"></div>
+          <div class="dim-width">344 pt</div>
+          <div class="dim-height">344 pt</div>
+        </div>
+        <div class="widget-caption" style="margin-top: 28px;">
+          <strong>Large</strong>
+          344 × 344 pt
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- ROW 2 — Content areas (.containerBackground inset)    -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Row 2 — Content Areas (inside .containerBackground padding, ~18 pt inset)</div>
+    <div class="widget-row">
+
+      <div class="widget-item">
+        <div class="frame-content-outer small">
+          <div class="frame-content-inner small">
+            <div class="content-dim-label">~128 × 128 pt<br>content</div>
+          </div>
+        </div>
+        <div class="widget-caption">
+          <strong>Small</strong>
+          Outer 164 × 164 pt<br>
+          Content ~128 × 128 pt
+        </div>
+      </div>
+
+      <div class="widget-item">
+        <div class="frame-content-outer medium">
+          <div class="frame-content-inner medium">
+            <div class="content-dim-label">~308 × 128 pt — content</div>
+          </div>
+        </div>
+        <div class="widget-caption">
+          <strong>Medium</strong>
+          Outer 344 × 164 pt<br>
+          Content ~308 × 128 pt
+        </div>
+      </div>
+
+      <div class="widget-item">
+        <div class="frame-content-outer large">
+          <div class="frame-content-inner large">
+            <div class="content-dim-label">~308 × 308 pt<br>content</div>
+          </div>
+        </div>
+        <div class="widget-caption">
+          <strong>Large</strong>
+          Outer 344 × 344 pt<br>
+          Content ~308 × 308 pt
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- ROW 3 — Desktop grid layout (showing 16pt gap logic)  -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Row 3 — Desktop Grid Relationships (16 pt inter-widget gap)</div>
+
+    <div style="display: flex; gap: 48px; align-items: flex-start;">
+
+      <!-- Left: the grid -->
+      <div class="desktop-grid">
+        <!-- Two smalls side by side -->
+        <div class="grid-row">
+          <div class="grid-widget small">
+            <span class="grid-widget-label">Small</span>
+          </div>
+          <div class="grid-widget small">
+            <span class="grid-widget-label">Small</span>
+          </div>
+        </div>
+        <!-- Medium spans both columns -->
+        <div class="grid-row">
+          <div class="grid-widget medium">
+            <span class="grid-widget-label">Medium</span>
+          </div>
+        </div>
+        <!-- Large spans both columns -->
+        <div class="grid-row">
+          <div class="grid-widget large">
+            <span class="grid-widget-label">Large</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: annotations -->
+      <div style="padding-top: 8px; display: flex; flex-direction: column; gap: 12px; max-width: 220px;">
+        <div style="font-size: 11px; line-height: 1.7; color: #3a3a3c;">
+          <div style="margin-bottom: 8px; font-weight: 600; font-size: 12px;">Grid math</div>
+          <div style="color: #86868b;">
+            164 + 16 + 164 = <strong style="color: #1d1d1f;">344 pt</strong><br>
+            Medium width = 2× Small + gap
+          </div>
+        </div>
+        <div style="font-size: 11px; line-height: 1.7; color: #86868b;">
+          164 + 16 + 164 = <strong style="color: #1d1d1f;">344 pt</strong><br>
+          Large height = 2× Small + gap
+        </div>
+        <div style="font-size: 11px; line-height: 1.7; color: #86868b;">
+          Large width = Medium width<br>
+          <strong style="color: #1d1d1f;">344 pt</strong> both
+        </div>
+        <div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid #e5e5ea; font-size: 10px; color: #a1a1a6; line-height: 1.6;">
+          Gap: 16 pt<br>
+          Corner radius: 22 pt<br>
+          Retina: 1 pt = 2 px<br>
+          macOS Sequoia · all displays
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- Footer                                                 -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div style="margin-top: 8px; padding-top: 20px; border-top: 1px solid #e5e5ea; font-size: 10px; color: #a1a1a6; line-height: 1.8;">
+    Measured by Rob Stout using Tokenomics (macOS menu bar app) · macOS Sequoia<br>
+    Verified identical on 14" MacBook Pro and 27" Apple Studio Display<br>
+    Apple does not publish these dimensions — treat as current ground truth, not permanent spec
+  </div>
+
+</body>
+</html>

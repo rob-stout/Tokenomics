@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+.mock-label {
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.mock-row { display: flex; gap: 40px; align-items: flex-start; }
+.mock-col { display: flex; flex-direction: column; }
+.mode-label { font-size: 9px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.2); margin-bottom: 8px; }
+
+/* ── DARK ── */
+.popover { width: 360px; background: #282828; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.sf-icon { font-size: 8px; color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider { height: 1px; background: rgba(255,255,255,0.12); }
+.divider-inset { height: 1px; background: rgba(255,255,255,0.12); margin: 0 16px; }
+.header { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.55); padding: 4px 8px 4px 0; cursor: default; }
+.header-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,1.0); flex: 1; text-align: center; }
+.back-btn-hidden { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: rgba(255,255,255,0.10); padding: 10px 16px 4px 16px; text-transform: uppercase; }
+.settings-row { padding: 9px 16px; display: flex; align-items: center; gap: 8px; cursor: default; }
+.row-icon { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.row-label { font-size: 11px; color: rgba(255,255,255,1.0); flex: 1; }
+.row-detail { font-size: 11px; color: rgba(255,255,255,0.55); }
+.row-chevron { font-size: 10px; color: rgba(255,255,255,0.10); margin-left: 4px; }
+.toggle-switch { width: 26px; height: 16px; background: #0A84FF; border-radius: 8px; flex-shrink: 0; position: relative; }
+.toggle-switch::after { content: ''; position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; background: white; border-radius: 50%; }
+.toggle-switch.off { background: rgba(255,255,255,0.12); }
+.toggle-switch.off::after { left: 2px; right: auto; }
+.update-dot { width: 6px; height: 6px; background: #0A84FF; border-radius: 50%; flex-shrink: 0; }
+
+/* ── LIGHT ── */
+.popover-light { width: 360px; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.09); box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.sf-icon-light { font-size: 8px; color: rgba(0,0,0,0.35); background: rgba(0,0,0,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider-light { height: 1px; background: rgba(0,0,0,0.09); }
+.divider-inset-light { height: 1px; background: rgba(0,0,0,0.09); margin: 0 16px; }
+.header-light { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn-light { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(0,0,0,0.45); padding: 4px 8px 4px 0; cursor: default; }
+.header-title-light { font-size: 13px; font-weight: 500; color: rgba(0,0,0,0.85); flex: 1; text-align: center; }
+.back-btn-hidden-light { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.section-label-light { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: rgba(0,0,0,0.25); padding: 10px 16px 4px 16px; text-transform: uppercase; }
+.settings-row-light { padding: 9px 16px; display: flex; align-items: center; gap: 8px; cursor: default; }
+.row-label-light { font-size: 11px; color: rgba(0,0,0,0.85); flex: 1; }
+.row-detail-light { font-size: 11px; color: rgba(0,0,0,0.45); }
+.row-chevron-light { font-size: 10px; color: rgba(0,0,0,0.20); margin-left: 4px; }
+.toggle-switch-light { width: 26px; height: 16px; background: #286195; border-radius: 8px; flex-shrink: 0; position: relative; }
+.toggle-switch-light::after { content: ''; position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; background: white; border-radius: 50%; }
+.toggle-switch-light.off { background: rgba(0,0,0,0.15); }
+.toggle-switch-light.off::after { left: 2px; right: auto; }
+.update-dot-light { width: 6px; height: 6px; background: #286195; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="mock-label">Settings — 3 connected, notifications 80% all providers, v2.5.0</div>
+  <div class="mock-row">
+
+    <!-- DARK -->
+    <div class="mock-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="back-btn"><span class="sf-icon">chevron.left</span> Back</div>
+          <div class="header-title">Settings</div>
+          <div class="back-btn-hidden"><span class="sf-icon">chevron.left</span> Back</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section-label">Preferences</div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">checkmark.square</span></div>
+          <div class="row-label">Launch at Login</div>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">circle.grid.2x2</span></div>
+          <div class="row-label">AI Connections</div>
+          <div class="row-detail">3 connected</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">bell</span></div>
+          <div class="row-label">Notifications</div>
+          <div class="row-detail">80% — All providers</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label">Learn</div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">info.circle</span></div>
+          <div class="row-label">How It Works</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">star</span></div>
+          <div class="row-label">About Tokenomics</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label">Extras</div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">ladybug</span></div>
+          <div class="row-label">Report Bugs / Feedback</div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">arrow.triangle.2.circlepath</span></div>
+          <div class="row-label">Check for Updates</div>
+          <div class="row-detail">v2.5.0</div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">power</span></div>
+          <div class="row-label">Quit Tokenomics</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT -->
+    <div class="mock-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="back-btn-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+          <div class="header-title-light">Settings</div>
+          <div class="back-btn-hidden-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="section-label-light">Preferences</div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">checkmark.square</span></div>
+          <div class="row-label-light">Launch at Login</div>
+          <div class="toggle-switch-light"></div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">circle.grid.2x2</span></div>
+          <div class="row-label-light">AI Connections</div>
+          <div class="row-detail-light">3 connected</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">bell</span></div>
+          <div class="row-label-light">Notifications</div>
+          <div class="row-detail-light">80% — All providers</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label-light">Learn</div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">info.circle</span></div>
+          <div class="row-label-light">How It Works</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">star</span></div>
+          <div class="row-label-light">About Tokenomics</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label-light">Extras</div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">ladybug</span></div>
+          <div class="row-label-light">Report Bugs / Feedback</div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">arrow.triangle.2.circlepath</span></div>
+          <div class="row-label-light">Check for Updates</div>
+          <div class="row-detail-light">v2.5.0</div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">power</span></div>
+          <div class="row-label-light">Quit Tokenomics</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div>
+  <div class="mock-label">Settings — Update available state</div>
+  <div class="mock-row">
+
+    <!-- DARK -->
+    <div class="mock-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="back-btn"><span class="sf-icon">chevron.left</span> Back</div>
+          <div class="header-title">Settings</div>
+          <div class="back-btn-hidden"><span class="sf-icon">chevron.left</span> Back</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section-label">Preferences</div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">checkmark.square</span></div>
+          <div class="row-label">Launch at Login</div>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">circle.grid.2x2</span></div>
+          <div class="row-label">AI Connections</div>
+          <div class="row-detail">3 connected</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">bell</span></div>
+          <div class="row-label">Notifications</div>
+          <div class="row-detail">80% — All providers</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label">Learn</div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">info.circle</span></div>
+          <div class="row-label">How It Works</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">star</span></div>
+          <div class="row-label">About Tokenomics</div>
+          <div class="row-chevron"><span class="sf-icon" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label">Extras</div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">ladybug</span></div>
+          <div class="row-label">Report Bugs / Feedback</div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">arrow.triangle.2.circlepath</span></div>
+          <div class="row-label">Update Available</div>
+          <div class="update-dot"></div>
+          <div class="row-detail" style="color:rgba(255,255,255,0.10);">v2.6.0</div>
+        </div>
+        <div class="divider-inset"></div>
+        <div class="settings-row">
+          <div class="row-icon"><span class="sf-icon">power</span></div>
+          <div class="row-label">Quit Tokenomics</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT -->
+    <div class="mock-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="back-btn-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+          <div class="header-title-light">Settings</div>
+          <div class="back-btn-hidden-light"><span class="sf-icon-light">chevron.left</span> Back</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="section-label-light">Preferences</div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">checkmark.square</span></div>
+          <div class="row-label-light">Launch at Login</div>
+          <div class="toggle-switch-light"></div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">circle.grid.2x2</span></div>
+          <div class="row-label-light">AI Connections</div>
+          <div class="row-detail-light">3 connected</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">bell</span></div>
+          <div class="row-label-light">Notifications</div>
+          <div class="row-detail-light">80% — All providers</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label-light">Learn</div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">info.circle</span></div>
+          <div class="row-label-light">How It Works</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">star</span></div>
+          <div class="row-label-light">About Tokenomics</div>
+          <div class="row-chevron-light"><span class="sf-icon-light" style="font-size:7px; padding:1px 3px;">chevron.right</span></div>
+        </div>
+        <div class="section-label-light">Extras</div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">ladybug</span></div>
+          <div class="row-label-light">Report Bugs / Feedback</div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">arrow.triangle.2.circlepath</span></div>
+          <div class="row-label-light">Update Available</div>
+          <div class="update-dot-light"></div>
+          <div class="row-detail-light" style="color:rgba(0,0,0,0.20);">v2.6.0</div>
+        </div>
+        <div class="divider-inset-light"></div>
+        <div class="settings-row-light">
+          <div class="row-icon"><span class="sf-icon-light">power</span></div>
+          <div class="row-label-light">Quit Tokenomics</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

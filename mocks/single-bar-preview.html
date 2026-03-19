@@ -53,6 +53,24 @@
   .annotation { background: #1e1e38; border: 1px solid #333355; border-radius: 8px; padding: 12px 16px; margin-top: 16px; max-width: 320px; }
   .annotation p { font-size: 11px; color: #999; line-height: 1.5; }
   .annotation strong { color: #ccc; }
+
+  /* Light mode popovers */
+  .popover-light-sb { width: 320px; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,0.10); margin-bottom: 24px; border: 1px solid rgba(0,0,0,0.09); }
+  .popover-header-l { padding: 12px 16px 8px; display: flex; justify-content: space-between; align-items: center; }
+  .popover-header-l h1 { font-size: 14px; font-weight: 600; color: rgba(0,0,0,0.85); }
+  .badge-l { font-size: 10px; background: rgba(40,97,149,0.10); padding: 2px 8px; border-radius: 8px; color: #286195; }
+  .tabs-l { display: flex; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .tab-l { flex: 1; text-align: center; padding: 8px 0; font-size: 11px; color: rgba(0,0,0,0.40); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab-l.active { color: rgba(0,0,0,0.85); border-bottom-color: #286195; }
+  .usage-section-l { padding: 12px 16px; }
+  .divider-l-sb { height: 1px; background: rgba(0,0,0,0.08); margin: 0 16px; }
+  .bar-label-l { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .bar-label-text-l { font-size: 11px; color: rgba(0,0,0,0.70); }
+  .bar-sublabel-l { font-size: 10px; color: rgba(0,0,0,0.35); margin-top: 3px; }
+  .bar-track-l { height: 6px; background: rgba(27,66,94,0.10); border-radius: 3px; position: relative; overflow: visible; }
+  .bar-fill-blue { height: 100%; border-radius: 3px; background: #367CAF; }
+  .bar-fill-orange-l { height: 100%; border-radius: 3px; background: #D97757; }
+  .section-label-l { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 20px; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -318,6 +336,71 @@
 
   <div class="annotation" style="max-width: 600px; margin: 16px auto 0;">
     <p><strong>The key insight:</strong> Two-ring providers (rate-limit tools with two windows) and single-ring providers (credit-based tools with one metric) look natural side by side. The thicker ring fills the same visual footprint. No UI redesign needed — just one optional field in the data model.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     LIGHT MODE SAMPLES
+     ══════════════════════════════════════════════ -->
+<div class="section" style="border-top: 1px solid rgba(255,255,255,0.07); padding-top: 32px; margin-top: 16px;">
+  <div class="section-label-l">Light Mode — Two-bar provider</div>
+
+  <div class="popover-light-sb">
+    <div class="popover-header-l">
+      <h1>Tokenomics</h1>
+      <div class="badge-l">Max 5</div>
+    </div>
+    <div class="tabs-l">
+      <div class="tab-l active">C</div>
+      <div class="tab-l">X</div>
+      <div class="tab-l">G</div>
+    </div>
+    <div class="usage-section-l">
+      <div>
+        <div class="bar-label-l">
+          <span class="bar-label-text-l">5-Hour Window</span>
+          <span style="font-size:11px; font-weight:600; color:#D97757;">72%</span>
+        </div>
+        <div class="bar-track-l"><div class="bar-fill-orange-l" style="width:72%;"></div></div>
+        <div class="bar-sublabel-l">Resets in 2h 14m</div>
+      </div>
+    </div>
+    <div class="divider-l-sb"></div>
+    <div class="usage-section-l">
+      <div>
+        <div class="bar-label-l">
+          <span class="bar-label-text-l">7-Day Window</span>
+          <span style="font-size:11px; font-weight:600; color:#367CAF;">34%</span>
+        </div>
+        <div class="bar-track-l"><div class="bar-fill-blue" style="width:34%;"></div></div>
+        <div class="bar-sublabel-l">Resets Wednesday</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label-l" style="margin-top:32px;">Light Mode — One-bar provider</div>
+
+  <div class="popover-light-sb">
+    <div class="popover-header-l">
+      <h1>Tokenomics</h1>
+      <div class="badge-l">Pro</div>
+    </div>
+    <div class="tabs-l">
+      <div class="tab-l">C</div>
+      <div class="tab-l">X</div>
+      <div class="tab-l">G</div>
+      <div class="tab-l active">Co</div>
+    </div>
+    <div class="usage-section-l">
+      <div>
+        <div class="bar-label-l">
+          <span class="bar-label-text-l">Premium Requests</span>
+          <span style="font-size:11px; font-weight:600; color:#367CAF;">156 / 300</span>
+        </div>
+        <div class="bar-track-l"><div class="bar-fill-blue" style="width:52%;"></div></div>
+        <div class="bar-sublabel-l">Renews April 1</div>
+      </div>
+    </div>
   </div>
 </div>
 

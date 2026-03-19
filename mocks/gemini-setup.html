@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini Plan Setup — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  align-items: flex-start;
+}
+.mock-label {
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.mock-block { display: flex; flex-direction: column; }
+
+/* ── DARK ──────────────────────────────────────────────── */
+.popover {
+  width: 360px;
+  background: #282828;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.sf-icon {
+  font-size: 8px;
+  color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, sans-serif;
+  white-space: nowrap;
+}
+
+/* GeminiPlanSetupView: VStack(spacing:8), padding(24) */
+.setup-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+/* chart.bar.doc.horizontal: .font(.title2).foregroundStyle(.secondary) = 17px */
+.setup-icon {
+  font-size: 17px;
+  color: rgba(255,255,255,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Title: .font(.caption).fontWeight(.semibold) = 11px 600 */
+.setup-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,1.0); }
+
+/* Subtitle: .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center) = 11px */
+.setup-subtitle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  max-width: 240px;
+  line-height: 1.4;
+}
+
+/* Segmented picker: .pickerStyle(.segmented), .padding(.top,4) — rendered as seg control */
+.seg-picker {
+  width: 100%;
+  display: flex;
+  background: rgba(255,255,255,0.08);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+  margin-top: 4px; /* .padding(.top,4) */
+}
+.seg-btn {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 0;
+  border-radius: 5px;
+  text-align: center;
+  cursor: default;
+  color: rgba(255,255,255,0.55);
+}
+.seg-btn.selected {
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,1.0);
+}
+
+/* Limit summary: .font(.caption2).foregroundStyle(.secondary) = 10px */
+.limit-summary { font-size: 10px; color: rgba(255,255,255,0.55); max-width: 240px; }
+
+/* Primary button: .borderedProminent.controlSize(.small), .padding(.top,4) */
+.btn-primary {
+  background: #0A84FF;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: default;
+  display: inline-block;
+  margin-top: 4px; /* .padding(.top,4) */
+}
+
+/* Cancel: .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary) = 11px */
+.btn-cancel { font-size: 11px; color: rgba(255,255,255,0.55); cursor: default; }
+
+/* ── LIGHT ─────────────────────────────────────────────── */
+.popover-light {
+  width: 360px;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.09);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.sf-icon-light {
+  font-size: 8px;
+  color: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.05);
+  border-radius: 3px;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, sans-serif;
+  white-space: nowrap;
+}
+.mock-label-light {
+  color: rgba(0,0,0,0.30);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.setup-title-light { font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.85); }
+.setup-subtitle-light {
+  font-size: 11px;
+  color: rgba(0,0,0,0.50);
+  max-width: 240px;
+  line-height: 1.4;
+}
+.seg-picker-light {
+  width: 100%;
+  display: flex;
+  background: rgba(0,0,0,0.06);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+  margin-top: 4px;
+}
+.seg-btn-light {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 0;
+  border-radius: 5px;
+  text-align: center;
+  cursor: default;
+  color: rgba(0,0,0,0.45);
+}
+.seg-btn-light.selected {
+  background: rgba(40,97,149,0.12);
+  color: #286195;
+  font-weight: 600;
+}
+.limit-summary-light { font-size: 10px; color: rgba(0,0,0,0.45); max-width: 240px; }
+.btn-primary-light {
+  background: #286195;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: default;
+  display: inline-block;
+  margin-top: 4px;
+}
+.btn-cancel-light { font-size: 11px; color: rgba(0,0,0,0.45); cursor: default; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     State A — First time (currentPlan = nil) — DARK
+     ═══════════════════════════════════════════════════════ -->
+<div class="mock-block">
+  <div class="mock-label">A — First time: Choose your Gemini plan</div>
+  <div class="popover">
+    <div class="setup-body">
+      <div class="setup-icon">
+        <span class="sf-icon" style="font-size:17px; background:none; color:rgba(255,255,255,0.55); padding:0;">chart.bar.doc.horizontal</span>
+      </div>
+      <div class="setup-title">Choose your Gemini plan</div>
+      <div class="setup-subtitle">Tokenomics uses your plan to calculate daily limits.</div>
+      <div class="seg-picker">
+        <div class="seg-btn selected">Free</div>
+        <div class="seg-btn">1.5 Pro</div>
+        <div class="seg-btn">Ultra</div>
+      </div>
+      <div class="limit-summary">1,500 requests/day · 32K context</div>
+      <div class="btn-primary">Start Tracking</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     State B — Editing (currentPlan = .free) — DARK
+     ═══════════════════════════════════════════════════════ -->
+<div class="mock-block">
+  <div class="mock-label">B — Editing: Change Gemini plan (1.5 Pro selected)</div>
+  <div class="popover">
+    <div class="setup-body">
+      <div class="setup-icon">
+        <span class="sf-icon" style="font-size:17px; background:none; color:rgba(255,255,255,0.55); padding:0;">chart.bar.doc.horizontal</span>
+      </div>
+      <div class="setup-title">Change Gemini plan</div>
+      <div class="setup-subtitle">Tokenomics uses your plan to calculate daily limits.</div>
+      <div class="seg-picker">
+        <div class="seg-btn">Free</div>
+        <div class="seg-btn selected">1.5 Pro</div>
+        <div class="seg-btn">Ultra</div>
+      </div>
+      <div class="limit-summary">1,000 requests/day · 1M context</div>
+      <div class="btn-primary">Update</div>
+      <div class="btn-cancel">Cancel</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     State A — First time — LIGHT
+     ═══════════════════════════════════════════════════════ -->
+<div class="mock-block">
+  <div class="mock-label-light">A — First time: Choose your Gemini plan</div>
+  <div class="popover-light">
+    <div class="setup-body">
+      <div class="setup-icon">
+        <span class="sf-icon-light" style="font-size:17px; background:none; color:rgba(40,97,149,0.55); padding:0;">chart.bar.doc.horizontal</span>
+      </div>
+      <div class="setup-title-light">Choose your Gemini plan</div>
+      <div class="setup-subtitle-light">Tokenomics uses your plan to calculate daily limits.</div>
+      <div class="seg-picker-light">
+        <div class="seg-btn-light selected">Free</div>
+        <div class="seg-btn-light">1.5 Pro</div>
+        <div class="seg-btn-light">Ultra</div>
+      </div>
+      <div class="limit-summary-light">1,500 requests/day · 32K context</div>
+      <div class="btn-primary-light">Start Tracking</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     State B — Editing — LIGHT
+     ═══════════════════════════════════════════════════════ -->
+<div class="mock-block">
+  <div class="mock-label-light">B — Editing: Change Gemini plan (1.5 Pro selected)</div>
+  <div class="popover-light">
+    <div class="setup-body">
+      <div class="setup-icon">
+        <span class="sf-icon-light" style="font-size:17px; background:none; color:rgba(40,97,149,0.55); padding:0;">chart.bar.doc.horizontal</span>
+      </div>
+      <div class="setup-title-light">Change Gemini plan</div>
+      <div class="setup-subtitle-light">Tokenomics uses your plan to calculate daily limits.</div>
+      <div class="seg-picker-light">
+        <div class="seg-btn-light">Free</div>
+        <div class="seg-btn-light selected">1.5 Pro</div>
+        <div class="seg-btn-light">Ultra</div>
+      </div>
+      <div class="limit-summary-light">1,000 requests/day · 1M context</div>
+      <div class="btn-primary-light">Update</div>
+      <div class="btn-cancel-light">Cancel</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

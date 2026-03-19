@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notifications — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  align-items: flex-start;
+}
+.mock-block { display: flex; flex-direction: column; }
+.mock-label { color: rgba(255,255,255,0.35); font-size: 11px; font-weight: 500; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 12px; }
+.mode-row { display: flex; gap: 32px; align-items: flex-start; }
+.mode-col { display: flex; flex-direction: column; }
+.mode-label { font-size: 9px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.2); margin-bottom: 8px; }
+
+/* DARK */
+.popover { width: 360px; background: #282828; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.sf-icon { font-size: 8px; color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider { height: 1px; background: rgba(255,255,255,0.12); }
+.header { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.55); padding: 4px 8px 4px 0; cursor: default; }
+.header-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,1.0); flex: 1; text-align: center; }
+.back-btn-hidden { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.content { padding: 12px 16px; display: flex; flex-direction: column; }
+.denied-banner { display: flex; align-items: center; gap: 6px; color: #FF9F0A; padding: 8px; background: rgba(255,159,10,0.08); border-radius: 7px; margin-bottom: 8px; cursor: default; }
+.denied-text { font-size: 10px; flex: 1; line-height: 1.3; }
+.section-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.55); padding-bottom: 4px; }
+.provider-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.prov-name { font-size: 11px; color: rgba(255,255,255,1.0); flex: 1; }
+.stepper { display: flex; align-items: center; }
+.stepper-btn { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: default; color: rgba(255,255,255,1.0); }
+.stepper-btn.disabled { color: rgba(255,255,255,0.25); }
+.stepper-value { font-size: 11px; font-variant-numeric: tabular-nums; width: 36px; text-align: center; color: rgba(255,255,255,1.0); }
+.stepper-value.dim { color: rgba(255,255,255,0.25); }
+.toggle-mini { width: 26px; height: 16px; background: #0A84FF; border-radius: 8px; flex-shrink: 0; position: relative; }
+.toggle-mini::after { content: ''; position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; background: white; border-radius: 50%; }
+.toggle-mini.off { background: rgba(255,255,255,0.12); }
+.toggle-mini.off::after { left: 2px; right: auto; }
+.row-hint { font-size: 10px; color: rgba(255,255,255,0.55); padding-top: 6px; padding-bottom: 12px; }
+.section-label-mt { margin-top: 8px; }
+.seg-picker { display: flex; background: rgba(255,255,255,0.08); border-radius: 7px; padding: 2px; gap: 2px; }
+.seg-btn { flex: 1; font-size: 11px; font-weight: 500; padding: 4px 0; border-radius: 5px; text-align: center; cursor: default; color: rgba(255,255,255,0.55); }
+.seg-btn.selected { background: rgba(255,255,255,0.15); color: rgba(255,255,255,1.0); }
+.window-hint { font-size: 10px; color: rgba(255,255,255,0.55); padding-top: 6px; }
+
+/* LIGHT */
+.popover-light { width: 360px; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.09); box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.sf-icon-light { font-size: 8px; color: rgba(0,0,0,0.35); background: rgba(0,0,0,0.05); border-radius: 3px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; white-space: nowrap; }
+.divider-light { height: 1px; background: rgba(0,0,0,0.09); }
+.header-light { padding: 12px 16px 8px 16px; display: flex; align-items: center; }
+.back-btn-light { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(0,0,0,0.45); padding: 4px 8px 4px 0; cursor: default; }
+.header-title-light { font-size: 13px; font-weight: 500; color: rgba(0,0,0,0.85); flex: 1; text-align: center; }
+.back-btn-hidden-light { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 0; visibility: hidden; }
+.content-light { padding: 12px 16px; display: flex; flex-direction: column; }
+.denied-banner-light { display: flex; align-items: center; gap: 6px; color: #D97757; padding: 8px; background: rgba(217,119,87,0.08); border-radius: 7px; margin-bottom: 8px; cursor: default; border: 1px solid rgba(217,119,87,0.15); }
+.denied-text-light { font-size: 10px; flex: 1; line-height: 1.3; }
+.section-label-light { font-size: 10px; font-weight: 600; color: rgba(0,0,0,0.45); padding-bottom: 4px; }
+.prov-name-light { font-size: 11px; color: rgba(0,0,0,0.85); flex: 1; }
+.stepper-btn-light { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: default; color: rgba(0,0,0,0.75); }
+.stepper-btn-light.disabled { color: rgba(0,0,0,0.20); }
+.stepper-value-light { font-size: 11px; font-variant-numeric: tabular-nums; width: 36px; text-align: center; color: rgba(0,0,0,0.75); }
+.stepper-value-light.dim { color: rgba(0,0,0,0.20); }
+.toggle-mini-light { width: 26px; height: 16px; background: #286195; border-radius: 8px; flex-shrink: 0; position: relative; }
+.toggle-mini-light::after { content: ''; position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; background: white; border-radius: 50%; }
+.toggle-mini-light.off { background: rgba(0,0,0,0.15); }
+.toggle-mini-light.off::after { left: 2px; right: auto; }
+.row-hint-light { font-size: 10px; color: rgba(0,0,0,0.45); padding-top: 6px; padding-bottom: 12px; }
+.seg-picker-light { display: flex; background: rgba(0,0,0,0.05); border-radius: 7px; padding: 2px; gap: 2px; }
+.seg-btn-light { flex: 1; font-size: 11px; font-weight: 500; padding: 4px 0; border-radius: 5px; text-align: center; cursor: default; color: rgba(0,0,0,0.40); }
+.seg-btn-light.selected { background: rgba(40,97,149,0.12); color: #286195; font-weight: 600; }
+.window-hint-light { font-size: 10px; color: rgba(0,0,0,0.45); padding-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- ═══ A Normal ═══ -->
+<div class="mock-block">
+  <div class="mock-label">A — Normal · 3 providers · 80% threshold · "Short" window</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="back-btn"><span class="sf-icon">chevron.left</span> Settings</div>
+          <div class="header-title">Notifications</div>
+          <div class="back-btn-hidden"><span class="sf-icon">chevron.left</span> Settings</div>
+        </div>
+        <div class="divider"></div>
+        <div class="content">
+          <div class="section-label">PROVIDER ALERTS</div>
+          <div class="provider-row">
+            <div class="prov-name">Claude</div>
+            <div class="stepper">
+              <div class="stepper-btn"><span class="sf-icon">minus</span></div>
+              <div class="stepper-value">80%</div>
+              <div class="stepper-btn"><span class="sf-icon">plus</span></div>
+            </div>
+            <div class="toggle-mini"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="provider-row">
+            <div class="prov-name">Codex</div>
+            <div class="stepper">
+              <div class="stepper-btn"><span class="sf-icon">minus</span></div>
+              <div class="stepper-value">80%</div>
+              <div class="stepper-btn"><span class="sf-icon">plus</span></div>
+            </div>
+            <div class="toggle-mini"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="provider-row">
+            <div class="prov-name">Gemini</div>
+            <div class="stepper">
+              <div class="stepper-btn disabled"><span class="sf-icon" style="color:rgba(255,255,255,0.1);">minus</span></div>
+              <div class="stepper-value dim">80%</div>
+              <div class="stepper-btn disabled"><span class="sf-icon" style="color:rgba(255,255,255,0.1);">plus</span></div>
+            </div>
+            <div class="toggle-mini off"></div>
+          </div>
+          <div class="row-hint">Notify when usage crosses this threshold.</div>
+          <div class="divider"></div>
+          <div class="section-label section-label-mt">ALERT WINDOW</div>
+          <div class="seg-picker">
+            <div class="seg-btn selected">Short</div>
+            <div class="seg-btn">Long</div>
+            <div class="seg-btn">Both</div>
+          </div>
+          <div class="window-hint">Which usage window triggers alerts.</div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="back-btn-light"><span class="sf-icon-light">chevron.left</span> Settings</div>
+          <div class="header-title-light">Notifications</div>
+          <div class="back-btn-hidden-light"><span class="sf-icon-light">chevron.left</span> Settings</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="content-light">
+          <div class="section-label-light">PROVIDER ALERTS</div>
+          <div class="provider-row">
+            <div class="prov-name-light">Claude</div>
+            <div class="stepper">
+              <div class="stepper-btn-light"><span class="sf-icon-light">minus</span></div>
+              <div class="stepper-value-light">80%</div>
+              <div class="stepper-btn-light"><span class="sf-icon-light">plus</span></div>
+            </div>
+            <div class="toggle-mini-light"></div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="provider-row">
+            <div class="prov-name-light">Codex</div>
+            <div class="stepper">
+              <div class="stepper-btn-light"><span class="sf-icon-light">minus</span></div>
+              <div class="stepper-value-light">80%</div>
+              <div class="stepper-btn-light"><span class="sf-icon-light">plus</span></div>
+            </div>
+            <div class="toggle-mini-light"></div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="provider-row">
+            <div class="prov-name-light">Gemini</div>
+            <div class="stepper">
+              <div class="stepper-btn-light disabled"><span class="sf-icon-light" style="color:rgba(0,0,0,0.15);">minus</span></div>
+              <div class="stepper-value-light dim">80%</div>
+              <div class="stepper-btn-light disabled"><span class="sf-icon-light" style="color:rgba(0,0,0,0.15);">plus</span></div>
+            </div>
+            <div class="toggle-mini-light off"></div>
+          </div>
+          <div class="row-hint-light">Notify when usage crosses this threshold.</div>
+          <div class="divider-light"></div>
+          <div class="section-label-light" style="margin-top:8px;">ALERT WINDOW</div>
+          <div class="seg-picker-light">
+            <div class="seg-btn-light selected">Short</div>
+            <div class="seg-btn-light">Long</div>
+            <div class="seg-btn-light">Both</div>
+          </div>
+          <div class="window-hint-light">Which usage window triggers alerts.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ B Permission Denied ═══ -->
+<div class="mock-block">
+  <div class="mock-label">B — Permission denied banner · "Both" window selected</div>
+  <div class="mode-row">
+    <div class="mode-col">
+      <div class="mode-label">Dark</div>
+      <div class="popover">
+        <div class="header">
+          <div class="back-btn"><span class="sf-icon">chevron.left</span> Settings</div>
+          <div class="header-title">Notifications</div>
+          <div class="back-btn-hidden"><span class="sf-icon">chevron.left</span> Settings</div>
+        </div>
+        <div class="divider"></div>
+        <div class="content">
+          <div class="denied-banner">
+            <div style="font-size:10px; flex-shrink:0;"><span class="sf-icon" style="font-size:10px; color:#FF9F0A; background:none; padding:0;">bell.slash</span></div>
+            <div class="denied-text">Notifications are disabled in System Settings.</div>
+            <div style="font-size:10px; flex-shrink:0;"><span class="sf-icon" style="font-size:10px; color:#FF9F0A; background:none; padding:0;">arrow.up.forward.square</span></div>
+          </div>
+          <div class="section-label">PROVIDER ALERTS</div>
+          <div class="provider-row">
+            <div class="prov-name">Claude</div>
+            <div class="stepper">
+              <div class="stepper-btn"><span class="sf-icon">minus</span></div>
+              <div class="stepper-value">80%</div>
+              <div class="stepper-btn"><span class="sf-icon">plus</span></div>
+            </div>
+            <div class="toggle-mini"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="provider-row">
+            <div class="prov-name">Codex</div>
+            <div class="stepper">
+              <div class="stepper-btn"><span class="sf-icon">minus</span></div>
+              <div class="stepper-value">80%</div>
+              <div class="stepper-btn"><span class="sf-icon">plus</span></div>
+            </div>
+            <div class="toggle-mini"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="provider-row">
+            <div class="prov-name">Gemini</div>
+            <div class="stepper">
+              <div class="stepper-btn"><span class="sf-icon">minus</span></div>
+              <div class="stepper-value">80%</div>
+              <div class="stepper-btn"><span class="sf-icon">plus</span></div>
+            </div>
+            <div class="toggle-mini"></div>
+          </div>
+          <div class="row-hint">Notify when usage crosses this threshold.</div>
+          <div class="divider"></div>
+          <div class="section-label section-label-mt">ALERT WINDOW</div>
+          <div class="seg-picker">
+            <div class="seg-btn">Short</div>
+            <div class="seg-btn">Long</div>
+            <div class="seg-btn selected">Both</div>
+          </div>
+          <div class="window-hint">Which usage window triggers alerts.</div>
+        </div>
+      </div>
+    </div>
+    <div class="mode-col">
+      <div class="mode-label" style="color:rgba(0,0,0,0.3);">Light</div>
+      <div class="popover-light">
+        <div class="header-light">
+          <div class="back-btn-light"><span class="sf-icon-light">chevron.left</span> Settings</div>
+          <div class="header-title-light">Notifications</div>
+          <div class="back-btn-hidden-light"><span class="sf-icon-light">chevron.left</span> Settings</div>
+        </div>
+        <div class="divider-light"></div>
+        <div class="content-light">
+          <div class="denied-banner-light">
+            <div style="font-size:10px; flex-shrink:0;"><span class="sf-icon-light" style="font-size:10px; color:#D97757; background:none; padding:0;">bell.slash</span></div>
+            <div class="denied-text-light">Notifications are disabled in System Settings.</div>
+            <div style="font-size:10px; flex-shrink:0;"><span class="sf-icon-light" style="font-size:10px; color:#D97757; background:none; padding:0;">arrow.up.forward.square</span></div>
+          </div>
+          <div class="section-label-light">PROVIDER ALERTS</div>
+          <div class="provider-row">
+            <div class="prov-name-light">Claude</div>
+            <div class="stepper">
+              <div class="stepper-btn-light"><span class="sf-icon-light">minus</span></div>
+              <div class="stepper-value-light">80%</div>
+              <div class="stepper-btn-light"><span class="sf-icon-light">plus</span></div>
+            </div>
+            <div class="toggle-mini-light"></div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="provider-row">
+            <div class="prov-name-light">Codex</div>
+            <div class="stepper">
+              <div class="stepper-btn-light"><span class="sf-icon-light">minus</span></div>
+              <div class="stepper-value-light">80%</div>
+              <div class="stepper-btn-light"><span class="sf-icon-light">plus</span></div>
+            </div>
+            <div class="toggle-mini-light"></div>
+          </div>
+          <div class="divider-light"></div>
+          <div class="provider-row">
+            <div class="prov-name-light">Gemini</div>
+            <div class="stepper">
+              <div class="stepper-btn-light"><span class="sf-icon-light">minus</span></div>
+              <div class="stepper-value-light">80%</div>
+              <div class="stepper-btn-light"><span class="sf-icon-light">plus</span></div>
+            </div>
+            <div class="toggle-mini-light"></div>
+          </div>
+          <div class="row-hint-light">Notify when usage crosses this threshold.</div>
+          <div class="divider-light"></div>
+          <div class="section-label-light" style="margin-top:8px;">ALERT WINDOW</div>
+          <div class="seg-picker-light">
+            <div class="seg-btn-light">Short</div>
+            <div class="seg-btn-light">Long</div>
+            <div class="seg-btn-light selected">Both</div>
+          </div>
+          <div class="window-hint-light">Which usage window triggers alerts.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

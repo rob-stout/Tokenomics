@@ -124,6 +124,28 @@
 
   .spacer { flex: 1; }
 
+  /* ── Light warm token overrides ─────────────────────────── */
+  .widget-lw { background: linear-gradient(135deg, #EBE6DB 0%, #E0DAD0 100%); border-color: rgba(27,66,94,0.12); }
+  .widget-lw .header-title { color: rgba(27,66,94,0.55); }
+  .widget-lw .header-time  { color: rgba(27,66,94,0.35); }
+  .widget-lw .bar-label    { color: rgba(27,66,94,0.50); }
+  .widget-lw .bar-value    { color: rgba(27,66,94,0.85); }
+  .widget-lw .bar-track    { background: rgba(27,66,94,0.10); }
+  .widget-lw .bar-fill     { background: #367CAF; }
+  .widget-lw .provider-icon { background: rgba(27,66,94,0.10); color: rgba(27,66,94,0.55); }
+
+  /* ── Light blue token overrides ─────────────────────────── */
+  .widget-lb { background: linear-gradient(135deg, #1B425E 0%, #153549 100%); border-color: rgba(235,230,219,0.08); }
+  .widget-lb .header-title { color: rgba(235,230,219,0.55); }
+  .widget-lb .header-time  { color: rgba(235,230,219,0.30); }
+  .widget-lb .bar-label    { color: rgba(235,230,219,0.50); }
+  .widget-lb .bar-value    { color: rgba(235,230,219,0.85); }
+  .widget-lb .bar-track    { background: rgba(235,230,219,0.10); }
+  .widget-lb .bar-fill     { background: #4BA6D2; }
+  .widget-lb .provider-icon { background: rgba(235,230,219,0.08); color: rgba(235,230,219,0.60); }
+
+  .light-section-label { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 12px; font-weight: 500; }
+
   /* Controls */
   .controls {
     background: #111;
@@ -415,5 +437,87 @@ document.querySelectorAll('input[type="range"]').forEach(input => {
 // Initial render
 update();
 </script>
+
+<!-- ── Light mode static samples ─────────────────────────────── -->
+<div>
+  <div class="light-section-label" style="margin-top:40px;">Light Warm — Medium (2 providers)</div>
+  <div class="widget widget-medium widget-lw">
+    <div class="widget-inner">
+      <div class="header">
+        <span class="header-title">Tokenomics</span>
+        <span class="header-time">30 sec</span>
+      </div>
+      <div class="providers">
+        <div class="provider-row">
+          <div class="provider-icon">✳</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">45%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:45%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">7-Day</span><span class="bar-value">33%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:33%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="provider-row">
+          <div class="provider-icon">⊛</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">1%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:1%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Context</span><span class="bar-value">13%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:13%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <div class="light-section-label" style="margin-top:40px;">Light Blue — Medium (2 providers)</div>
+  <div class="widget widget-medium widget-lb">
+    <div class="widget-inner">
+      <div class="header">
+        <span class="header-title">Tokenomics</span>
+        <span class="header-time">30 sec</span>
+      </div>
+      <div class="providers">
+        <div class="provider-row">
+          <div class="provider-icon">✳</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">45%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:45%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">7-Day</span><span class="bar-value">33%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:33%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="provider-row">
+          <div class="provider-icon">⊛</div>
+          <div class="bars-group">
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">5-Hour</span><span class="bar-value">1%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:1%"></div></div>
+            </div>
+            <div class="bar-col">
+              <div class="bar-header"><span class="bar-label">Context</span><span class="bar-value">13%</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:13%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

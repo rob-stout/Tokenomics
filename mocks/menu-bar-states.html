@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu Bar States — Tokenomics Mocks</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px;
+}
+.section-label {
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-end;
+  margin-bottom: 40px;
+}
+.icon-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.icon-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.25);
+  text-align: center;
+  max-width: 60px;
+  line-height: 1.3;
+}
+/* Menu bar icon canvas: 44x44px @2x pixel canvas (22pt logical at @2x).
+   This is what MenuBarRingsRenderer outputs at pxSize=44.
+   We render at 44x44px so the SVG is at actual pixel dimensions. */
+.menu-bar-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.04);
+  border-radius: 4px;
+}
+.menu-bar-icon svg {
+  width: 44px;
+  height: 44px;
+}
+
+/* Simulated macOS menu bar strip */
+.menu-bar-strip {
+  background: rgba(30,30,30,0.95);
+  border-radius: 8px;
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 40px;
+  width: fit-content;
+}
+.menu-bar-item {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 4px;
+}
+.menu-bar-text {
+  font-size: 13px;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+}
+/* The ring icon + percentage text combination */
+.menu-bar-rings-combo {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.menu-bar-rings-svg { width: 22px; height: 22px; }
+.menu-bar-pct {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.9);
+}
+
+/* Light menu bar */
+.menu-bar-strip-light {
+  background: rgba(235,235,235,0.97);
+  border-radius: 8px;
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+.menu-bar-pct-light {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0,0,0,0.85);
+}
+.menu-bar-text-light {
+  font-size: 13px;
+  color: rgba(0,0,0,0.55);
+  white-space: nowrap;
+}
+/* Light menu bar icon canvas */
+.menu-bar-icon-light {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.04);
+  border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     Section 1: Ring icon states at 44x44px
+     Geometry from MenuBarRingsRenderer:
+     center=(11,11) in 22pt, outerR=9, innerR=5.5, stroke=3
+     trackAlpha=0.15, outerFillAlpha=0.40, innerFillAlpha=0.50
+     paceDotRadius=1.375
+     All in 22pt viewBox rendered at 44px for crisp @2x display
+     ════════════════════════════════════════════════ -->
+
+<div class="section-label">Two-ring icon states (44×44px canvas, 22pt viewBox)</div>
+<div class="row">
+
+  <!-- Empty / 0% usage -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <!-- No fill arcs when fraction=0 -->
+      </svg>
+    </div>
+    <div class="icon-label">0% / 0%</div>
+  </div>
+
+  <!-- Low usage: 5-Hour 15%, 7-Day 8% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <!-- Outer: 7-Day 8% → 0.08*56.55=4.52 -->
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="4.52 56.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Inner: 5-Hour 15% → 0.15*34.56=5.18 -->
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="5.18 34.56"
+                transform="rotate(-90 11 11)"/>
+        <!-- Outer pace dot: pace=0.25 → 90° CW from top = right of ring → (11+9, 11)=(20,11) -->
+        <circle cx="20" cy="11" r="1.375" fill="rgba(255,255,255,1.0)"/>
+        <!-- Inner pace dot: pace=0.25 → (11+5.5, 11)=(16.5, 11) -->
+        <circle cx="16.5" cy="11" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+    </div>
+    <div class="icon-label">15% / 8%</div>
+  </div>
+
+  <!-- Moderate: 5-Hour 45%, 7-Day 33% with pace dots -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <!-- Outer 33%: 0.33*56.55=18.66 -->
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="18.66 56.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Inner 45%: 0.45*34.56=15.55 -->
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="15.55 34.56"
+                transform="rotate(-90 11 11)"/>
+        <!-- Outer pace at 55%: 198°CW from top. x=11+9*sin(198°)=11+9*(-0.309)=8.22, y=11-9*cos(198°)=11-9*(-0.951)=19.56 -->
+        <circle cx="8.22" cy="19.56" r="1.375" fill="rgba(255,255,255,1.0)"/>
+        <!-- Inner pace at 30%: 108°CW. sin(108°)=0.951, cos(108°)=-0.309. x=11+5.5*0.951=16.23, y=11-5.5*(-0.309)=12.70 -->
+        <circle cx="16.23" cy="12.70" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+    </div>
+    <div class="icon-label">45% / 33%</div>
+  </div>
+
+  <!-- High: 5-Hour 75%, 7-Day 60% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <!-- Outer 60%: 0.60*56.55=33.93 -->
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="33.93 56.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Inner 75%: 0.75*34.56=25.92 -->
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="25.92 34.56"
+                transform="rotate(-90 11 11)"/>
+        <!-- Outer pace at 65%: 234°. sin=−0.809, cos=−0.588 → x=11+9*(−0.809)=3.72, y=11−9*(−0.588)=16.29 -->
+        <circle cx="3.72" cy="16.29" r="1.375" fill="rgba(255,255,255,1.0)"/>
+        <!-- Inner pace at 48%: 172.8°. sin=0.125, cos=−0.992 → x=11+5.5*0.125=11.69, y=11−5.5*(−0.992)=16.46 -->
+        <circle cx="11.69" cy="16.46" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+    </div>
+    <div class="icon-label">75% / 60%</div>
+  </div>
+
+  <!-- Critical: 5-Hour 95%, 7-Day 88% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <!-- Outer 88%: 0.88*56.55=49.76 -->
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="49.76 56.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Inner 95%: 0.95*34.56=32.83 -->
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="32.83 34.56"
+                transform="rotate(-90 11 11)"/>
+        <!-- Pace dots behind usage (pace < usage) — both near bottom-left -->
+        <circle cx="3.72" cy="16.29" r="1.375" fill="rgba(255,255,255,1.0)"/>
+        <circle cx="5.60" cy="12.05" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+    </div>
+    <div class="icon-label">95% / 88%</div>
+  </div>
+
+  <!-- Full / 100% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <!-- Outer 100%: full — use slightly less than full circumference for visual clarity -->
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="56.55 56.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Inner 100% -->
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="34.56 34.56"
+                transform="rotate(-90 11 11)"/>
+        <!-- No pace dots at 100% (clampedPace > 0.01 && < 0.99 required) -->
+      </svg>
+    </div>
+    <div class="icon-label">100% / 100%</div>
+  </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     Section 2: Single-ring variant (Copilot)
+     Geometry: radius=7.25, stroke=5, same center
+     ════════════════════════════════════════════════ -->
+
+<div class="section-label">Single-ring icon (Copilot — singleRingImage) · radius 7.25, stroke 5</div>
+<div class="row">
+
+  <!-- 0% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <!-- Single ring track: r=7.25, stroke=5, trackAlpha=0.15 -->
+        <circle cx="11" cy="11" r="7.25" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="5"/>
+      </svg>
+    </div>
+    <div class="icon-label">0%</div>
+  </div>
+
+  <!-- 35% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="7.25" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="5"/>
+        <!-- 35%: 0.35*2π*7.25=15.94 of 45.55 -->
+        <circle cx="11" cy="11" r="7.25" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="5"
+                stroke-linecap="round" stroke-dasharray="15.94 45.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Pace dot at 45%: 162°. sin=0.309, cos=-0.951 → x=11+7.25*0.309=13.24, y=11-7.25*(-0.951)=17.89 -->
+        <circle cx="13.24" cy="17.89" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+    </div>
+    <div class="icon-label">35%</div>
+  </div>
+
+  <!-- 65% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="7.25" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="5"/>
+        <!-- 65%: 0.65*45.55=29.61 -->
+        <circle cx="11" cy="11" r="7.25" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="5"
+                stroke-linecap="round" stroke-dasharray="29.61 45.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Pace dot at 50%: 180°→ bottom: (11, 11+7.25)=(11, 18.25) -->
+        <circle cx="11" cy="18.25" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+    </div>
+    <div class="icon-label">65%</div>
+  </div>
+
+  <!-- 95% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="7.25" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="5"/>
+        <!-- 95%: 0.95*45.55=43.27 -->
+        <circle cx="11" cy="11" r="7.25" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="5"
+                stroke-linecap="round" stroke-dasharray="43.27 45.55"
+                transform="rotate(-90 11 11)"/>
+        <!-- Pace dot at 72%: 259.2°. sin=-0.982, cos=-0.191 → x=11+7.25*(-0.982)=3.88, y=11-7.25*(-0.191)=12.38 -->
+        <circle cx="3.88" cy="12.38" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+    </div>
+    <div class="icon-label">95%</div>
+  </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     Section 3: Simulated menu bar context
+     Shows the rings icon + percentage text as it appears in the actual macOS menu bar
+     Geometry note: MenuBarRingsRenderer adds 6pt trailing padding
+     so the full icon is 28pt wide (22pt rings + 6pt gap), then percentage text
+     ════════════════════════════════════════════════ -->
+
+<div class="section-label">In-context menu bar simulation</div>
+<div class="menu-bar-strip">
+  <!-- Other menu bar items (simulated) -->
+  <div class="menu-bar-item">
+    <div class="menu-bar-text" style="color:rgba(255,255,255,0.4); font-size:11px;">Fri 12:34</div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-text" style="color:rgba(255,255,255,0.4); font-size:13px;">⌃</div>
+  </div>
+
+  <!-- Tokenomics: rings (22pt) + 6pt trailing gap + percentage text -->
+  <div class="menu-bar-item">
+    <div class="menu-bar-rings-combo">
+      <!-- The SVG is the 22pt rings icon; the 6pt trailing padding is handled by gap -->
+      <svg class="menu-bar-rings-svg" viewBox="0 0 22 22" width="22" height="22" style="margin-right:6px;">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="18.66 56.55"
+                transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="15.55 34.56"
+                transform="rotate(-90 11 11)"/>
+        <circle cx="8.22" cy="19.56" r="1.375" fill="rgba(255,255,255,1.0)"/>
+        <circle cx="16.23" cy="12.70" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+      <div class="menu-bar-pct">45%</div>
+    </div>
+  </div>
+
+  <div class="menu-bar-item">
+    <div class="menu-bar-text" style="color:rgba(255,255,255,0.4); font-size:11px;">WiFi</div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-text" style="color:rgba(255,255,255,0.4); font-size:11px;">Battery</div>
+  </div>
+</div>
+
+<!-- High usage in menu bar context -->
+<div class="menu-bar-strip">
+  <div class="menu-bar-item">
+    <div class="menu-bar-text" style="color:rgba(255,255,255,0.4); font-size:11px;">Fri 12:34</div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-rings-combo">
+      <svg class="menu-bar-rings-svg" viewBox="0 0 22 22" width="22" height="22" style="margin-right:6px;">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="49.76 56.55"
+                transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="32.83 34.56"
+                transform="rotate(-90 11 11)"/>
+        <circle cx="3.72" cy="16.29" r="1.375" fill="rgba(255,255,255,1.0)"/>
+        <circle cx="5.60" cy="12.05" r="1.375" fill="rgba(255,255,255,1.0)"/>
+      </svg>
+      <div class="menu-bar-pct">95%</div>
+    </div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-text" style="color:rgba(255,255,255,0.4); font-size:11px;">WiFi</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     LIGHT MODE — Ring icon states
+     In light macOS menubar: rings use dark brand blues
+     Track: rgba(27,66,94,0.12)
+     Outer fill: rgba(40,97,149,0.40)  (dark blue)
+     Inner fill: rgba(54,124,175,0.55) (mid blue)
+     Pace dots: #1B425E
+     High usage: brand red rgba(190,45,53,0.xx)
+     ═══════════════════════════════════════════════════ -->
+
+<div class="section-label" style="margin-top:40px;">Light mode — Two-ring icon states</div>
+<div class="row">
+
+  <!-- 0% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon-light">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+      </svg>
+    </div>
+    <div class="icon-label">0% / 0%</div>
+  </div>
+
+  <!-- 15% / 8% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon-light">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(40,97,149,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="4.52 56.55" transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(54,124,175,0.55)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="5.18 34.56" transform="rotate(-90 11 11)"/>
+        <circle cx="20" cy="11" r="1.375" fill="#1B425E"/>
+        <circle cx="16.5" cy="11" r="1.375" fill="#1B425E"/>
+      </svg>
+    </div>
+    <div class="icon-label">15% / 8%</div>
+  </div>
+
+  <!-- 45% / 33% -->
+  <div class="icon-block">
+    <div class="menu-bar-icon-light">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(40,97,149,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="18.66 56.55" transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(54,124,175,0.55)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="15.55 34.56" transform="rotate(-90 11 11)"/>
+        <circle cx="8.22" cy="19.56" r="1.375" fill="#1B425E"/>
+        <circle cx="16.23" cy="12.70" r="1.375" fill="#1B425E"/>
+      </svg>
+    </div>
+    <div class="icon-label">45% / 33%</div>
+  </div>
+
+  <!-- 75% / 60% — caution (orange) -->
+  <div class="icon-block">
+    <div class="menu-bar-icon-light">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(40,97,149,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="33.93 56.55" transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(217,119,87,0.70)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="25.92 34.56" transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="20" r="1.375" fill="#1B425E"/>
+        <circle cx="11" cy="16.5" r="1.375" fill="#1B425E"/>
+      </svg>
+    </div>
+    <div class="icon-label">75% / 60%</div>
+  </div>
+
+  <!-- 95% / 88% — warning (red) -->
+  <div class="icon-block">
+    <div class="menu-bar-icon-light">
+      <svg viewBox="0 0 22 22" width="44" height="44">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(190,45,53,0.55)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="49.76 56.55" transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(190,45,53,0.75)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="32.83 34.56" transform="rotate(-90 11 11)"/>
+        <circle cx="3.72" cy="16.29" r="1.375" fill="#1B425E"/>
+        <circle cx="5.60" cy="12.05" r="1.375" fill="#1B425E"/>
+      </svg>
+    </div>
+    <div class="icon-label">95% / 88%</div>
+  </div>
+
+</div>
+
+<!-- Light menu bar strip — nominal -->
+<div class="section-label">Light menu bar context — nominal</div>
+<div class="menu-bar-strip-light" style="margin-bottom:16px;">
+  <div class="menu-bar-item">
+    <div class="menu-bar-text-light" style="font-size:11px;">Fri 12:34</div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-rings-combo">
+      <svg class="menu-bar-rings-svg" viewBox="0 0 22 22" width="22" height="22" style="margin-right:6px;">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(40,97,149,0.40)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="18.66 56.55" transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(54,124,175,0.55)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="15.55 34.56" transform="rotate(-90 11 11)"/>
+        <circle cx="8.22" cy="19.56" r="1.375" fill="#1B425E"/>
+        <circle cx="16.23" cy="12.70" r="1.375" fill="#1B425E"/>
+      </svg>
+      <div class="menu-bar-pct-light">45%</div>
+    </div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-text-light" style="font-size:11px;">WiFi</div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-text-light" style="font-size:11px;">Battery</div>
+  </div>
+</div>
+
+<!-- Light menu bar strip — high usage -->
+<div class="section-label">Light menu bar context — high usage</div>
+<div class="menu-bar-strip-light">
+  <div class="menu-bar-item">
+    <div class="menu-bar-text-light" style="font-size:11px;">Fri 12:34</div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-rings-combo">
+      <svg class="menu-bar-rings-svg" viewBox="0 0 22 22" width="22" height="22" style="margin-right:6px;">
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(27,66,94,0.12)" stroke-width="3"/>
+        <circle cx="11" cy="11" r="9" fill="none" stroke="rgba(190,45,53,0.55)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="49.76 56.55" transform="rotate(-90 11 11)"/>
+        <circle cx="11" cy="11" r="5.5" fill="none" stroke="rgba(190,45,53,0.75)" stroke-width="3"
+                stroke-linecap="round" stroke-dasharray="32.83 34.56" transform="rotate(-90 11 11)"/>
+        <circle cx="3.72" cy="16.29" r="1.375" fill="#1B425E"/>
+        <circle cx="5.60" cy="12.05" r="1.375" fill="#1B425E"/>
+      </svg>
+      <div class="menu-bar-pct-light" style="color:#BE2D35;">95%</div>
+    </div>
+  </div>
+  <div class="menu-bar-item">
+    <div class="menu-bar-text-light" style="font-size:11px;">WiFi</div>
+  </div>
+</div>
+
+</body>
+</html>
