@@ -11,10 +11,13 @@ struct TokenomicsWidgetEntryView: View {
         switch family {
         case .systemSmall:
             SmallWidgetView(entry: entry)
+                .widgetDebugSize("Small")
         case .systemMedium:
             MediumWidgetView(entry: entry)
+                .widgetDebugSize("Medium")
         case .systemLarge:
             LargeWidgetView(entry: entry)
+                .widgetDebugSize("Large")
         default:
             MediumWidgetView(entry: entry)
         }
@@ -45,6 +48,12 @@ struct SmallWidgetView: View {
             return providers.first(where: { $0.id == "codex" })
         case .gemini:
             return providers.first(where: { $0.id == "gemini" })
+        case .elevenlabs:
+            return providers.first(where: { $0.id == "elevenlabs" })
+        case .runway:
+            return providers.first(where: { $0.id == "runway" })
+        case .stableDiffusion:
+            return providers.first(where: { $0.id == "stableDiffusion" })
         }
     }
 
@@ -485,4 +494,31 @@ private var noDataView: some View {
     TokenomicsWidget()
 } timeline: {
     UsageEntry(date: .now, snapshot: nil, selectedProvider: .smart)
+}
+
+// MARK: - Debug Size Overlay (temporary — remove after measuring)
+
+private struct WidgetDebugSizeModifier: ViewModifier {
+    let label: String
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .bottomTrailing) {
+            GeometryReader { geo in
+                Text("\(label): \(Int(geo.size.width))×\(Int(geo.size.height)) pt")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(.black.opacity(0.7))
+                    .cornerRadius(4)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(4)
+            }
+        }
+    }
+}
+
+extension View {
+    func widgetDebugSize(_ label: String) -> some View {
+        modifier(WidgetDebugSizeModifier(label: label))
+    }
 }

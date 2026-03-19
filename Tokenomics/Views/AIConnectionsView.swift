@@ -1,69 +1,38 @@
 import SwiftUI
 
-/// Settings sub-screen showing all providers with reorder + show/hide
+/// Settings sub-screen showing all providers grouped by category with connect/disconnect controls
 struct AIConnectionsView: View {
     @ObservedObject var viewModel: UsageViewModel
     @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
     @State private var showingPATEntry = false
     @State private var patText = ""
-    @State private var draggedRow: ProviderId?
-    @State private var liftedRow: ProviderId?
-    @State private var dropTargetIndex: Int?
-    @State private var rowFrames: [ProviderId: CGRect] = [:]
-    @State private var dragOffset: CGFloat = 0
-    @State private var dragBase: CGFloat = 0
-    @State private var dragEndedAt: Date = .distantPast
+    @State private var apiKeyEntryProvider: ProviderId?
+    @State private var apiKeyText = ""
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header with back button
-            HStack {
-                Button(action: { viewModel.showAIConnections = false }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Settings")
-                    }
-                    .font(.caption)
-                    .padding(.vertical, 4)
-                    .padding(.trailing, 8)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text("Providers")
-                    .font(.headline)
-                    .fontWeight(.medium)
-
-                Spacer()
-
-                // Invisible balance for centering
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                    Text("Settings")
-                }
-                .font(.caption)
-                .hidden()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            header
 
             Divider()
 
-            VStack(spacing: 0) {
-                let ordered = viewModel.orderedProviders
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(ProviderId.ProviderCategory.allCases, id: \.self) { category in
+                        let providersInCategory = ProviderId.allCases.filter { $0.category == category }
+                        sectionHeader(category.rawValue)
+                        VStack(spacing: 0) {
+                            ForEach(providersInCategory, id: \.self) { provider in
+                                connectionRow(
+                                    for: provider,
+                                    isLast: provider == providersInCategory.last
+                                )
+                            }
+                        }
+                        .padding(.bottom, 12)
+                    }
 
-                ForEach(Array(ordered.enumerated()), id: \.element) { index, provider in
-                    connectionRow(for: provider, isLast: index == ordered.count - 1)
-                }
-
-                // Hint text
-                VStack(spacing: 0) {
-                    Spacer().frame(height: 16)
-                    Text("Cmd+drag to reorder. Tap the icon to pin. Tap the eye to show or hide. Hidden providers still update in the background.")
+                    // Hint text
+                    Text("Toggle to show or hide providers. Reorder in the main view.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
@@ -71,69 +40,117 @@ struct AIConnectionsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color.white.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(.top, 4)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-            .coordinateSpace(name: "providerList")
-            .onPreferenceChange(RowFramePreference.self) { rowFrames = $0 }
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.orderedProviders)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+        }
+        .sheet(item: $apiKeyEntryProvider) { _ in
+            apiKeyEntrySheet
         }
     }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack {
+            Button(action: { viewModel.showAIConnections = false }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                    Text("Settings")
+                }
+                .font(.caption)
+                .padding(.vertical, 4)
+                .padding(.trailing, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Text("Providers")
+                .font(.headline)
+                .fontWeight(.medium)
+
+            Spacer()
+
+            // Invisible balance for centering
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.left")
+                Text("Settings")
+            }
+            .font(.caption)
+            .hidden()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Section Header
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+    }
+
+    // MARK: - Connection Row
 
     @ViewBuilder
     private func connectionRow(for provider: ProviderId, isLast: Bool = false) -> some View {
         let state = viewModel.providerStates[provider]
         let connection = state?.connection ?? .notInstalled
         let isConnected = connection.isConnected
-        let isPinned = viewModel.isPinned(provider)
         let isHidden = viewModel.isHidden(provider)
 
         HStack(alignment: .top, spacing: 8) {
 
-            // Provider icon — acts as pin toggle for connected providers
-            Button(action: {
-                // Suppress pin toggle during and briefly after drag
-                guard draggedRow == nil,
-                      Date().timeIntervalSince(dragEndedAt) > 0.3,
-                      isConnected else { return }
-                viewModel.togglePin(for: provider)
-            }) {
-                ZStack {
-                    providerIcon(for: provider)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 16, height: 16)
-                        .opacity(isPinned ? 0 : 1)
-
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.primary)
-                        .opacity(isPinned ? 1 : 0)
-                }
-                .frame(width: 26, height: 26)
-                .contentShape(Rectangle())
-                .background(iconBackground(connected: isConnected, pinned: isPinned))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .opacity(isHidden ? 0.4 : (connection == .notInstalled ? 0.3 : 1))
+            // Provider icon
+            ZStack {
+                providerIcon(for: provider)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
             }
-            .buttonStyle(.plain)
-            .disabled(!isConnected)
+            .frame(width: 26, height: 26)
+            .background(Color.clear)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .opacity(isHidden ? 0.4 : (isConnected ? 1.0 : 0.3))
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(provider.displayName)
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundStyle(isHidden ? .secondary : (connection == .notInstalled ? .secondary : .primary))
+                    .foregroundStyle(isConnected && !isHidden ? .primary : .secondary)
 
-                Text(connection.statusText)
-                    .font(.caption2)
-                    .foregroundStyle(statusColor(connection))
+                if isConnected {
+                    Text(connection.statusText)
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                } else if provider.hasAPI {
+                    Text(connection.statusText)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
 
+                // Shared pool description for platform providers
+                if let poolDesc = provider.sharedPoolDescription, !isConnected {
+                    Text(poolDesc)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                // Gemini plan selector when connected
                 if provider == .gemini && isConnected {
                     HStack(spacing: 2) {
                         ForEach(GeminiPlan.allCases, id: \.self) { plan in
@@ -166,21 +183,24 @@ struct AIConnectionsView: View {
 
             Spacer()
 
-            // Visibility toggle for connected providers
-            if isConnected {
-                Button(action: { viewModel.toggleVisibility(for: provider) }) {
-                    Image(systemName: isHidden ? "eye.slash" : "eye")
-                        .font(.caption)
-                        .foregroundStyle(isHidden ? .tertiary : .secondary)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(isHidden ? "Show in tabs" : "Hide from tabs")
-            }
+            // Right-side controls — determined by provider state
+            VStack(alignment: .trailing, spacing: 4) {
+                if isConnected {
+                    // State 2 & 3: Connected — show visibility toggle
+                    Toggle("", isOn: visibilityBinding(for: provider))
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
 
-            // Action buttons for non-connected states
-            actionButton(for: provider, connection: connection)
+                    // State 3: Hidden — show Disconnect button below toggle
+                    if isHidden {
+                        disconnectButton(for: provider)
+                    }
+                } else {
+                    // State 1: Not connected
+                    notConnectedControl(for: provider, connection: connection)
+                }
+            }
         }
         .padding(.vertical, 10)
         .overlay(alignment: .bottom) {
@@ -191,124 +211,85 @@ struct AIConnectionsView: View {
             }
         }
         .opacity(isHidden ? 0.7 : 1)
-        .background(
-            GeometryReader { geo in
-                Color.clear.preference(
-                    key: RowFramePreference.self,
-                    value: [provider: geo.frame(in: .named("providerList"))]
-                )
-            }
-        )
-        .padding(.vertical, liftedRow == provider ? 2 : 0)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(.ultraThinMaterial)
-                .opacity(liftedRow == provider ? 0.6 : 0)
-        )
-        .shadow(
-            color: .black.opacity(liftedRow == provider ? 0.3 : 0),
-            radius: liftedRow == provider ? 6 : 0,
-            x: 0,
-            y: liftedRow == provider ? 2 : 0
-        )
-        .scaleEffect(liftedRow == provider ? 1.02 : 1.0)
-        .offset(y: draggedRow == provider ? dragOffset : 0)
-        .zIndex(draggedRow == provider ? 10 : 0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: liftedRow)
-        .simultaneousGesture(
-            // Cmd+drag to reorder — simultaneousGesture so buttons don't block the drag
-            DragGesture(minimumDistance: 5, coordinateSpace: .named("providerList"))
-                .modifiers(.command)
-                .onChanged { value in
-                    if draggedRow == nil {
-                        draggedRow = provider
-                        dragBase = 0
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            liftedRow = provider
-                        }
-                    }
-
-                    dragOffset = value.translation.height - dragBase
-
-                    let currentY = value.location.y
-                    let ordered = viewModel.orderedProviders
-
-                    guard let dragged = draggedRow,
-                          let sourceIndex = ordered.firstIndex(of: dragged) else { return }
-
-                    var targetIndex: Int?
-                    for (idx, id) in ordered.enumerated() {
-                        guard idx != sourceIndex,
-                              let frame = rowFrames[id] else { continue }
-                        if idx > sourceIndex && currentY > frame.midY {
-                            targetIndex = idx
-                        } else if idx < sourceIndex && currentY < frame.midY {
-                            targetIndex = targetIndex ?? idx
-                        }
-                    }
-
-                    guard let target = targetIndex, target != sourceIndex else { return }
-
-                    // Snap base to current translation so offset resets after reorder
-                    dragBase = value.translation.height
-                    dragOffset = 0
-
-                    viewModel.moveProvider(dragged, toIndex: target)
-                }
-                .onEnded { _ in
-                    dragEndedAt = Date()
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        dragOffset = 0
-                        dragBase = 0
-                        draggedRow = nil
-                        liftedRow = nil
-                        dropTargetIndex = nil
-                    }
-                }
-        )
         .sheet(isPresented: $showingPATEntry) {
             patEntrySheet
         }
     }
 
+    // MARK: - Not-Connected Control
+
     @ViewBuilder
-    private func actionButton(for provider: ProviderId, connection: ProviderConnectionState) -> some View {
-        switch connection {
-        case .notInstalled:
-            if provider.usesPATAuth {
+    private func notConnectedControl(for provider: ProviderId, connection: ProviderConnectionState) -> some View {
+        if !provider.hasAPI {
+            Text("Coming Soon")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        } else if provider.usesAPIKeyAuth {
+            smallActionButton("Connect") { apiKeyEntryProvider = provider }
+        } else if provider == .copilot {
+            // Copilot has its own PAT sheet
+            switch connection {
+            case .notInstalled, .installedNoAuth:
                 smallActionButton("Connect") { showingPATEntry = true }
                     .help("Enter a GitHub Personal Access Token")
-            } else {
-                smallActionButton("Install") { provider.openInstallInTerminal() }
-                    .help("Opens Terminal to install \(provider.displayName)")
-            }
-        case .installedNoAuth:
-            if provider.usesPATAuth {
-                smallActionButton("Connect") { showingPATEntry = true }
-                    .help("Enter a GitHub Personal Access Token")
-            } else {
-                smallActionButton("Sign In") { provider.openLoginInTerminal() }
-                    .help("Opens Terminal to sign in")
-            }
-        case .authExpired:
-            if provider.usesPATAuth {
+            case .authExpired:
                 smallActionButton("Reconnect") { showingPATEntry = true }
                     .help("Enter a new GitHub Personal Access Token")
-            } else {
+            default:
+                EmptyView()
+            }
+        } else {
+            // CLI-based providers
+            switch connection {
+            case .notInstalled:
+                smallActionButton("Install") { provider.openInstallInTerminal() }
+                    .help("Opens Terminal to install \(provider.displayName)")
+            case .installedNoAuth:
+                smallActionButton("Sign In") { provider.openLoginInTerminal() }
+                    .help("Opens Terminal to sign in")
+            case .authExpired:
                 smallActionButton("Fix") { provider.openLoginInTerminal() }
                     .help("Opens Terminal to reconnect")
-            }
-        default:
-            if provider == .copilot && connection.isConnected {
-                smallActionButton("Disconnect") {
-                    CopilotKeychainService.deletePAT()
-                    viewModel.redetectProviders()
-                }
-            } else {
+            default:
                 EmptyView()
             }
         }
     }
+
+    // MARK: - Disconnect Button
+
+    @ViewBuilder
+    private func disconnectButton(for provider: ProviderId) -> some View {
+        // Only API-key providers and Copilot PAT are disconnectable.
+        // CLI providers (Claude, Codex, Gemini, Cursor) auth via filesystem — no disconnect.
+        if provider.usesAPIKeyAuth {
+            smallActionButton("Disconnect") {
+                APIKeyService.delete(for: provider)
+                viewModel.redetectProviders()
+            }
+        } else if provider == .copilot {
+            smallActionButton("Disconnect") {
+                CopilotKeychainService.deletePAT()
+                viewModel.redetectProviders()
+            }
+        }
+    }
+
+    // MARK: - Visibility Binding
+
+    private func visibilityBinding(for provider: ProviderId) -> Binding<Bool> {
+        Binding(
+            get: { !viewModel.isHidden(provider) },
+            set: { isVisible in
+                if isVisible == viewModel.isHidden(provider) {
+                    // Toggle: currently hidden and being shown, or currently shown and being hidden
+                    viewModel.toggleVisibility(for: provider)
+                }
+            }
+        )
+    }
+
+    // MARK: - Shared Helpers
 
     private func smallActionButton(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -325,18 +306,6 @@ struct AIConnectionsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Drop Indicator
-
-    @ViewBuilder
-    private func dropIndicator(visible: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 1)
-            .fill(Color.accentColor)
-            .frame(height: visible ? 2 : 0)
-            .padding(.horizontal, 4)
-            .opacity(visible ? 1 : 0)
-            .animation(.easeInOut(duration: 0.15), value: visible)
-    }
-
     // MARK: - Icon Styling
 
     private func providerIcon(for provider: ProviderId) -> Image {
@@ -344,33 +313,11 @@ struct AIConnectionsView: View {
         if let nsImage = NSImage(named: name) {
             return Image(nsImage: nsImage)
         }
-        // Fallback to letter if image not found
-        return Image(systemName: "questionmark.square")
+        // Fallback SF Symbol for providers without a custom icon
+        return Image(systemName: "sparkles")
     }
 
-    private func iconBackground(connected: Bool, pinned: Bool) -> Color {
-        if connected && pinned {
-            return Color(nsColor: .quaternaryLabelColor)
-        }
-        return .clear
-    }
-
-    private func iconForeground(connected: Bool, pinned: Bool) -> Color {
-        if connected && pinned {
-            return .primary
-        }
-        return .secondary
-    }
-
-    private func statusColor(_ connection: ProviderConnectionState) -> Color {
-        switch connection {
-        case .connected: return .green
-        case .authExpired: return .orange
-        default: return .secondary
-        }
-    }
-
-    // MARK: - PAT Entry Sheet
+    // MARK: - PAT Entry Sheet (Copilot)
 
     private var patEntrySheet: some View {
         VStack(spacing: 16) {
@@ -422,13 +369,48 @@ struct AIConnectionsView: View {
         .padding(20)
         .frame(width: 360)
     }
-}
 
-// MARK: - Preference Key for Row Geometry
+    // MARK: - API Key Entry Sheet (ElevenLabs, Runway, Stable Diffusion)
 
-private struct RowFramePreference: PreferenceKey {
-    static var defaultValue: [ProviderId: CGRect] = [:]
-    static func reduce(value: inout [ProviderId: CGRect], nextValue: () -> [ProviderId: CGRect]) {
-        value.merge(nextValue()) { _, new in new }
+    private var apiKeyEntrySheet: some View {
+        VStack(spacing: 16) {
+            Text("Connect \(apiKeyEntryProvider?.displayName ?? "")")
+                .font(.headline)
+
+            Text("Enter your API key.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            SecureField("API Key", text: $apiKeyText)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+
+            HStack {
+                Spacer()
+
+                Button("Cancel") {
+                    apiKeyText = ""
+                    apiKeyEntryProvider = nil
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Connect") {
+                    guard let provider = apiKeyEntryProvider else { return }
+                    let trimmed = apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    APIKeyService.save(trimmed, for: provider)
+                    apiKeyText = ""
+                    apiKeyEntryProvider = nil
+                    viewModel.redetectProviders()
+                    viewModel.refresh()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
     }
 }

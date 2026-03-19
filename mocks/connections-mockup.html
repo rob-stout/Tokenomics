@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tokenomics — Connections Settings</title>
+<style>
+  /* ─── Reset & Base ─────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ─── Design Tokens ────────────────────────────────────────────────────── */
+  :root {
+    /* 8pt grid */
+    --s2:   2px;  --s4:  4px;  --s6:  6px;  --s8:  8px;
+    --s10: 10px; --s12: 12px; --s16: 16px; --s20: 20px;
+    --s24: 24px; --s32: 32px; --s48: 48px; --s64: 64px;
+
+    /* Type scale — Minor Third (1.2) rooted at macOS system */
+    --text-xs:   10px;   /* caption2 */
+    --text-sm:   11px;   /* caption / footnote */
+    --text-base: 13px;   /* body */
+    --text-md:   15px;   /* callout */
+
+    /* Light mode palette — macOS popover style */
+    --bg-page:      #e8e8ed;
+    --bg-panel:     rgba(246, 246, 248, 0.96);
+    --bg-surface:   #ffffff;
+    --bg-surface-2: #f2f2f7;
+
+    /* Borders */
+    --border-subtle:  rgba(0, 0, 0, 0.06);
+    --border-default: rgba(0, 0, 0, 0.10);
+    --border-strong:  rgba(0, 0, 0, 0.18);
+
+    /* Text */
+    --text-primary:   rgba(0, 0, 0, 0.88);
+    --text-secondary: rgba(0, 0, 0, 0.50);
+    --text-tertiary:  rgba(0, 0, 0, 0.30);
+
+    /* Semantic */
+    --color-green:       #1a8f3c;   /* status green — slightly darker for light bg */
+    --color-green-light: #34c759;   /* toggle on state */
+    --color-red:         #d63a35;
+    --color-blue:        #007aff;
+
+    /* Brand icon backgrounds — all dark circles per spec */
+    --brand-anthropic:  #1a1a1a;
+    --brand-openai:     #111111;
+    --brand-google:     #1a1a2e;
+    --brand-github:     #24292f;
+    --brand-cursor:     #1c1c2e;
+    --brand-elevenlabs: #1a1a1a;
+    --brand-runway:     #0d0d0d;
+    --brand-midjourney: #0a0a14;
+    --brand-suno:       #1a0d0d;
+    --brand-udio:       #0d1a16;
+    --brand-sdflux:     #0d1a0d;
+
+    --panel-width: 400px;
+  }
+
+  /* ─── Page Chrome ───────────────────────────────────────────────────────── */
+  body {
+    background: var(--bg-page);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--s48) var(--s24) var(--s64);
+    gap: var(--s32);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page-header {
+    text-align: center;
+    max-width: 520px;
+  }
+
+  .page-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin-bottom: var(--s8);
+  }
+
+  .page-subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* ─── State Legend ───────────────────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    gap: var(--s24);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    padding: var(--s12) var(--s16);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--s6);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .ld-connected { background: var(--color-green-light); }
+  .ld-hidden    { background: var(--text-tertiary); }
+  .ld-notconn   { background: var(--border-strong); }
+
+  /* ─── Panel ──────────────────────────────────────────────────────────────── */
+  .panel {
+    width: var(--panel-width);
+    background: var(--bg-panel);
+    border-radius: 12px;
+    border: 1px solid var(--border-default);
+    overflow: hidden;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.10),
+      0 12px 40px rgba(0, 0, 0, 0.12),
+      0 1px 0 rgba(255, 255, 255, 0.8) inset;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* ─── Panel Header ───────────────────────────────────────────────────────── */
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s12) var(--s16);
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(246, 246, 248, 0.80);
+    position: relative;
+  }
+
+  .back-btn {
+    position: absolute;
+    left: var(--s16);
+    font-size: var(--text-base);
+    color: var(--color-blue);
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    cursor: default;
+  }
+
+  .panel-title {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  /* ─── Panel Body ──────────────────────────────────────────────────────────── */
+  .panel-body {
+    padding: 0 0 var(--s8);
+    display: flex;
+    flex-direction: column;
+    max-height: 680px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.12) transparent;
+  }
+
+  /* ─── Section Header ──────────────────────────────────────────────────────── */
+  .section-header {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: var(--s8) var(--s16) var(--s6);
+    /* First header sits just below the nav bar — small top inset */
+    margin-top: var(--s8);
+  }
+
+  /* Sections after the first get a larger top gap to clearly separate groups */
+  .group-card + .section-header {
+    margin-top: var(--s20);
+  }
+
+  /* ─── Group Card ──────────────────────────────────────────────────────────── */
+  .group-card {
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /* ─── Provider Row ────────────────────────────────────────────────────────── */
+  .provider-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s12);
+    padding: var(--s8) var(--s16);
+    min-height: 48px;
+  }
+
+  .provider-row + .provider-row {
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  /* Dimmed state for not-connected rows */
+  .provider-row.state-unconnected .provider-name {
+    color: var(--text-secondary);
+  }
+
+  .provider-row.state-unconnected .icon {
+    opacity: 0.55;
+  }
+
+  /* Hidden state */
+  .provider-row.state-hidden .provider-name {
+    color: var(--text-secondary);
+  }
+
+  /* ─── Provider Icon ───────────────────────────────────────────────────────── */
+  .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;   /* circular per spec */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  /* Icon brand fills — dark circles */
+  .ic-claude     { background: var(--brand-anthropic); }
+  .ic-openai     { background: var(--brand-openai); }
+  .ic-google     { background: var(--brand-google); }
+  .ic-copilot    { background: var(--brand-github); }
+  .ic-cursor     { background: var(--brand-cursor); }
+  .ic-elevenlabs { background: var(--brand-elevenlabs); }
+  .ic-runway     { background: var(--brand-runway); }
+  .ic-midjourney { background: var(--brand-midjourney); }
+  .ic-suno       { background: var(--brand-suno); }
+  .ic-udio       { background: var(--brand-udio); }
+  .ic-sdflux     { background: var(--brand-sdflux); }
+
+  /* ─── Provider Meta ───────────────────────────────────────────────────────── */
+  .provider-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .provider-name {
+    font-size: var(--text-base);
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
+
+  .provider-status {
+    font-size: var(--text-xs);
+    line-height: 1.3;
+  }
+
+  .status-connected { color: var(--color-green); }
+  .status-hidden    { color: var(--text-tertiary); }
+  .status-inactive  { color: var(--text-tertiary); }
+
+  .provider-note {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    line-height: 1.3;
+  }
+
+  /* ─── Row Controls ────────────────────────────────────────────────────────── */
+  .row-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--s8);
+    flex-shrink: 0;
+  }
+
+  /* ─── Toggle Switch ───────────────────────────────────────────────────────── */
+  .toggle {
+    width: 36px;
+    height: 22px;
+    border-radius: 11px;
+    flex-shrink: 0;
+    position: relative;
+    cursor: default;
+  }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: #ffffff;
+    top: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.30), 0 0.5px 1px rgba(0,0,0,0.15);
+    transition: left 0.18s ease;
+  }
+
+  .toggle.on {
+    background: var(--color-green-light);
+    box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.08);
+  }
+
+  .toggle.on::after { left: 16px; }
+
+  .toggle.off {
+    background: rgba(120, 120, 128, 0.22);
+    box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.06);
+  }
+
+  .toggle.off::after { left: 2px; }
+
+  /* ─── Buttons ─────────────────────────────────────────────────────────────── */
+  .btn {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: default;
+    white-space: nowrap;
+    line-height: 1.4;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .btn-connect {
+    color: var(--color-blue);
+    border: 1px solid var(--color-blue);
+    background: transparent;
+  }
+
+  .btn-disconnect {
+    color: var(--color-red);
+    border: 1px solid rgba(214, 58, 53, 0.45);
+    background: transparent;
+  }
+
+  /* ─── Coming Soon ─────────────────────────────────────────────────────────── */
+  .coming-soon {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  /* ─── Plan Tier Selector ──────────────────────────────────────────────────── */
+  .tier-selector {
+    display: flex;
+    background: rgba(120, 120, 128, 0.14);
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+    margin-top: 4px;
+  }
+
+  .tier-option {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: default;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  .tier-option.selected {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.06);
+  }
+
+  /* ─── Helper Text ─────────────────────────────────────────────────────────── */
+  .helper-row {
+    padding: var(--s12) var(--s16);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s8);
+  }
+
+  .helper-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+    opacity: 0.35;
+  }
+
+  .helper-text {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    line-height: 1.6;
+  }
+
+  /* ─── Chevron ─────────────────────────────────────────────────────────────── */
+  .chevron-left {
+    display: inline-block;
+    width: 7px;
+    height: 11px;
+    margin-right: 2px;
+    vertical-align: middle;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <p class="page-title">Connections — Settings Panel</p>
+  <p class="page-subtitle">Three-state interaction model. Light mode. Provider list matches spec.</p>
+</div>
+
+<!-- State legend -->
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-dot ld-connected"></div>
+    State 2: Connected + Visible (toggle ON)
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot ld-hidden"></div>
+    State 3: Connected + Hidden (toggle OFF)
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot ld-notconn"></div>
+    State 1: Not Connected
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PANEL
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="panel">
+
+  <!-- Nav bar -->
+  <div class="panel-header">
+    <div class="back-btn">
+      <svg class="chevron-left" viewBox="0 0 7 11" fill="none">
+        <path d="M6 1L1 5.5L6 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Settings
+    </div>
+    <span class="panel-title">Connections</span>
+  </div>
+
+  <!-- Body -->
+  <div class="panel-body">
+
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         PLATFORMS
+         ══════════════════════════════════════════════════════════════════════ -->
+    <div class="section-header">Platforms</div>
+
+    <div class="group-card">
+
+      <!-- OpenAI — State 2: Connected + Visible, with pool note -->
+      <div class="provider-row state-connected">
+        <div class="icon ic-openai">O</div>
+        <div class="provider-meta">
+          <div class="provider-name">OpenAI</div>
+          <div class="provider-status status-connected">Free — Connected</div>
+          <div class="provider-note">Codex CLI · DALL-E · Sora</div>
+        </div>
+        <div class="row-controls">
+          <div class="toggle on"></div>
+        </div>
+      </div>
+
+      <!-- Google AI — State 2: Connected + Visible, with pool note + tier selector -->
+      <div class="provider-row state-connected" style="align-items: flex-start; padding-top: 10px; padding-bottom: 10px;">
+        <div class="icon ic-google" style="margin-top: 2px;">G</div>
+        <div class="provider-meta">
+          <div class="provider-name">Google AI</div>
+          <div class="provider-status status-connected">Free — Connected</div>
+          <div class="provider-note">Gemini CLI · Nano Banana 2 · Veo</div>
+          <div class="tier-selector">
+            <div class="tier-option selected">Free</div>
+            <div class="tier-option">Standard</div>
+            <div class="tier-option">Enterprise</div>
+          </div>
+        </div>
+        <div class="row-controls" style="margin-top: 2px;">
+          <div class="toggle on"></div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         CODING TOOLS
+         ══════════════════════════════════════════════════════════════════════ -->
+    <div class="section-header">Coding Tools</div>
+
+    <div class="group-card">
+
+      <!-- Claude Code — State 2: Connected + Visible -->
+      <div class="provider-row state-connected">
+        <div class="icon ic-claude">C</div>
+        <div class="provider-meta">
+          <div class="provider-name">Claude Code</div>
+          <div class="provider-status status-connected">Pro — Connected</div>
+        </div>
+        <div class="row-controls">
+          <div class="toggle on"></div>
+        </div>
+      </div>
+
+      <!-- Cursor — State 3: Connected + Hidden -->
+      <div class="provider-row state-hidden">
+        <div class="icon ic-cursor">U</div>
+        <div class="provider-meta">
+          <div class="provider-name">Cursor</div>
+          <div class="provider-status status-hidden">Hidden</div>
+        </div>
+        <div class="row-controls">
+          <div class="btn btn-disconnect">Disconnect</div>
+          <div class="toggle off"></div>
+        </div>
+      </div>
+
+      <!-- GitHub Copilot — State 1: Not Connected -->
+      <div class="provider-row state-unconnected">
+        <div class="icon ic-copilot">P</div>
+        <div class="provider-meta">
+          <div class="provider-name">GitHub Copilot</div>
+        </div>
+        <div class="row-controls">
+          <div class="btn btn-connect">Connect</div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         IMAGE GENERATION
+         ══════════════════════════════════════════════════════════════════════ -->
+    <div class="section-header">Image Generation</div>
+
+    <div class="group-card">
+
+      <!-- Midjourney — Coming Soon (no API) -->
+      <div class="provider-row state-unconnected">
+        <div class="icon ic-midjourney">M</div>
+        <div class="provider-meta">
+          <div class="provider-name">Midjourney</div>
+        </div>
+        <div class="row-controls">
+          <span class="coming-soon">Coming Soon</span>
+        </div>
+      </div>
+
+      <!-- Stable Diffusion — State 1: Not Connected -->
+      <div class="provider-row state-unconnected">
+        <div class="icon ic-sdflux">S</div>
+        <div class="provider-meta">
+          <div class="provider-name">Stable Diffusion</div>
+        </div>
+        <div class="row-controls">
+          <div class="btn btn-connect">Connect</div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         VIDEO GENERATION
+         ══════════════════════════════════════════════════════════════════════ -->
+    <div class="section-header">Video Generation</div>
+
+    <div class="group-card">
+
+      <!-- Runway — State 1: Not Connected -->
+      <div class="provider-row state-unconnected">
+        <div class="icon ic-runway">R</div>
+        <div class="provider-meta">
+          <div class="provider-name">Runway</div>
+        </div>
+        <div class="row-controls">
+          <div class="btn btn-connect">Connect</div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         MUSIC / AUDIO / VOICE
+         ══════════════════════════════════════════════════════════════════════ -->
+    <div class="section-header">Music / Audio / Voice</div>
+
+    <div class="group-card">
+
+      <!-- ElevenLabs — State 1: Not Connected -->
+      <div class="provider-row state-unconnected">
+        <div class="icon ic-elevenlabs">E</div>
+        <div class="provider-meta">
+          <div class="provider-name">ElevenLabs</div>
+        </div>
+        <div class="row-controls">
+          <div class="btn btn-connect">Connect</div>
+        </div>
+      </div>
+
+      <!-- Suno — Coming Soon -->
+      <div class="provider-row state-unconnected">
+        <div class="icon ic-suno">S</div>
+        <div class="provider-meta">
+          <div class="provider-name">Suno</div>
+        </div>
+        <div class="row-controls">
+          <span class="coming-soon">Coming Soon</span>
+        </div>
+      </div>
+
+      <!-- Udio — Coming Soon -->
+      <div class="provider-row state-unconnected">
+        <div class="icon ic-udio">U</div>
+        <div class="provider-meta">
+          <div class="provider-name">Udio</div>
+        </div>
+        <div class="row-controls">
+          <span class="coming-soon">Coming Soon</span>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- Helper text -->
+    <div class="helper-row">
+      <svg class="helper-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="6" stroke="rgba(0,0,0,0.5)" stroke-width="1.2"/>
+        <rect x="6.3" y="6" width="1.4" height="4" rx="0.7" fill="rgba(0,0,0,0.5)"/>
+        <rect x="6.3" y="3.5" width="1.4" height="1.4" rx="0.7" fill="rgba(0,0,0,0.5)"/>
+      </svg>
+      <p class="helper-text">
+        Toggle to show or hide providers. Reorder in the main view. Toggling off keeps a provider connected and polling in the background — use Disconnect to remove credentials entirely.
+      </p>
+    </div>
+
+  </div><!-- /panel-body -->
+</div><!-- /panel -->
+
+</body>
+</html>

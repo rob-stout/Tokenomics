@@ -5,13 +5,24 @@ import AppKit
 
 // MARK: - Provider Identity
 
-/// Supported AI coding tool providers
+/// Supported AI providers across coding, image, video, and audio categories
 enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
+    // Platforms (shared billing pools)
+    case codex
+    case gemini
+    // Coding Tools
     case claude
     case copilot
     case cursor
-    case codex
-    case gemini
+    // Image Generation
+    case stableDiffusion
+    case midjourney
+    // Video Generation
+    case runway
+    // Music / Audio / Voice
+    case elevenlabs
+    case suno
+    case udio
 
     var id: String { rawValue }
 
@@ -20,8 +31,14 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .claude: return "Claude Code"
         case .copilot: return "GitHub Copilot"
         case .cursor: return "Cursor"
-        case .codex: return "Codex CLI"
-        case .gemini: return "Gemini CLI"
+        case .codex: return "OpenAI"
+        case .gemini: return "Google AI"
+        case .stableDiffusion: return "Stable Diffusion"
+        case .midjourney: return "Midjourney"
+        case .runway: return "Runway"
+        case .elevenlabs: return "ElevenLabs"
+        case .suno: return "Suno"
+        case .udio: return "Udio"
         }
     }
 
@@ -31,8 +48,14 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .claude: return "Claude"
         case .copilot: return "Copilot"
         case .cursor: return "Cursor"
-        case .codex: return "Codex"
-        case .gemini: return "Gemini"
+        case .codex: return "OpenAI"
+        case .gemini: return "Google AI"
+        case .stableDiffusion: return "Stable Diff"
+        case .midjourney: return "Midjourney"
+        case .runway: return "Runway"
+        case .elevenlabs: return "ElevenLabs"
+        case .suno: return "Suno"
+        case .udio: return "Udio"
         }
     }
 
@@ -44,10 +67,16 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .cursor: return "U"
         case .codex: return "X"
         case .gemini: return "G"
+        case .stableDiffusion: return "S"
+        case .midjourney: return "M"
+        case .runway: return "R"
+        case .elevenlabs: return "E"
+        case .suno: return "N"
+        case .udio: return "D"
         }
     }
 
-    /// Terminal command to authenticate
+    /// Terminal command to authenticate (CLI-based providers only)
     var loginCommand: String {
         switch self {
         case .claude: return "claude"
@@ -55,12 +84,16 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .cursor: return "open -a Cursor"
         case .codex: return "codex login"
         case .gemini: return "gemini login"
+        // API-key providers have no CLI auth
+        case .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
         }
     }
 
     #if os(macOS)
     /// Opens Terminal and runs the login/auth command, reusing the frontmost window if possible
     func openLoginInTerminal() {
+        guard !loginCommand.isEmpty else { return }
+
         let shellSetup = """
         [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"; \
         [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"; \
@@ -120,12 +153,14 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     var supportsUsageTracking: Bool {
         switch self {
         case .claude, .copilot, .cursor, .codex, .gemini: return true
+        case .elevenlabs, .runway, .stableDiffusion: return true
+        case .midjourney, .suno, .udio: return false
         }
     }
 
     /// Whether this provider uses a Personal Access Token instead of CLI-based auth
     var usesPATAuth: Bool {
-        // All providers now have zero-friction auth
+        // All providers now have zero-friction auth or API key auth
         return false
     }
 
@@ -137,7 +172,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         }
     }
 
-    /// npm package name used to install the CLI
+    /// Install command for CLI-based providers
     var installCommand: String {
         switch self {
         case .claude: return "npm install -g @anthropic-ai/claude-code"
@@ -145,12 +180,16 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .cursor: return "brew install --cask cursor"
         case .codex: return "npm install -g @openai/codex"
         case .gemini: return "npm install -g @google/gemini-cli"
+        // API-key providers don't need installation
+        case .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
         }
     }
 
     #if os(macOS)
     /// Opens Terminal and runs the install command, reusing the frontmost window if possible
     func openInstallInTerminal() {
+        guard !installCommand.isEmpty else { return }
+
         let shellSetup = """
         [ -f "$HOME/.zprofile" ] && source "$HOME/.zprofile"; \
         [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"; \
@@ -192,6 +231,55 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         }
     }
     #endif
+}
+
+// MARK: - Provider Categories
+
+extension ProviderId {
+
+    /// Groups providers into sections for the Connections page
+    enum ProviderCategory: String, CaseIterable {
+        case platforms       = "PLATFORMS"
+        case codingTools     = "CODING TOOLS"
+        case imageGeneration = "IMAGE GENERATION"
+        case videoGeneration = "VIDEO GENERATION"
+        case musicAudioVoice = "MUSIC / AUDIO / VOICE"
+    }
+
+    var category: ProviderCategory {
+        switch self {
+        case .codex, .gemini: return .platforms
+        case .claude, .copilot, .cursor: return .codingTools
+        case .stableDiffusion, .midjourney: return .imageGeneration
+        case .runway: return .videoGeneration
+        case .elevenlabs, .suno, .udio: return .musicAudioVoice
+        }
+    }
+
+    /// Whether this provider has a working API integration (false = "Coming Soon")
+    var hasAPI: Bool {
+        switch self {
+        case .midjourney, .suno, .udio: return false
+        default: return true
+        }
+    }
+
+    /// Subtitle shown under platform providers describing what's in their shared billing pool
+    var sharedPoolDescription: String? {
+        switch self {
+        case .codex: return "Codex CLI · DALL-E · Sora"
+        case .gemini: return "Gemini CLI · Nano Banana 2 · Veo"
+        default: return nil
+        }
+    }
+
+    /// Whether this provider authenticates via an API key stored in Keychain
+    var usesAPIKeyAuth: Bool {
+        switch self {
+        case .elevenlabs, .runway, .stableDiffusion: return true
+        default: return false
+        }
+    }
 }
 
 // MARK: - Connection State

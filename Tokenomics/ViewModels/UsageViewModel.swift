@@ -47,7 +47,11 @@ final class UsageViewModel: ObservableObject {
         .copilot: CopilotProvider(),
         .cursor: CursorProvider(),
         .codex: CodexProvider(),
-        .gemini: GeminiProvider()
+        .gemini: GeminiProvider(),
+        .elevenlabs: ElevenLabsProvider(),
+        .runway: RunwayProvider(),
+        .stableDiffusion: StableDiffusionProvider()
+        // .midjourney, .suno, .udio have no API — omitted intentionally
     ]
 
     private let pollingService = PollingService()
@@ -392,20 +396,25 @@ final class UsageViewModel: ObservableObject {
     }
 
     private func detectProviders() async {
-        for (id, provider) in providerPairs {
-            let connection = await provider.checkConnection()
-            let existing = providerStates[id] ?? .empty
-            providerStates[id] = ProviderState(
-                connection: connection,
-                usage: existing.usage,
-                error: existing.error,
-                lastSynced: existing.lastSynced,
-                isLoading: false
-            )
+        for id in ProviderId.allCases {
+            if let provider = providers[id] {
+                let connection = await provider.checkConnection()
+                let existing = providerStates[id] ?? .empty
+                providerStates[id] = ProviderState(
+                    connection: connection,
+                    usage: existing.usage,
+                    error: existing.error,
+                    lastSynced: existing.lastSynced,
+                    isLoading: false
+                )
+            } else {
+                // Placeholder provider — no API implementation yet
+                providerStates[id] = providerStates[id] ?? .empty
+            }
         }
     }
 
-    /// Re-checks only non-connected providers (called when popover opens)
+    /// Re-checks only non-connected providers (called when popover opens or after connecting a provider)
     func redetectProviders() {
         Task {
             for (id, provider) in providerPairs {

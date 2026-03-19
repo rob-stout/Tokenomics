@@ -475,3 +475,78 @@ Sparkle's appcast format is documented but its failure modes are not. Getting th
 **Story Thread**: This entry closes "The Build" arc and opens "The Reflection." The app is no longer a project — it is software. The release pipeline exists. The update channel is live. What follows will be driven by real feedback rather than assumed requirements. That shift — from building toward a spec to building in response to evidence — is where product thinking actually starts.
 
 ---
+
+## 2026-03-12 — v2.5.0: Widget Layout System and the Design of Iterative Constraint
+
+**Phase**: The Craft — designing a responsive layout system through active constraint and iteration
+
+**What I Did**: Designed and shipped a complete widget layout system for medium and large WidgetKit widgets. This required solving three interlocking problems: how to display a variable number of providers without crowding the widget, what to do with empty space when provider count is low, and how to give users a reason to share the app without being intrusive. All layout decisions were validated in HTML mocks before a line of Swift was written. Shipped as v2.5.0 (build 27).
+
+**Why It Matters**: WidgetKit is a constrained surface — no scrolling, fixed dimensions, tap interactions limited to URL schemes. Every layout tier, spacing value, and overflow strategy has to work at the extremes, not just the average case. This session was about building a system that handles 1 provider gracefully and 8+ providers gracefully with the same visual language. That kind of range doesn't emerge from a single design pass; it comes from working through every state explicitly.
+
+**Key Decisions**:
+
+1. **Timer preservation over layout convenience.** The first proposed solution to the medium widget overflow problem was replacing the countdown timer with a "+X in app" overflow indicator when providers exceeded the visible cap. I pushed back: the timer is one of the most useful pieces of information in the widget, and hiding it punishes users who have more providers configured. We iterated through three options before landing on a centered footer below the provider list — the timer stays top-right, the overflow indicator lives below the content it describes, and no user loses information they were already relying on. This is the difference between solving a layout problem and solving a user problem.
+
+2. **Three layout tiers for the large widget, driven by testing not assumption.** My initial compact threshold for the large widget was 4+ providers. Testing showed 4 providers still fit comfortably in the spacious single-column layout. The threshold moved to 5+. The final tier structure — spacious (1–4), compact 2-column (5–7), compact 2-column with overflow footer (8+) — came from testing each provider count explicitly, not from extrapolating from a middle case. The 7-provider state was tested with and without the overflow footer before the tier boundary was finalized.
+
+3. **48px label width over 52px — the 8px grid as a constraint, not a style preference.** When the "Requests" label was clipping in the spacious row, I proposed 52px as a fix. The correction: 4px of additional space is all that's needed, and 48px keeps the value on the 8px grid. This is a small moment, but it illustrates something important — the grid isn't decoration, it's a discipline that prevents accumulated visual drift across a component library.
+
+4. **The Share CTA as empty-space strategy.** Low provider counts leave dead space at the bottom of the widget — 1–2 providers on medium, 5–6 on large. Rather than leaving it blank or filling it with generic tips, I wanted something functional. The Share CTA (SF Symbol `square.and.arrow.up` + "Tokenomics" text, 40% opacity) gives the empty space a job: gentle organic growth. It's subtle enough not to feel like an ad, functional enough to justify its presence. Implemented via a `tokenomics://share` deep link that opens `NSSharingServicePicker` — the only way to trigger code from a widget tap is a URL scheme, so the share action had to be routed through the app.
+
+5. **HTML mocking as the primary design environment.** Every layout state was designed in HTML before touching Swift. A single mock file with 9 numbered states — one for every relevant provider count across medium and large — let me evaluate spacing, overflow behavior, and visual hierarchy quickly and without compile cycles. Slider controls in the HTML let me dial in gap values and padding in real time. Only when each state was validated did implementation begin. This workflow compresses the feedback loop dramatically: layout decisions that would take 10–15 minutes per iteration in Xcode take 30 seconds in a browser.
+
+**What I Learned**: WidgetKit's tap model — `widgetURL` for the whole widget, `Link(destination:)` for a specific zone — creates a clean priority system. The Share CTA wraps its content in a `Link`, which takes precedence over the `widgetURL` tap target in its zone only. That meant I could add a tappable sub-region without restructuring the entire tap architecture. Non-obvious until you test it; worth knowing.
+
+The header bottom padding (20px) being larger than the inter-provider gap (16–24px depending on tier) is a visual grouping technique: the providers cluster together and away from the header, which reads as a unit. Getting this right required explicit discussion — "the providers should group visually" — which is easier to articulate than to specify numerically. The HTML mock made it possible to feel the right value rather than calculate it.
+
+**Artifacts to Capture**:
+- HTML mock file (`widget-mockup.html` or `/mocks/` folder) — 9 states, all provider counts for medium and large; this is a rare artifact showing the design process, not just the outcome
+- Screenshot: medium widget at 1, 2, 3, and 4+ providers — demonstrates the layout tier transitions in the final product
+- Screenshot: large widget at 4, 5, 7, and 8+ providers — shows the three-tier system and overflow footer
+- Screenshot: Share CTA in context (bottom of widget at low provider count) — the 40% opacity treatment and SF Symbol usage
+- Diagram: widget tap architecture — `widgetURL` vs. `Link(destination:)` priority model, `tokenomics://share` and `tokenomics://open` deep links
+- Before/after: medium widget at 4 providers before cap (crowded) vs. after (3 visible + footer)
+
+**Story Thread**: This entry belongs firmly in "The Craft" arc — the phase where the interesting work is not what you build but what you refuse to accept. Every significant decision here came from pushing back on a first-pass solution: the timer survived because I wouldn't trade user information for layout tidiness; the 8px grid held because visual systems only work if you maintain them under pressure; the share CTA exists because empty space is a product decision, not a layout failure. The HTML mocking workflow is also worth foregrounding in any portfolio presentation — it shows that design velocity doesn't come from moving fast, it comes from testing in the right medium at the right time.
+
+---
+
+## 2026-03-17 — Connections Page Redesign: When the Model Breaks Before the UI Does
+
+**Phase**: The Approach — product strategy and information architecture for an expanding provider landscape
+
+**What Changed**: Tokenomics has shipped five coding providers and is ready to expand into creative AI tools (image generation, video, music/audio/voice). That expansion exposed a structural problem in the existing Connections page: a flat provider list assumes one connection equals one tool. It doesn't anymore. OpenAI's billing pool covers Codex CLI, DALL-E, and Sora under a single API key. Google AI's pool covers Gemini CLI, Nano Banana 2, and Veo. A flat list with individual toggles for each service would present a false affordance — toggling DALL-E off without touching Codex when they share the same credentials is not an action the user can actually take. Designed the Connections page redesign from scratch to solve this before building the first creative provider, not after.
+
+**Why It Matters**: The mistake most products make with expanding scope is retrofitting the UI to fit new content rather than redesigning the model to fit new reality. Adding creative AI providers to the existing flat list would have shipped a UI where the controls don't match the underlying system — confusing at best, misleading at worst. Getting the information architecture right now gates everything else: ecosystem renames (Codex CLI → OpenAI, Gemini CLI → Google AI), creative provider integrations, and eventually the widget and popover surfaces that must stay coherent as the provider count grows.
+
+**Key Decisions**:
+
+1. **Shared billing pool = one toggle, not per-service sub-toggles.** The most tempting design was an accordion: an OpenAI row that expands to reveal Codex, DALL-E, and Sora as sub-items, each with its own toggle. This is a false affordance. You cannot connect to DALL-E without also connecting to Codex — they are the same OAuth credential. A sub-toggle implies independent control that doesn't exist. The correct model is one ecosystem entry with a subtitle listing included services ("Codex CLI · DALL-E · Sora"). One connection, one toggle, transparent about what it covers. Designing for what the system actually does rather than for the visual appearance of control is the principle here.
+
+2. **Section-based organization to teach the AI landscape, not just list tools.** Grouping providers into Platforms, Coding Tools, Image Generation, Video Generation, and Music / Audio / Voice does more than organize the screen — it teaches users that the AI tool landscape has structure. A developer who has only used Claude Code and Copilot may not know that the same API key powering their text generation also covers image and video credits. The section model surfaces that structure implicitly. The Platforms section specifically signals "these are ecosystems, not individual tools," which sets the right expectations before a user connects for the first time.
+
+3. **Three-state provider model: Connect → Visible → Hidden+Disconnect.** The original settings model was binary: connected or not connected. That's insufficient for the multi-provider case. A user might want to connect to Google AI to track usage but hide the provider from the popover and widgets while their usage is low. The three-state model handles this cleanly: "Not Connected" shows a Connect button; "Connected + Visible" shows a toggle ON; "Connected + Hidden" shows a toggle OFF with a Disconnect option that appears only in the off state. Progressive disclosure — the destructive action (Disconnect) only appears when the provider is already hidden — reduces the risk of accidental disconnection while still making it reachable.
+
+4. **Settings sections are fixed; popover stays flat.** The organizational structure lives in Settings only. The popover's tab row stays as a flat, ordered list with free drag reorder — no sections, no category headers. This distinction matters because Settings and the popover serve different user intents. Settings is discovery and management: users need to understand what's available and how it's organized. The popover is workflow: users need fast access to the providers they've already configured. Imposing category sections on the popover would add cognitive overhead to the task where friction matters most. Same information, different surfaces, different structures — each optimized for the job it's doing.
+
+5. **Ecosystem renames are label-only; icons already match.** The provider icons for Codex and Gemini already use the OpenAI logo and Google AI logo respectively — a decision made when the icons were designed. Renaming Codex CLI to OpenAI and Gemini CLI to Google AI is therefore a label change only. No icon assets need updating, no visual language shifts. The icons were right before the names caught up. This is the kind of small consistency that only becomes visible when you look at the whole system together rather than provider by provider.
+
+**UX Thinking**: The core tension in this redesign was between organizational clarity and user control. Section labels help users understand the landscape; but sections in the popover would slow down the interaction that users repeat dozens of times a day. The insight was that these two jobs — "understand what's available" and "access what I use" — belong on different surfaces. Settings is the map; the popover is the route. Solving both on the same screen would have meant compromising both. Separating them let each surface be unambiguously optimized.
+
+**The Number**: Five creative AI provider entries scoped, designed, and documented before any code was written — with three mapped to existing billing pools (no new auth infrastructure) and three flagged as placeholder pending public APIs. That scoping work prevents at least one rebuild cycle when the first creative provider ships.
+
+**What I Learned**: Identifying that the flat list model was wrong before shipping the first creative provider required looking one step ahead of the current feature. Most of the design work was in understanding the billing pool structure across providers — the insight that OpenAI and Google each have shared pools is not obvious from looking at the tools individually. Mapping the ecosystem first, then designing the UI to reflect that map, is the correct sequence. Building the UI first and discovering the billing pool problem during integration would have meant a settings page redesign mid-feature-development, which is the most expensive time to do it.
+
+The "Midjourney has no API" discovery also mattered for product confidence. Rather than treating this as a blocker, scoping it as a placeholder — with explicit conditions for when it becomes buildable — keeps the roadmap honest without removing the provider from the product vision. Placeholders are not admissions of failure; they are documented decisions about what you're waiting for.
+
+**Artifacts to Capture**:
+- `mocks/connections-mockup.html` — the primary design artifact for this session; shows all three provider states, section organization, and the ecosystem/shared-pool treatment
+- Annotated screenshot of the Platforms section — specifically the "Codex CLI · DALL-E · Sora" subtitle pattern; this is the key visual proof of the "one toggle per ecosystem" decision
+- Three-state diagram: Not Connected → Connected+Visible → Connected+Hidden+Disconnect; shows the progressive disclosure logic
+- Updated roadmap section ("Connections Page Redesign") — documents all four design decisions with rationale; a decision record, not just a feature description
+- Provider landscape map: coding tools vs. creative providers, with billing pool groupings marked — the strategic artifact that motivated the redesign
+
+**Story Thread**: This entry belongs to "The Approach" arc — the phase where the right question is "what model does the UI need to reflect?" rather than "what should the UI look like?" The Connections page redesign is not a visual problem; it is a conceptual architecture problem. The flat list was always a simplification. Five providers across two billing ecosystems and five categories of creative AI tools made the simplification visible. Designing the correct model before writing the first line of integration code is the kind of decision that only looks obvious in hindsight.
+
+---

@@ -1,8 +1,7 @@
 # Tokenomics — Product Roadmap
 
-Last updated: 2026-03-09
-Current version: 2.2.6 (build 15)
-Active branch: feat/watch-app
+Last updated: 2026-03-17
+Current version: 2.5.0 (build 27)
 
 ---
 
@@ -46,52 +45,116 @@ Active branch: feat/watch-app
 - Homebrew Cask distribution (`brew install --cask tokenomics`)
 - Source-available license (portfolio visibility + monetization optionality)
 - Legal section in About view (Privacy Policy + non-affiliation disclaimer)
-- Notification threshold infrastructure (partially built)
+- Per-provider notification thresholds with configurable alert windows (Short/Long/Both)
+
+### v2.3–v2.5 — Provider Expansion + Widget Polish
+- `longWindow` made optional on `ProviderUsageSnapshot` — unblocks single-metric providers
+- Copilot provider (zero-friction auth via `gh` CLI, premium request tracking)
+- Cursor provider (local SQLite state file, credit pool tracking)
+- Provider icons (light/dark variants for all providers)
+- Provider reorder (drag) and show/hide visibility controls
+- Per-provider poll intervals and notification thresholds
+- Exponential backoff on 429 (5m → 10m → 20m → 40m → 1h cap)
+- Activity-aware polling
+- Settings redesign with grouped sections and icons
+- Large widget support (up to 7 providers, adaptive layouts)
+- Widget share CTA + deep link URL scheme (`tokenomics://`)
+- Sparkle auto-check enabled
 
 ---
 
-## Phase 1: Provider Expansion (Current Sprint)
+## Phase 1: Provider Expansion (continued)
 
-### Make `longWindow` optional on `ProviderUsageSnapshot`
-**Status:** Up Next
-**Priority:** High — blocking new provider work
-**Why:** `ProviderUsageSnapshot` currently requires both `shortWindow` and `longWindow` as non-optional fields. Providers like Copilot have only one meaningful metric (premium requests). Forcing a fake `longWindow` is a data integrity problem — a zero-filled second ring sends a false signal. Making `longWindow: WindowUsage?` is a small model change with broad impact: it enables single-metric providers and simplifies future provider onboarding.
-**Scope:** `Provider.swift` (model), any views that render `longWindow` (guard against nil, hide ring/bar if absent).
-**Risk:** Low — additive change, existing providers keep non-nil values.
+Phase 1 coding providers are shipped. Remaining work is ecosystem renames, creative AI providers, and the Connections page redesign to support both.
 
-### Copilot Provider
+### Ecosystem Extensions
+
+#### Rename Codex CLI → OpenAI
 **Status:** Backlog
-**Priority:** High — large user base, official API available
-**Auth:** GitHub Personal Access Token (PAT), stored in Keychain
-**Data source:** GitHub REST API — Copilot usage endpoints
-**Metrics to track:** Premium requests used / limit (the only quota GitHub exposes)
-**Ring layout:** Single ring (inner only, `longWindow` nil) — requires the optional `longWindow` change above
-**Notes:** GitHub's Copilot API is official and documented. PAT auth means no OAuth dance. Premium request quota is the meaningful constraint for Max users; Basic users have unlimited standard requests.
+**Priority:** Medium
+**What:** Codex CLI, DALL-E, and Sora share the same OpenAI billing pool. Rename the provider to "OpenAI" and surface additional metrics for image and video credit consumption alongside existing token tracking. One provider, one connection, multiple metrics.
+**Scope:** Provider label change everywhere it appears (menu bar, popover, settings, widgets). Add DALL-E image credits and Sora video credits as additional metric rows in the detail view.
+**Risk:** Low code complexity. User-visible label change needs a migration note in the release.
+**Note:** Provider icon is already the OpenAI logo — no icon change needed.
 
-### Cursor Provider
+#### Rename Gemini CLI → Google AI
 **Status:** Backlog
-**Priority:** High — widely used by the Tokenomics target persona
-**Auth:** No API auth needed — reads local state file
-**Data source:** `~/.cursor/User/globalStorage/state.vscdb` (SQLite)
-**Metrics to track:** Token credits consumed from credit pool, remaining balance
-**Ring layout:** Single or dual ring depending on what the schema exposes (needs investigation)
-**Notes:** No official API. SQLite extraction is the same pattern as Codex JSONL tail-reading — local read, no network. Credit pool tracking is the primary value for paid Cursor users. Schema may change across Cursor versions; needs a version-tolerant parser.
-**Risk:** Medium — undocumented schema, subject to change without notice.
+**Priority:** Medium
+**What:** Gemini CLI, Nano Banana 2 (image gen), and Veo (video gen) share Google AI credits (Pro: 1,000/mo, Ultra: 25,000/mo). Rename to "Google AI" and extend with image/video credit consumption. Plan-selection flow already exists.
+**Scope:** Same as OpenAI rename — label change + additional metrics in detail view.
+**Risk:** Low. Existing plan-selection UI carries over. Same label migration caveat.
+**Note:** Provider icon is already the Google AI logo — no icon change needed.
 
-### Midjourney Provider
-**Status:** Placeholder
-**Priority:** Low — no API yet
-**Why placeholder:** Midjourney has announced but not shipped a public API. Building against a scrape or unofficial endpoint is fragile and against ToS. The right call is a visible "coming soon" state in the provider list — signals intent, sets expectation, requires no maintenance.
-**Trigger to build:** Official Midjourney API GA with usage/credit endpoints.
+### Standalone Creative Providers
 
-### Runway Provider
+#### ElevenLabs Provider
+**Status:** Backlog
+**Priority:** High — clear API, clear quotas, strong creative-user demand
+**Auth:** ElevenLabs API key, stored in Keychain
+**Data source:** ElevenLabs REST API — `/v1/user/subscription` endpoint returns character quota used and monthly limit
+**Metrics to track:** Characters generated / monthly character limit
+**Ring layout:** Single ring (`longWindow` nil)
+**Notes:** Clearest win in this phase. Official API, well-documented, character quota maps cleanly to the ring metaphor. API key auth means no OAuth complexity.
+**Risk:** Low.
+
+#### Runway Provider
 **Status:** Backlog
 **Priority:** Medium
 **Auth:** Runway API key, stored in Keychain
 **Data source:** Runway REST API (official, credit balance endpoints)
 **Metrics to track:** API credit balance / monthly allocation
-**Ring layout:** Single ring (credits remaining as utilization)
-**Notes:** Runway is less common in the AI coding tool persona but relevant for design-adjacent users. Official API makes this straightforward once `longWindow` is optional.
+**Ring layout:** Single ring (credits remaining as utilization, `longWindow` nil)
+**Notes:** Design-adjacent user persona overlaps with Tokenomics target. Official API makes this straightforward.
+**Risk:** Low.
+
+#### Stable Diffusion Provider (via Stability AI)
+**Status:** Backlog
+**Priority:** Low
+**Auth:** Stability AI API key
+**Data source:** Stability AI REST API — credit balance endpoints
+**Metrics to track:** Credit balance / allocation
+**Ring layout:** Single ring
+**Notes:** API available and credit-based. Lower priority than ElevenLabs and Runway due to smaller overlap with core user persona.
+**Risk:** Low.
+
+#### Midjourney Provider
+**Status:** Placeholder
+**Priority:** Low — no API yet
+**Why placeholder:** No public API. Building against scrape or unofficial endpoints is fragile and against ToS.
+**Trigger to build:** Official Midjourney API GA with usage/credit endpoints.
+
+#### Suno Provider
+**Status:** Placeholder
+**Priority:** Low — no public API yet
+**Why placeholder:** Music generation is credit-based, but credits are not queryable programmatically.
+**Trigger to build:** Suno public API GA with credit/usage endpoints.
+**Notes:** High-engagement creative tool — worth the placeholder to signal intent.
+
+#### Udio Provider
+**Status:** Placeholder
+**Priority:** Low — no public API yet
+**Why placeholder:** Same situation as Suno. Credit-based billing, no public API.
+**Trigger to build:** Udio public API GA with credit/usage endpoints.
+**Notes:** Udio and Suno are direct competitors. If one ships an API first, the other typically follows.
+
+### Connections Page Redesign
+
+**Status:** Up Next — design in progress (mockups at `mocks/connections-mockup.html`)
+**Priority:** High — gates ecosystem rename work
+**What:** Redesign the Providers settings page to support the expanded provider landscape.
+
+**Design decisions (2026-03-17):**
+
+1. **Section-based organization (no drag reorder in settings).** Providers grouped into fixed sections: Platforms, Coding Tools, Image Generation, Video Generation, Music / Audio / Voice. Reordering happens in the popover only.
+
+2. **Three-state provider model:**
+   - Not Connected → "Connect" button (or "Coming Soon" if no API)
+   - Connected + Visible → Toggle ON, green status text
+   - Connected + Hidden → Toggle OFF, "Disconnect" button appears for full credential removal
+
+3. **Platforms section** for shared-pool ecosystems (OpenAI, Google AI). One toggle per ecosystem, with text subtitle listing what's in the shared pool ("Codex CLI · DALL-E · Sora"). No per-service sub-toggles — connecting to the ecosystem connects to all services in the pool.
+
+4. **Popover and widgets stay flat.** No sections, free drag reorder. The organizational structure lives in settings only.
 
 ---
 
@@ -103,12 +166,6 @@ This phase transforms Tokenomics from passive usage monitor to active agent mana
 AI agents (Claude Code, Codex, Cursor) increasingly pause mid-task and require user approval before proceeding — file writes, shell commands, web fetches. Today, the user must be at their desk watching the terminal. The "go get coffee" problem: agents run autonomously, hit an approval gate, and stall until the user notices.
 
 The watch app use case that makes this real: a user starts a long agent task, walks away, and approves the next step from their wrist without returning to the desk. Usage monitoring on watch is a nice-to-have. Approval from watch is a genuine workflow unlock.
-
-### Usage Threshold Notifications (macOS)
-**Status:** Backlog (infrastructure partially built)
-**Priority:** Medium
-**What:** Push notification when a provider's utilization crosses a threshold (e.g., "Claude Code is at 80% — 1 hour of headroom left").
-**Notes:** `NotificationService.swift` exists. The threshold logic and user-configurable thresholds in Settings are the remaining work. Low-complexity addition on top of existing infrastructure.
 
 ### Agent Approval Request Notifications
 **Status:** Backlog
@@ -133,7 +190,7 @@ The watch app use case that makes this real: a user starts a long agent task, wa
 **Priority:** High — approval is the primary use case, not usage monitoring
 **Primary use case:** Receive agent approval requests, tap to approve, return to what you were doing
 **Secondary use case:** Glance at usage utilization across providers
-**Notes:** The current branch appears to be building the watch app. The framing shift matters for what gets built first: approval UI before usage rings, not after. A watch app that only shows a percentage ring is a novelty. A watch app that lets you unblock a running agent is a tool.
+**Notes:** The framing shift matters for what gets built first: approval UI before usage rings, not after. A watch app that only shows a percentage ring is a novelty. A watch app that lets you unblock a running agent is a tool.
 
 ### iOS Companion App
 **Status:** Backlog
@@ -162,16 +219,13 @@ The original pitch for watch support was "check your usage ring from your wrist.
 The correct framing: **Tokenomics is the control plane for your AI tools.** The watch app exists so you can manage running agents without returning to your desk. This reframes every Phase 2 decision — approval UI is table stakes for watch/phone, not a bonus feature.
 
 ### Revenue Path
-- **Phase 1 (Provider Expansion):** Strengthens free tier. More providers = more users.
-- **Phase 2 (Agent Approval):** First genuine paid-tier candidate. "Would you pay to check a usage ring on your wrist?" is a weak hook. "Would you pay to approve and unblock a running AI agent from your watch?" is a real value proposition.
+- **Phase 1 (Provider Expansion):** Strengthens free tier. More providers = more users. Creative AI providers widen the addressable market beyond coding-only users.
+- **Phase 2 (Agent Approval):** First genuine paid-tier candidate. "Would you pay to approve and unblock a running AI agent from your watch?" is a real value proposition.
 - **Phase 3 (Cross-Platform):** Unlocks Windows/Linux market. Requires paid tier to justify ongoing maintenance.
 - **Team tier (future):** See who on your team is running agents, approve on their behalf, aggregate usage dashboards. This is a B2B play and a much larger market than individual tool monitoring.
 
 ### Connection to Cortex Vision
 Tokenomics started as a usage monitor. The approval flow positions it as the user-facing control layer for AI agent orchestration — closer to what "Cortex" (cross-platform, cross-memory AI coordination) would need as a management interface. Keep this framing in mind when making architecture decisions: data models and notification infrastructure built for approval flows should be designed as if a broader orchestration layer will depend on them later.
-
-### Architectural Watch Item
-Making `longWindow` optional is a prerequisite for every new provider in Phase 1. Don't merge any new provider work until that change ships. Building Copilot or Runway with a fake `longWindow` creates a debt that's annoying to unwind later.
 
 ---
 
@@ -179,10 +233,10 @@ Making `longWindow` optional is a prerequisite for every new provider in Phase 1
 
 | Item | Logged | Notes |
 |------|--------|-------|
-| `longWindow` non-optional on `ProviderUsageSnapshot` | 2026-03-09 | Blocks single-metric providers. Fix before adding Copilot or Runway. |
-| Notification threshold UI not exposed in Settings | 2026-03-09 | `NotificationService.swift` exists, Settings integration is missing. |
-| Cursor provider schema unknown | 2026-03-09 | Needs investigation of `state.vscdb` structure before estimating scope. |
 | Agent approval interception mechanism unknown | 2026-03-09 | Spike required before committing to Phase 2 implementation. |
+| Provider rename: Codex CLI → OpenAI | 2026-03-17 | User-visible label change. Needs migration note. Gates creative AI metrics on OpenAI ecosystem. |
+| Provider rename: Gemini CLI → Google AI | 2026-03-17 | Same as above. Confirm plan-selection flow works after rename. |
+| Connections page doesn't model shared billing pools | 2026-03-17 | Design in progress (`mocks/connections-mockup.html`). Must ship before ecosystem renames. |
 
 ---
 
