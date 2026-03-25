@@ -33,7 +33,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .cursor: return "Cursor"
         case .codex: return "OpenAI"
         case .gemini: return "Google AI"
-        case .stableDiffusion: return "Stable Diffusion"
+        case .stableDiffusion: return "Stability AI"
         case .midjourney: return "Midjourney"
         case .runway: return "Runway"
         case .elevenlabs: return "ElevenLabs"
@@ -50,7 +50,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .cursor: return "Cursor"
         case .codex: return "OpenAI"
         case .gemini: return "Google AI"
-        case .stableDiffusion: return "Stable Diff"
+        case .stableDiffusion: return "Stability"
         case .midjourney: return "Midjourney"
         case .runway: return "Runway"
         case .elevenlabs: return "ElevenLabs"
@@ -248,9 +248,9 @@ extension ProviderId {
 
     var category: ProviderCategory {
         switch self {
-        case .codex, .gemini: return .platforms
+        case .codex, .gemini, .stableDiffusion: return .platforms
         case .claude, .copilot, .cursor: return .codingTools
-        case .stableDiffusion, .midjourney: return .imageGeneration
+        case .midjourney: return .imageGeneration
         case .runway: return .videoGeneration
         case .elevenlabs, .suno, .udio: return .musicAudioVoice
         }
@@ -269,6 +269,7 @@ extension ProviderId {
         switch self {
         case .codex: return "Codex CLI · DALL-E · Sora"
         case .gemini: return "Gemini CLI · Nano Banana 2 · Veo"
+        case .stableDiffusion: return "Stable Diffusion · Stable Image · Stable Video"
         default: return nil
         }
     }
@@ -278,6 +279,24 @@ extension ProviderId {
         switch self {
         case .elevenlabs, .runway, .stableDiffusion: return true
         default: return false
+        }
+    }
+
+    /// Base name for icon assets (without the -white/-black/-d.blue suffix).
+    /// Maps enum rawValues to actual file names in Provider Icons/.
+    var iconBaseName: String {
+        switch self {
+        case .claude: return "Claude"
+        case .codex: return "Codex"
+        case .copilot: return "Copilot"
+        case .cursor: return "Cursor"
+        case .gemini: return "Gemini"
+        case .stableDiffusion: return "stability"
+        case .midjourney: return "midjourney"
+        case .runway: return "runway"
+        case .elevenlabs: return "elevenlabs"
+        case .suno: return "suno"
+        case .udio: return "udio"
         }
     }
 }

@@ -7,6 +7,7 @@ struct ProviderTabView: View {
     @Binding var selection: ProviderId?
     var onMove: ((_ provider: ProviderId, _ toIndex: Int) -> Void)?
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var draggedProvider: ProviderId?
     @State private var dragStartX: CGFloat = 0
     @State private var tabFrames: [ProviderId: CGRect] = [:]
@@ -21,7 +22,7 @@ struct ProviderTabView: View {
                     let isDragging = draggedProvider == provider
 
                     HStack(spacing: 5) {
-                        providerTabIcon(for: provider)
+                        providerTabIcon(for: provider, colorScheme: colorScheme)
                             .resizable()
                             .scaledToFit()
                             .frame(width: 12, height: 12)
@@ -96,8 +97,9 @@ struct ProviderTabView: View {
     }
 }
 
-private func providerTabIcon(for provider: ProviderId) -> Image {
-    let name = "\(provider.rawValue.prefix(1).uppercased())\(provider.rawValue.dropFirst())-white"
+private func providerTabIcon(for provider: ProviderId, colorScheme: ColorScheme) -> Image {
+    let suffix = colorScheme == .dark ? "-white" : "-black"
+    let name = "\(provider.iconBaseName)\(suffix)"
     if let nsImage = NSImage(named: name) {
         return Image(nsImage: nsImage)
     }

@@ -8,6 +8,7 @@ struct AIConnectionsView: View {
     @State private var patText = ""
     @State private var apiKeyEntryProvider: ProviderId?
     @State private var apiKeyText = ""
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -309,11 +310,11 @@ struct AIConnectionsView: View {
     // MARK: - Icon Styling
 
     private func providerIcon(for provider: ProviderId) -> Image {
-        let name = "\(provider.rawValue.prefix(1).uppercased())\(provider.rawValue.dropFirst())-white"
+        let suffix = colorScheme == .dark ? "-white" : "-black"
+        let name = "\(provider.iconBaseName)\(suffix)"
         if let nsImage = NSImage(named: name) {
             return Image(nsImage: nsImage)
         }
-        // Fallback SF Symbol for providers without a custom icon
         return Image(systemName: "sparkles")
     }
 
