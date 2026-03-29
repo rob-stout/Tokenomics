@@ -51,7 +51,9 @@ struct TokenomicsWidget: Widget {
             provider: UsageTimelineProvider()
         ) { entry in
             TokenomicsWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(for: .widget) {
+                    WidgetThemeBackground()
+                }
         }
         .configurationDisplayName("AI Usage")
         .description("Track your AI coding tool usage at a glance.")
