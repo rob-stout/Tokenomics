@@ -20,8 +20,11 @@ struct WidgetTheme {
         LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
+    /// Always returns the branded dark/light theme based on color scheme.
+    /// The `.accented` preset is intentionally retired — on macOS the widget host
+    /// rarely delivers `.fullColor`, so keying on it produced a degraded white/gray
+    /// appearance in almost all real-world placements.
     static func current(for scheme: ColorScheme, renderingMode: WidgetRenderingMode) -> WidgetTheme {
-        guard renderingMode == .fullColor else { return .accented }
         return scheme == .dark ? .dark : .light
     }
 
@@ -92,17 +95,16 @@ extension EnvironmentValues {
 
 // MARK: - Theme Background
 
-/// Renders the branded gradient in full-color mode, system default otherwise.
+/// Renders the branded gradient background for all rendering modes.
+/// Previously used `Rectangle().fill(.fill.tertiary)` for non-fullColor mode,
+/// which resolved to black on macOS widget hosts — `.fill` is a foreground style
+/// and is not valid as a containerBackground fill. Now always uses the branded
+/// gradient keyed on color scheme, which renders correctly in all modes.
 struct WidgetThemeBackground: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.widgetRenderingMode) private var renderingMode
 
     var body: some View {
-        if renderingMode == .fullColor {
-            WidgetTheme.current(for: colorScheme, renderingMode: .fullColor).gradient
-        } else {
-            Rectangle().fill(.fill.tertiary)
-        }
+        WidgetTheme.current(for: colorScheme, renderingMode: .fullColor).gradient
     }
 }
 
