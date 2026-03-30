@@ -25,6 +25,14 @@
             </item>
         -->
         <item>
+            <title>2.6.4</title>
+            <pubDate>Mon, 30 Mar 2026 14:40:54 -0600</pubDate>
+            <sparkle:version>32</sparkle:version>
+            <sparkle:shortVersionString>2.6.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.6.4/Tokenomics-2.6.4.dmg" length="4783348" type="application/octet-stream" sparkle:edSignature="JTs29gxlkTVenUJstyqlsE7U/D9u3SQlTfb1LTKa6rbiFcx5ZTFq0D+HeDBWlBmT77OT3bNqvGKnDHUBM+cdAg=="/>
+        </item>
+        <item>
             <title>2.6.3</title>
             <pubDate>Mon, 30 Mar 2026 14:25:50 -0600</pubDate>
             <sparkle:version>31</sparkle:version>
@@ -39,14 +47,6 @@
             <sparkle:shortVersionString>2.6.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.6.2/Tokenomics-2.6.2.dmg" length="4782914" type="application/octet-stream" sparkle:edSignature="yfRif/BZCmJU7sXaQQ5cOiDX4GNkMKgpcCkLiRI9UQw8f8aNYv7YvE7OT9QXjjT7aMsaYbtA/aJ5E2yL8W1eBQ=="/>
-        </item>
-        <item>
-            <title>2.6.1</title>
-            <pubDate>Sun, 29 Mar 2026 16:18:39 -0600</pubDate>
-            <sparkle:version>29</sparkle:version>
-            <sparkle:shortVersionString>2.6.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.6.1/Tokenomics-2.6.1.dmg" length="4789308" type="application/octet-stream" sparkle:edSignature="VrQk5DFh43Ejv26nZnw10m2/psD7fq4J61H1hiTgDUXudW4UK/LCTcZjbVQukBhwDu93umnlbV1Mr+p6KkvWCA=="/>
         </item>
         <!-- v2.4.6 removed — DMG contained stale binary -->
     </channel>
