@@ -13,11 +13,16 @@ struct WidgetTheme {
     let longColor: Color
     let barTrack: Color
     let barFillOpacity: Double
-    let gradientColors: [Color]
+    let gradientStops: [Gradient.Stop]
     let iconSuffix: String
+    let paceDotColor: Color
 
     var gradient: LinearGradient {
-        LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
+        LinearGradient(
+            stops: gradientStops,
+            startPoint: UnitPoint(x: 0.35, y: 0),
+            endPoint: UnitPoint(x: 0.65, y: 1.0)
+        )
     }
 
     /// Always returns the branded dark/light theme based on color scheme.
@@ -36,11 +41,12 @@ struct WidgetTheme {
         longColor: Color(red: 51/255, green: 137/255, blue: 199/255),
         barTrack: Color(red: 75/255, green: 166/255, blue: 210/255).opacity(0.25),
         barFillOpacity: 1.0,
-        gradientColors: [
-            Color(red: 14/255, green: 51/255, blue: 77/255),
-            Color(red: 5/255, green: 25/255, blue: 40/255)
+        gradientStops: [
+            .init(color: Color(red: 14/255, green: 51/255, blue: 77/255), location: 0.103),
+            .init(color: Color(red: 5/255, green: 25/255, blue: 40/255), location: 0.881)
         ],
-        iconSuffix: "-white"
+        iconSuffix: "-white",
+        paceDotColor: .white
     )
 
     static let light = WidgetTheme(
@@ -49,11 +55,12 @@ struct WidgetTheme {
         longColor: Color(red: 86/255, green: 162/255, blue: 214/255),
         barTrack: Color(red: 40/255, green: 97/255, blue: 149/255).opacity(0.12),
         barFillOpacity: 1.0,
-        gradientColors: [
-            Color(red: 243/255, green: 239/255, blue: 229/255),
-            Color(red: 230/255, green: 224/255, blue: 212/255)
+        gradientStops: [
+            .init(color: Color(red: 243/255, green: 239/255, blue: 229/255), location: 0.016),
+            .init(color: Color(red: 230/255, green: 224/255, blue: 212/255), location: 0.845)
         ],
-        iconSuffix: "-d.blue"
+        iconSuffix: "-d.blue",
+        paceDotColor: Color(red: 14/255, green: 51/255, blue: 77/255)
     )
 
     // MARK: Accented / Vibrant Preset (system semantic colors)
@@ -64,8 +71,9 @@ struct WidgetTheme {
         longColor: .white,
         barTrack: Color.white.opacity(0.1),
         barFillOpacity: 0.6,
-        gradientColors: [],
-        iconSuffix: "-white"
+        gradientStops: [],
+        iconSuffix: "-white",
+        paceDotColor: .white
     )
 
     /// Returns the correct fill color for a given utilization level.
@@ -203,7 +211,7 @@ struct SmallWidgetView: View {
                         // Outer ring tracker dot (short window pace)
                         if provider.shortWindow.pace > 0.02 {
                             Circle()
-                                .fill(theme.shortColor)
+                                .fill(theme.paceDotColor)
                                 .frame(width: 6, height: 6)
                                 .offset(trackerDotOffset(progress: provider.shortWindow.pace, radius: 48))
                         }
@@ -227,7 +235,7 @@ struct SmallWidgetView: View {
                             // Inner ring tracker dot (long window pace)
                             if longWindow.pace > 0.02 {
                                 Circle()
-                                    .fill(theme.longColor)
+                                    .fill(theme.paceDotColor)
                                     .frame(width: 6, height: 6)
                                     .offset(trackerDotOffset(progress: longWindow.pace, radius: 34))
                             }
@@ -297,16 +305,12 @@ struct MediumWidgetView: View {
                 // Provider rows
                 if useCompact {
                     if visibleProviders.count == 3 {
-                        // 3 providers: fill vertical space evenly with space-between layout
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
-                                if index > 0 {
-                                    Spacer(minLength: 0)
-                                }
+                        // 3 providers: fixed 16pt gap between rows
+                        VStack(alignment: .leading, spacing: 16) {
+                            ForEach(visibleProviders, id: \.id) { provider in
                                 CompactProviderRow(provider: provider)
                             }
                         }
-                        .frame(maxHeight: .infinity)
                     } else {
                         // 2 providers: fixed 20pt gap
                         VStack(alignment: .leading, spacing: 20) {
@@ -322,10 +326,7 @@ struct MediumWidgetView: View {
                     }
                 }
 
-                // Trailing spacer only when NOT using space-between layout
-                if !(useCompact && visibleProviders.count == 3) {
-                    Spacer(minLength: 0)
-                }
+                Spacer(minLength: 0)
 
                 // Footer — overflow indicator or share CTA
                 if overflowCount > 0 {
@@ -448,7 +449,7 @@ private struct CompactProviderRow: View {
     @Environment(\.widgetTheme) private var theme
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             // Provider icon
             providerIcon(provider.id, theme: theme)
                 .resizable()
@@ -594,7 +595,7 @@ private struct ShareCTA: View {
                 Text("Tokenomics")
                     .font(.caption2)
             }
-            .foregroundStyle(theme.labelColor.opacity(0.6))
+            .foregroundStyle(theme.labelColor)
             .frame(maxWidth: .infinity, alignment: .center)
         }
     }
@@ -649,7 +650,7 @@ struct WidgetProgressBar: View {
                 if pace > 0.02 {
                     let paceX = geometry.size.width * min(max(pace, 0), 1)
                     Circle()
-                        .fill(isLong ? theme.longColor : theme.shortColor)
+                        .fill(theme.paceDotColor)
                         .frame(width: 5, height: 5)
                         .offset(x: paceX - 2.5)
                 }

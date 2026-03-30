@@ -1,5 +1,6 @@
 import Sparkle
 import SwiftUI
+import UserNotifications
 import WidgetKit
 
 /// Bridges Sparkle's SPUUpdater into SwiftUI as an observable object.
@@ -21,6 +22,10 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUS
             updaterDelegate: self,
             userDriverDelegate: self
         )
+
+        // Clear stale SUAutomaticallyUpdate = 0 that can persist from first-launch
+        // when Sparkle's opt-in dialog never showed (common in LSUIElement apps)
+        UserDefaults.standard.removeObject(forKey: "SUAutomaticallyUpdate")
 
         // Ensure automatic checks are enabled (overrides any stale UserDefaults preference)
         updaterController.updater.automaticallyChecksForUpdates = true
@@ -45,8 +50,22 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUS
         // If Sparkle wants immediate focus, let it show the native alert
         if immediateFocus { return true }
 
-        // Otherwise, show a gentle reminder in our popover
+        // Show badge in our popover
         updateAvailable = true
+
+        // Send a system notification so the user knows without opening the popover
+        let center = UNUserNotificationCenter.current()
+        let content = UNMutableNotificationContent()
+        content.title = "Tokenomics Update Available"
+        content.body = "Version \(update.displayVersionString) is ready to install."
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "sparkle-update-\(update.versionString)",
+            content: content,
+            trigger: nil
+        )
+        center.add(request)
+
         return false
     }
 

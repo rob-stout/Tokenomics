@@ -45,8 +45,8 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
-        CFBundleShortVersionString: "2.6.2"
-        CFBundleVersion: "30"
+        CFBundleShortVersionString: "2.6.3"
+        CFBundleVersion: "31"
         LSUIElement: true
         CFBundleURLTypes:
           - CFBundleURLName: com.robstout.tokenomics
@@ -97,8 +97,8 @@ targets:
       path: TokenomicsWidgets/Info.plist
       properties:
         CFBundleDisplayName: Tokenomics Widgets
-        CFBundleShortVersionString: "2.6.2"
-        CFBundleVersion: "30"
+        CFBundleShortVersionString: "2.6.3"
+        CFBundleVersion: "31"
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
