@@ -6,8 +6,9 @@ import os
 /// Auth: API key stored in Keychain via APIKeyService.
 ///
 /// API: `GET https://api.dev.runwayml.com/v1/credits`
-/// NOTE: The exact API shape is based on Runway's published docs and may require
-/// verification against live responses when first connecting.
+/// Requires `X-Runway-Version` header — without it the API returns HTTP 400
+/// regardless of key validity.
+/// Response: `{ "balance": { "used": Int, "total": Int, "resetsAt": "ISO8601"? } }`
 actor RunwayProvider: UsageProvider {
     let id = ProviderId.runway
     let pollInterval: TimeInterval = 300 // 5 min
@@ -41,10 +42,17 @@ actor RunwayProvider: UsageProvider {
         var request = URLRequest(url: URL(string: "https://api.dev.runwayml.com/v1/credits")!)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Required by Runway — omitting this header returns HTTP 400 regardless of key validity
+        request.setValue("2024-11-06", forHTTPHeaderField: "X-Runway-Version")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateResponse(response)
-        return try JSONDecoder().decode(RunwayCreditsResponse.self, from: data)
+        do {
+            return try JSONDecoder().decode(RunwayCreditsResponse.self, from: data)
+        } catch {
+            Self.log.error("Runway decode failed: \(error). Body: \(String(data: data, encoding: .utf8) ?? "<binary>")")
+            throw AppError.decodingFailed(underlying: error)
+        }
     }
 
     private func validateResponse(_ response: URLResponse) throws {

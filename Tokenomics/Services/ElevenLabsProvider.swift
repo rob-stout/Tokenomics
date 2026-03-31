@@ -43,7 +43,12 @@ actor ElevenLabsProvider: UsageProvider {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateResponse(response)
-        return try JSONDecoder().decode(ElevenLabsSubscription.self, from: data)
+        do {
+            return try JSONDecoder().decode(ElevenLabsSubscription.self, from: data)
+        } catch {
+            Self.log.error("ElevenLabs decode failed: \(error). Body: \(String(data: data, encoding: .utf8) ?? "<binary>")")
+            throw AppError.decodingFailed(underlying: error)
+        }
     }
 
     private func validateResponse(_ response: URLResponse) throws {

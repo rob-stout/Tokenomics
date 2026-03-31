@@ -40,6 +40,12 @@ final class UsageViewModel: ObservableObject {
     @Published var showHowItWorks = false
     @Published var showNotifications = false
 
+    /// API key entry sheet — lifted here so resetNavigation can guard against
+    /// dismissing AIConnectionsView while the sheet is open (the sheet window
+    /// takes key focus, which would otherwise fire didResignKeyNotification and
+    /// tear down the parent view before the sheet renders).
+    @Published var apiKeyEntryProvider: ProviderId?
+
     // MARK: - Providers
 
     private let providers: [ProviderId: any UsageProvider] = [
@@ -377,10 +383,15 @@ final class UsageViewModel: ObservableObject {
         // Otherwise keep the persisted selectedTab as-is
     }
 
-    /// Resets navigation to the home/usage view
+    /// Resets navigation to the home/usage view.
+    /// Skips dismissing AIConnectionsView when the API key entry sheet is open —
+    /// the sheet window takes key focus, firing didResignKeyNotification, and we
+    /// must not destroy the parent view before the sheet can present.
     func resetNavigation() {
         showSettings = false
-        showAIConnections = false
+        if apiKeyEntryProvider == nil {
+            showAIConnections = false
+        }
         showAbout = false
         showHowItWorks = false
         showNotifications = false

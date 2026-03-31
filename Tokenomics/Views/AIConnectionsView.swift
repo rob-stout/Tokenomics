@@ -6,7 +6,6 @@ struct AIConnectionsView: View {
     @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
     @State private var showingPATEntry = false
     @State private var patText = ""
-    @State private var apiKeyEntryProvider: ProviderId?
     @State private var apiKeyText = ""
     @Environment(\.colorScheme) private var colorScheme
 
@@ -47,7 +46,7 @@ struct AIConnectionsView: View {
                 .padding(.vertical, 12)
             }
         }
-        .sheet(item: $apiKeyEntryProvider) { _ in
+        .sheet(item: $viewModel.apiKeyEntryProvider) { _ in
             apiKeyEntrySheet
         }
     }
@@ -226,7 +225,7 @@ struct AIConnectionsView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         } else if provider.usesAPIKeyAuth {
-            smallActionButton("Connect") { apiKeyEntryProvider = provider }
+            smallActionButton("Connect") { viewModel.apiKeyEntryProvider = provider }
         } else if provider == .copilot {
             // Copilot has its own PAT sheet
             switch connection {
@@ -375,7 +374,7 @@ struct AIConnectionsView: View {
 
     private var apiKeyEntrySheet: some View {
         VStack(spacing: 16) {
-            Text("Connect \(apiKeyEntryProvider?.displayName ?? "")")
+            Text("Connect \(viewModel.apiKeyEntryProvider?.displayName ?? "")")
                 .font(.headline)
 
             Text("Enter your API key.")
@@ -391,18 +390,18 @@ struct AIConnectionsView: View {
 
                 Button("Cancel") {
                     apiKeyText = ""
-                    apiKeyEntryProvider = nil
+                    viewModel.apiKeyEntryProvider = nil
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
                 Button("Connect") {
-                    guard let provider = apiKeyEntryProvider else { return }
+                    guard let provider = viewModel.apiKeyEntryProvider else { return }
                     let trimmed = apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmed.isEmpty else { return }
                     APIKeyService.save(trimmed, for: provider)
                     apiKeyText = ""
-                    apiKeyEntryProvider = nil
+                    viewModel.apiKeyEntryProvider = nil
                     viewModel.redetectProviders()
                     viewModel.refresh()
                 }
