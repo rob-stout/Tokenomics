@@ -6,17 +6,10 @@ struct TokenomicsApp: App {
     @StateObject private var viewModel = UsageViewModel()
     @StateObject private var updaterService = UpdaterService()
 
-    /// Width scales with visible tab count.
-    /// Each tab: 12 icon + 5 gap + ~42 text + 24 h-padding = ~83pt.
-    /// Fixed chrome: 16px popover padding × 2 + 2px tab bar padding × 2 = 36pt.
-    /// Tab gaps: 2pt × (n-1).
+    /// 1–3 providers: 360pt (labels fit comfortably).
+    /// 4+ providers: 400pt (icon-only tabs, active tab shows label).
     private var popoverWidth: CGFloat {
-        let n = CGFloat(max(viewModel.visibleProviders.count, 1))
-        let perTab: CGFloat = 83
-        let chrome: CGFloat = 36
-        let gaps = 2 * (n - 1)
-        let computed = n * perTab + gaps + chrome
-        return max(computed, 360)
+        viewModel.visibleProviders.count >= 4 ? 400 : 360
     }
 
     var body: some Scene {

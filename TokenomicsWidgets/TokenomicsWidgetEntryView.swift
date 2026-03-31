@@ -182,78 +182,82 @@ struct SmallWidgetView: View {
 
     var body: some View {
         if let provider = displayProvider {
-            ZStack(alignment: .topLeading) {
-                // Provider icon — top-left corner
+            ZStack(alignment: .topTrailing) {
+                // Provider icon — top-right corner
                 providerIcon(provider.id, theme: theme)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 19, height: 19)
-                    .padding(13.5)
+                    .padding(.top, 14).padding(.trailing, 14)
 
-                // Ring stack + label — centered
-                VStack(spacing: 6) {
+                // Ring stack + label — rings 19pt from top, reset text 12pt from bottom
+                VStack(spacing: 0) {
                     ZStack {
                         // Outer ring track (short window)
                         Circle()
-                            .stroke(theme.barTrack, lineWidth: 6)
-                            .frame(width: 96, height: 96)
+                            .stroke(theme.barTrack, lineWidth: 12)
+                            .frame(width: 114, height: 114)
 
                         // Outer ring fill (short window)
                         Circle()
                             .trim(from: 0, to: min(provider.shortWindow.utilization / 100.0, 1.0))
                             .stroke(
                                 theme.fillColor(for: provider.shortWindow.utilization),
-                                style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                                style: StrokeStyle(lineWidth: 12, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
-                            .frame(width: 96, height: 96)
+                            .frame(width: 114, height: 114)
 
                         // Outer ring tracker dot (short window pace)
                         if provider.shortWindow.pace > 0.02 {
                             Circle()
                                 .fill(theme.paceDotColor)
-                                .frame(width: 6, height: 6)
-                                .offset(trackerDotOffset(progress: provider.shortWindow.pace, radius: 48))
+                                .frame(width: 12, height: 12)
+                                .offset(trackerDotOffset(progress: provider.shortWindow.pace, radius: 57))
                         }
 
                         // Inner ring track (long window — only when available)
                         if let longWindow = provider.longWindow {
                             Circle()
-                                .stroke(theme.barTrack, lineWidth: 6)
-                                .frame(width: 68, height: 68)
+                                .stroke(theme.barTrack, lineWidth: 12)
+                                .frame(width: 85, height: 85)
 
                             // Inner ring fill (long window)
                             Circle()
                                 .trim(from: 0, to: min(longWindow.utilization / 100.0, 1.0))
                                 .stroke(
                                     theme.fillColor(for: longWindow.utilization, isLong: true),
-                                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(-90))
-                                .frame(width: 68, height: 68)
+                                .frame(width: 85, height: 85)
 
                             // Inner ring tracker dot (long window pace)
                             if longWindow.pace > 0.02 {
                                 Circle()
                                     .fill(theme.paceDotColor)
-                                    .frame(width: 6, height: 6)
-                                    .offset(trackerDotOffset(progress: longWindow.pace, radius: 34))
+                                    .frame(width: 12, height: 12)
+                                    .offset(trackerDotOffset(progress: longWindow.pace, radius: 42.5))
                             }
                         }
 
                         // Percentage — centered in rings
                         Text("\(Int(provider.shortWindow.utilization))%")
-                            .font(.system(size: 21, weight: .bold, design: .rounded))
+                            .font(.system(size: 21, weight: .bold))
                             .monospacedDigit()
                             .foregroundStyle(theme.shortColor)
                     }
 
-                    // Reset countdown
+                    Spacer(minLength: 0)
+
+                    // Reset countdown — anchored 12pt from bottom
                     Text("Resets in \(provider.shortWindow.shortTimeUntilReset)")
                         .font(.system(size: 8.7))
                         .foregroundStyle(theme.labelColor)
+                        .padding(.bottom, 12)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.top, 19)
             }
         } else {
             NoDataView()
@@ -299,14 +303,26 @@ struct MediumWidgetView: View {
                             .foregroundStyle(theme.labelColor)
                     }
                 }
-                // Compact header when 3 providers to reclaim vertical space
-                .padding(.bottom, visibleProviders.count >= 3 ? 10 : 20)
+                // Header bottom padding scales with provider count to reclaim vertical space
+                .padding(.bottom, {
+                    if overflowCount > 0 { return 10 }                        // 4+ providers
+                    if visibleProviders.count == 3 { return 16 }              // exactly 3
+                    if visibleProviders.count == 2 { return 16 }              // exactly 2
+                    return 20                                                  // 1 provider
+                }())
 
                 // Provider rows
                 if useCompact {
-                    if visibleProviders.count == 3 {
-                        // 3 providers: fixed 16pt gap between rows
+                    if overflowCount > 0 {
+                        // 4+ providers (visibleProviders capped at 3): tighter 16pt gap
                         VStack(alignment: .leading, spacing: 16) {
+                            ForEach(visibleProviders, id: \.id) { provider in
+                                CompactProviderRow(provider: provider)
+                            }
+                        }
+                    } else if visibleProviders.count == 3 {
+                        // Exactly 3 providers: 20pt gap
+                        VStack(alignment: .leading, spacing: 20) {
                             ForEach(visibleProviders, id: \.id) { provider in
                                 CompactProviderRow(provider: provider)
                             }
@@ -320,7 +336,8 @@ struct MediumWidgetView: View {
                         }
                     }
                 } else {
-                    // 1 provider: spacious single-column
+                    // 1 provider: spacious single-column, centered between header and footer
+                    Spacer(minLength: 0)
                     ForEach(visibleProviders, id: \.id) { provider in
                         LargeProviderRow(provider: provider)
                     }
@@ -342,7 +359,7 @@ struct MediumWidgetView: View {
             }
             .widgetURL(URL(string: "tokenomics://open"))
             .padding(.top, 14)
-            .padding(.bottom, 18)
+            .padding(.bottom, 16)
             .padding(.horizontal, 16)
         } else {
             NoDataView()
@@ -431,7 +448,7 @@ struct LargeWidgetView: View {
             }
             .widgetURL(URL(string: "tokenomics://open"))
             .padding(.top, 14)
-            .padding(.bottom, hasOverflow ? 14 : 18)
+            .padding(.bottom, 14)
             .padding(.horizontal, 16)
         } else {
             NoDataView()

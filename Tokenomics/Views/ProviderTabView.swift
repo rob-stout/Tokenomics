@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Segmented tab bar for switching between providers.
 /// Normal click selects a tab. Cmd+drag reorders tabs (same as macOS menu bar items).
+/// At 4+ providers, inactive tabs collapse to icon-only with a 2-second hover tooltip.
 struct ProviderTabView: View {
     let providers: [ProviderId]
     @Binding var selection: ProviderId?
@@ -11,6 +12,11 @@ struct ProviderTabView: View {
     @State private var draggedProvider: ProviderId?
     @State private var dragStartX: CGFloat = 0
     @State private var tabFrames: [ProviderId: CGRect] = [:]
+    @State private var tooltipProvider: ProviderId?
+    @State private var tooltipTask: Task<Void, Never>?
+
+    /// Icon-only mode kicks in at 4+ providers to keep the popover compact.
+    private var useIconOnly: Bool { providers.count >= 4 }
 
     var body: some View {
         ZStack {
@@ -20,24 +26,28 @@ struct ProviderTabView: View {
             HStack(spacing: 2) {
                 ForEach(providers) { provider in
                     let isDragging = draggedProvider == provider
+                    let isSelected = selection == provider
+                    let showLabel = !useIconOnly || isSelected
 
-                    HStack(spacing: 5) {
+                    HStack(spacing: showLabel ? 5 : 0) {
                         providerTabIcon(for: provider, colorScheme: colorScheme)
                             .resizable()
                             .scaledToFit()
                             .frame(width: 12, height: 12)
-                            .opacity((selection == provider) ? 0.9 : 0.5)
-                        Text(provider.tabLabel)
+                            .opacity(isSelected ? 0.9 : 0.5)
+                        if showLabel {
+                            Text(provider.tabLabel)
+                        }
                     }
                         .font(.caption)
                         .fontWeight(.medium)
                         .padding(.vertical, 6)
-                        .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, showLabel ? 12 : 10)
+                        .frame(maxWidth: showLabel ? .infinity : nil)
                         .contentShape(Rectangle())
-                        .background((selection == provider) ? Color.white.opacity(0.1) : .clear)
+                        .background(isSelected ? Color.white.opacity(0.1) : .clear)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .foregroundStyle((selection == provider) ? .primary : .secondary)
+                        .foregroundStyle(isSelected ? .primary : .secondary)
                         .scaleEffect(isDragging ? 1.08 : 1.0, anchor: .center)
                         .shadow(
                             color: .black.opacity(isDragging ? 0.25 : 0),
@@ -54,7 +64,44 @@ struct ProviderTabView: View {
                                 )
                             }
                         )
-                        .simultaneousGesture(TapGesture().onEnded { selection = provider })
+                        .overlay(alignment: .bottom) {
+                            if tooltipProvider == provider {
+                                Text(provider.tabLabel)
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.primary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .offset(y: 28)
+                                    .transition(.opacity.animation(.easeInOut(duration: 0.15)))
+                            }
+                        }
+                        .onHover { hovering in
+                            // Tooltip only for icon-only inactive tabs
+                            guard useIconOnly, !isSelected else {
+                                tooltipTask?.cancel()
+                                if tooltipProvider == provider { tooltipProvider = nil }
+                                return
+                            }
+                            if hovering {
+                                tooltipTask?.cancel()
+                                tooltipTask = Task { @MainActor in
+                                    try? await Task.sleep(for: .seconds(2))
+                                    guard !Task.isCancelled else { return }
+                                    tooltipProvider = provider
+                                }
+                            } else {
+                                tooltipTask?.cancel()
+                                tooltipProvider = nil
+                            }
+                        }
+                        .simultaneousGesture(TapGesture().onEnded {
+                            tooltipTask?.cancel()
+                            tooltipProvider = nil
+                            selection = provider
+                        })
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 5, coordinateSpace: .named("tabBar"))
                                 .onChanged { value in
@@ -87,6 +134,7 @@ struct ProviderTabView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: providers)
+            .animation(.easeInOut(duration: 0.2), value: selection)
             .padding(2)
         }
         .coordinateSpace(name: "tabBar")
