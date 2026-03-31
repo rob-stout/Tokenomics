@@ -2,7 +2,7 @@ name: Tokenomics
 options:
   bundleIdPrefix: com.robstout
   deploymentTarget:
-    macOS: "13.0"
+    macOS: "14.0"
   xcodeVersion: "16.0"
 packages:
   Sparkle:
@@ -11,7 +11,7 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
 schemes:
   Tokenomics:
     build:
@@ -38,8 +38,16 @@ targets:
         buildPhase: resources
       - path: Tokenomics/Resources/PrivacyInfo.xcprivacy
         buildPhase: resources
-      - path: Tokenomics/Resources/Provider Icons/PNG
+      - path: Tokenomics/Resources/Provider Icons/PNG/1x
         buildPhase: resources
+      - path: Tokenomics/Resources/Provider Icons/PNG/2x
+        buildPhase: resources
+      - path: TokenomicsWidgets/TokenomicsWidgetEntryView.swift
+        type: file
+      - path: TokenomicsWidgets/WidgetIntent.swift
+        type: file
+      - path: TokenomicsWidgets/TokenomicsWidgets.swift
+        type: file
     info:
       path: Tokenomics/Resources/Info.plist
       properties:
@@ -91,7 +99,9 @@ targets:
       - path: TokenomicsWidgets
       - path: Tokenomics/Services/WidgetDataStore.swift
         type: file
-      - path: Tokenomics/Resources/Provider Icons/PNG
+      - path: Tokenomics/Resources/Provider Icons/PNG/1x
+        buildPhase: resources
+      - path: Tokenomics/Resources/Provider Icons/PNG/2x
         buildPhase: resources
     info:
       path: TokenomicsWidgets/Info.plist

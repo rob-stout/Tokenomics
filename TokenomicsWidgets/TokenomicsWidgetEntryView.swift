@@ -76,14 +76,9 @@ struct WidgetTheme {
         paceDotColor: .white
     )
 
-    /// Returns the correct fill color for a given utilization level.
-    /// `isLong` selects `longColor` vs `shortColor` in the normal range.
+    /// Returns the fill color for a bar. `isLong` selects `longColor` vs `shortColor`.
     func fillColor(for utilization: Double, isLong: Bool = false) -> Color {
-        switch utilization {
-        case 0..<70: return isLong ? longColor : shortColor
-        case 70..<90: return .orange
-        default: return .red
-        }
+        isLong ? longColor : shortColor
     }
 }
 
@@ -182,13 +177,13 @@ struct SmallWidgetView: View {
 
     var body: some View {
         if let provider = displayProvider {
-            ZStack(alignment: .topTrailing) {
-                // Provider icon — top-right corner
+            ZStack(alignment: .topLeading) {
+                // Provider icon — top-left corner
                 providerIcon(provider.id, theme: theme)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 19, height: 19)
-                    .padding(.top, 14).padding(.trailing, 14)
+                    .padding(.top, 14).padding(.leading, 14)
 
                 // Ring stack + label — rings 19pt from top, reset text 12pt from bottom
                 VStack(spacing: 0) {
@@ -679,18 +674,35 @@ struct WidgetProgressBar: View {
 
 // MARK: - Shared Functions
 
+/// Maps provider IDs to their icon asset base names.
+private let iconBaseNames: [String: String] = [
+    "claude": "Claude",
+    "codex": "Codex",
+    "copilot": "Copilot",
+    "cursor": "Cursor",
+    "gemini": "Gemini",
+    "stableDiffusion": "stability",
+    "midjourney": "midjourney",
+    "runway": "runway",
+    "elevenlabs": "elevenlabs",
+    "suno": "suno",
+    "udio": "udio"
+]
+
 /// Loads a provider icon PNG from the widget extension bundle.
 /// Selects the correct variant via the theme's iconSuffix.
 func providerIcon(_ id: String, theme: WidgetTheme) -> Image {
-    let name = "\(id.prefix(1).uppercased())\(id.dropFirst())\(theme.iconSuffix)"
+    let baseName = iconBaseNames[id] ?? id
+    let name = "\(baseName)\(theme.iconSuffix)"
     if let nsImage = Bundle.main.image(forResource: name) {
         return Image(nsImage: nsImage)
     }
     return Image(systemName: "questionmark.square")
 }
 
-// MARK: - Previews
+// MARK: - Previews (widget target only — use WidgetPreview.swift for main app canvas previews)
 
+#if WIDGET_EXTENSION
 #Preview("Small — Smart", as: .systemSmall) {
     TokenomicsWidget()
 } timeline: {
@@ -720,3 +732,4 @@ func providerIcon(_ id: String, theme: WidgetTheme) -> Image {
 } timeline: {
     UsageEntry(date: .now, snapshot: nil, selectedProvider: .smart)
 }
+#endif

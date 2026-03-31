@@ -28,6 +28,7 @@ enum WidgetProviderSelection: String, AppEnum {
     ]
 }
 
+#if WIDGET_EXTENSION
 /// Configurable intent for the small widget — lets users pick a specific provider or Smart mode
 struct SelectProviderIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Select Provider"
@@ -36,3 +37,4 @@ struct SelectProviderIntent: WidgetConfigurationIntent {
     @Parameter(title: "Provider", default: .smart)
     var provider: WidgetProviderSelection
 }
+#endif

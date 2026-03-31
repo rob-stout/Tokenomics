@@ -11,6 +11,7 @@ struct UsageEntry: TimelineEntry {
 
 // MARK: - Timeline Provider (Configurable)
 
+#if WIDGET_EXTENSION
 struct UsageTimelineProvider: AppIntentTimelineProvider {
 
     func placeholder(in context: Context) -> UsageEntry {
@@ -69,6 +70,7 @@ struct TokenomicsWidgetBundle: WidgetBundle {
         TokenomicsWidget()
     }
 }
+#endif
 
 // MARK: - Placeholder Data
 
