@@ -1,7 +1,9 @@
 import Foundation
+import os
 
 /// Codex CLI usage provider — reads local JSONL session files (no network needed)
 actor CodexProvider: UsageProvider {
+    private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "CodexProvider")
     let id = ProviderId.codex
     let pollInterval: TimeInterval = 60 // 1 min — local files, no rate limit
 
@@ -129,19 +131,25 @@ actor CodexProvider: UsageProvider {
 
             // Look for token_count events (contain context window data)
             if tokenCount == nil && trimmed.contains("token_count") {
-                if let lineData = trimmed.data(using: .utf8),
-                   let event = try? decoder.decode(CodexTokenCountEvent.self, from: lineData),
-                   let tc = event.tokenCount {
-                    tokenCount = tc
+                if let lineData = trimmed.data(using: .utf8) {
+                    do {
+                        let event = try decoder.decode(CodexTokenCountEvent.self, from: lineData)
+                        tokenCount = event.tokenCount
+                    } catch {
+                        Self.log.error("Failed to decode token_count line in \(url.lastPathComponent): \(error.localizedDescription)")
+                    }
                 }
             }
 
             // Look for rate_limits (still useful for plan_type and reset times)
             if rateLimits == nil && trimmed.contains("rate_limits") {
-                if let lineData = trimmed.data(using: .utf8),
-                   let event = try? decoder.decode(CodexSessionEvent.self, from: lineData),
-                   let rl = event.rateLimits {
-                    rateLimits = rl
+                if let lineData = trimmed.data(using: .utf8) {
+                    do {
+                        let event = try decoder.decode(CodexSessionEvent.self, from: lineData)
+                        rateLimits = event.rateLimits
+                    } catch {
+                        Self.log.error("Failed to decode rate_limits line in \(url.lastPathComponent): \(error.localizedDescription)")
+                    }
                 }
             }
 

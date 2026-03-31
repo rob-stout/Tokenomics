@@ -27,6 +27,9 @@ enum APIKeyService {
               let data = result as? Data,
               let key = String(data: data, encoding: .utf8),
               !key.isEmpty else {
+            if status != errSecSuccess && status != errSecItemNotFound {
+                log.error("Keychain read failed for \(provider.rawValue): OSStatus \(status)")
+            }
             return nil
         }
         return key

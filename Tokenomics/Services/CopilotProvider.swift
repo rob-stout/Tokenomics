@@ -73,6 +73,7 @@ actor CopilotProvider: UsageProvider {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             return (token?.isEmpty == false) ? token : nil
         } catch {
+            Self.log.error("gh auth token subprocess failed: \(error.localizedDescription)")
             return nil
         }
     }

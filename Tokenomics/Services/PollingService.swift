@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Manages periodic polling with per-provider intervals and activity-aware sleep/wake.
 ///
@@ -9,6 +10,8 @@ import Foundation
 /// When idle (no activity for `idleTimeout`): stops polling to save resources.
 /// When activity resumes: immediately fetches and restarts.
 actor PollingService {
+    private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "PollingService")
+
     private var task: Task<Void, Never>?
     private let tickInterval: TimeInterval = 60 // Check every minute
     private let idleTimeout: TimeInterval
@@ -44,6 +47,7 @@ actor PollingService {
         lastActivity = Date()
 
         if wasIdle, task == nil, let action = storedAction {
+            Self.log.info("Polling waking up after idle")
             startLoop(action: action)
         }
     }
@@ -59,10 +63,12 @@ actor PollingService {
         storedAction = action
         guard task == nil else { return }
         lastActivity = Date()
+        Self.log.info("Polling starting")
         startLoop(action: action)
     }
 
     func stop() {
+        Self.log.info("Polling stopping")
         task?.cancel()
         task = nil
         storedAction = nil
@@ -79,6 +85,8 @@ actor PollingService {
         task = Task {
             // Fetch all providers immediately on start/wake
             let now = Date()
+            let initialIds = Array(providerSchedules.keys)
+            Self.log.info("Polling loop started — initial tick for \(initialIds.map(\.rawValue).joined(separator: ", "))")
             for id in providerSchedules.keys {
                 providerSchedules[id]?.lastFetched = now
                 await action(id)
@@ -89,11 +97,16 @@ actor PollingService {
                 guard !Task.isCancelled else { break }
 
                 if isIdle {
+                    Self.log.info("Polling going idle — no activity for \(Int(self.idleTimeout))s")
                     break
                 }
 
                 // Check which providers are due
                 let now = Date()
+                let dueIds = providerSchedules.filter { $0.value.isDue(now: now) }.map(\.key)
+                if !dueIds.isEmpty {
+                    Self.log.debug("Ticking providers: \(dueIds.map(\.rawValue).joined(separator: ", "))")
+                }
                 for (id, schedule) in providerSchedules where schedule.isDue(now: now) {
                     providerSchedules[id]?.lastFetched = now
                     await action(id)

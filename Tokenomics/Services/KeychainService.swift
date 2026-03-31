@@ -36,11 +36,13 @@ enum KeychainService {
     // MARK: - Credentials File
 
     private static func readCredentialsFromFile() -> OAuthCredentials? {
-        guard let data = try? Data(contentsOf: credentialsFileURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let data = try? Data(contentsOf: credentialsFileURL) else { return nil }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let oauth = json["claudeAiOauth"] as? [String: Any],
               let token = oauth["accessToken"] as? String,
               token.hasPrefix("sk-ant-") else {
+            log.error("Failed to parse credentials file — unexpected structure or missing accessToken")
             return nil
         }
         let refreshToken = oauth["refreshToken"] as? String
@@ -69,12 +71,12 @@ enum KeychainService {
             try process.run()
             process.waitUntilExit()
         } catch {
-            log.debug("security CLI failed to launch: \(error.localizedDescription)")
+            log.info("security CLI failed to launch: \(error.localizedDescription)")
             return nil
         }
 
         guard process.terminationStatus == 0 else {
-            log.debug("security CLI exited with status \(process.terminationStatus)")
+            log.info("security CLI exited with status \(process.terminationStatus)")
             return nil
         }
 

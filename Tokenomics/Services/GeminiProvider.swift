@@ -1,7 +1,9 @@
 import Foundation
+import os
 
 /// Gemini CLI usage provider — counts requests from local session files against plan limits
 actor GeminiProvider: UsageProvider {
+    private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "GeminiProvider")
     let id = ProviderId.gemini
     let pollInterval: TimeInterval = 60 // 1 min — local files, no rate limit
 
@@ -115,13 +117,21 @@ actor GeminiProvider: UsageProvider {
         decoder.dateDecodingStrategy = Self.geminiDateStrategy
 
         // Walk ~/.gemini/tmp/*/chats/session-*.json
-        guard let projectDirs = try? fm.contentsOfDirectory(atPath: tmpDir.path) else {
+        let projectDirs: [String]
+        do {
+            projectDirs = try fm.contentsOfDirectory(atPath: tmpDir.path)
+        } catch {
+            Self.log.error("Failed to list Gemini tmp dir: \(error.localizedDescription)")
             return []
         }
 
         for project in projectDirs {
             let chatsDir = tmpDir.appendingPathComponent(project).appendingPathComponent("chats")
-            guard let sessionFiles = try? fm.contentsOfDirectory(atPath: chatsDir.path) else {
+            let sessionFiles: [String]
+            do {
+                sessionFiles = try fm.contentsOfDirectory(atPath: chatsDir.path)
+            } catch {
+                Self.log.debug("Skipping \(project): \(error.localizedDescription)")
                 continue
             }
 
@@ -129,13 +139,15 @@ actor GeminiProvider: UsageProvider {
                 guard file.hasPrefix("session-") && file.hasSuffix(".json") else { continue }
 
                 let filePath = chatsDir.appendingPathComponent(file)
-                guard let data = try? Data(contentsOf: filePath),
-                      let session = try? decoder.decode(GeminiSession.self, from: data) else {
+                do {
+                    let data = try Data(contentsOf: filePath)
+                    let session = try decoder.decode(GeminiSession.self, from: data)
+                    for message in session.messages where message.type == "gemini" {
+                        results.append(message)
+                    }
+                } catch {
+                    Self.log.error("Failed to decode \(file): \(error.localizedDescription)")
                     continue
-                }
-
-                for message in session.messages where message.type == "gemini" {
-                    results.append(message)
                 }
             }
         }

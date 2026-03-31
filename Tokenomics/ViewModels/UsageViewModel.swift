@@ -64,6 +64,8 @@ final class UsageViewModel: ObservableObject {
     private var activityMonitor: ActivityMonitor?
     let notificationService = NotificationService()
 
+    private var isDetecting = false
+
     // MARK: - Computed Properties
 
     /// Providers that are connected (have usage data or are connected)
@@ -427,7 +429,10 @@ final class UsageViewModel: ObservableObject {
 
     /// Re-checks only non-connected providers (called when popover opens or after connecting a provider)
     func redetectProviders() {
+        guard !isDetecting else { return }
+        isDetecting = true
         Task {
+            defer { isDetecting = false }
             for (id, provider) in providerPairs {
                 let current = providerStates[id]?.connection ?? .notInstalled
                 // Skip already-connected providers — no need to re-check
@@ -457,6 +462,15 @@ final class UsageViewModel: ObservableObject {
     private func fetchProvider(_ id: ProviderId) async {
         guard let provider = providers[id] else { return }
         let currentState = providerStates[id] ?? .empty
+        if currentState.connection.isConnected {
+            providerStates[id] = ProviderState(
+                connection: currentState.connection,
+                usage: currentState.usage,
+                error: currentState.error,
+                lastSynced: currentState.lastSynced,
+                isLoading: true
+            )
+        }
         let newState = await fetchSingleProvider(
             id: id, provider: provider, currentState: currentState
         )
@@ -466,6 +480,18 @@ final class UsageViewModel: ObservableObject {
 
     /// Fetch all providers concurrently (used by manual refresh)
     private func fetchAllProviders() async {
+        for (id, _) in providerPairs {
+            let currentState = providerStates[id] ?? .empty
+            if currentState.connection.isConnected {
+                providerStates[id] = ProviderState(
+                    connection: currentState.connection,
+                    usage: currentState.usage,
+                    error: currentState.error,
+                    lastSynced: currentState.lastSynced,
+                    isLoading: true
+                )
+            }
+        }
         await withTaskGroup(of: (ProviderId, ProviderState).self) { group in
             for (id, provider) in providerPairs {
                 let currentState = providerStates[id] ?? .empty

@@ -87,9 +87,9 @@ actor UsageService {
             return try decoder.decode(UsageData.self, from: data)
         } catch {
             if let raw = String(data: data, encoding: .utf8) {
-                print("[UsageService] Raw API response: \(raw)")
+                Self.log.error("Raw API response (decode failure): \(raw, privacy: .public)")
             }
-            print("[UsageService] Decode error: \(error)")
+            Self.log.error("Decode error: \(error.localizedDescription)")
             throw AppError.decodingFailed(underlying: error)
         }
     }
