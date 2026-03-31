@@ -1,4 +1,4 @@
-2#if DEBUG
+#if DEBUG
 import SwiftUI
 import WidgetKit
 
