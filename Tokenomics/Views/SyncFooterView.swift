@@ -30,16 +30,10 @@ struct SyncFooterView: View {
     var body: some View {
         HStack {
             TimelineView(.periodic(from: .now, by: 60)) { _ in
-                if isStale {
-                    Text(syncText)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .help("Refreshes every 10 min. Showing most recent available data.")
-                } else {
-                    Text(syncText)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+                Text(syncText)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .help(isStale ? "Rate limited — showing most recent available data." : "")
             }
 
             Spacer()
@@ -50,14 +44,11 @@ struct SyncFooterView: View {
                     .font(.system(size: 13))
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
-                    .rotationEffect(.degrees(isLoading ? 360 : 0))
-                    .animation(
-                        isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default,
-                        value: isLoading
-                    )
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .opacity(isLoading ? 0.4 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isLoading)
             .disabled(isLoading)
 
             // Display mode dropdown (only with multiple providers)

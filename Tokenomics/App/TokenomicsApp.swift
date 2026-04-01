@@ -5,6 +5,7 @@ import SwiftUI
 struct TokenomicsApp: App {
     @StateObject private var viewModel = UsageViewModel()
     @StateObject private var updaterService = UpdaterService()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     /// 1–3 providers: 360pt (labels fit comfortably).
     /// 4+ providers: 400pt (icon-only tabs, active tab shows label).
@@ -16,9 +17,6 @@ struct TokenomicsApp: App {
         MenuBarExtra {
             PopoverView(viewModel: viewModel, updaterService: updaterService)
                 .frame(width: popoverWidth)
-                .onOpenURL { url in
-                    handleURL(url)
-                }
         } label: {
             MenuBarLabel(viewModel: viewModel)
                 .onAppear {
@@ -27,16 +25,28 @@ struct TokenomicsApp: App {
         }
         .menuBarExtraStyle(.window)
     }
+}
 
-    private func handleURL(_ url: URL) {
-        guard url.scheme == "tokenomics" else { return }
+/// Handles tokenomics:// deep links via NSAppleEventManager instead of .onOpenURL,
+/// which fires incorrectly in MenuBarExtra and causes performance issues.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURL(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
+
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let url = URL(string: urlString),
+              url.scheme == "tokenomics" else { return }
 
         switch url.host {
         case "share":
             showShareSheet()
-        case "open":
-            // Default widget tap — popover opens automatically via MenuBarExtra
-            break
         default:
             break
         }

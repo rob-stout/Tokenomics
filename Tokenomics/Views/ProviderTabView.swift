@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Segmented tab bar for switching between providers.
 /// Normal click selects a tab. Cmd+drag reorders tabs (same as macOS menu bar items).
-/// At 4+ providers, inactive tabs collapse to icon-only with a 2-second hover tooltip.
+/// At 4+ providers, inactive tabs collapse to icon-only with a native hover tooltip.
 struct ProviderTabView: View {
     let providers: [ProviderId]
     @Binding var selection: ProviderId?
@@ -12,8 +12,6 @@ struct ProviderTabView: View {
     @State private var draggedProvider: ProviderId?
     @State private var dragStartX: CGFloat = 0
     @State private var tabFrames: [ProviderId: CGRect] = [:]
-    @State private var tooltipProvider: ProviderId?
-    @State private var tooltipTask: Task<Void, Never>?
 
     /// Icon-only mode kicks in at 4+ providers to keep the popover compact.
     private var useIconOnly: Bool { providers.count >= 4 }
@@ -25,112 +23,7 @@ struct ProviderTabView: View {
 
             HStack(spacing: 2) {
                 ForEach(providers) { provider in
-                    let isDragging = draggedProvider == provider
-                    let isSelected = selection == provider
-                    let showLabel = !useIconOnly || isSelected
-
-                    HStack(spacing: showLabel ? 5 : 0) {
-                        providerTabIcon(for: provider, colorScheme: colorScheme)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 12, height: 12)
-                            .opacity(isSelected ? 0.9 : 0.5)
-                        if showLabel {
-                            Text(provider.tabLabel)
-                        }
-                    }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, showLabel ? 12 : 10)
-                        .frame(maxWidth: showLabel ? .infinity : nil)
-                        .contentShape(Rectangle())
-                        .background(isSelected ? Color.white.opacity(0.1) : .clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .foregroundStyle(isSelected ? .primary : .secondary)
-                        .scaleEffect(isDragging ? 1.08 : 1.0, anchor: .center)
-                        .shadow(
-                            color: .black.opacity(isDragging ? 0.25 : 0),
-                            radius: isDragging ? 6 : 0,
-                            x: 0, y: isDragging ? 3 : 0
-                        )
-                        .zIndex(isDragging ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.15), value: draggedProvider)
-                        .background(
-                            GeometryReader { geo in
-                                Color.clear.preference(
-                                    key: TabFramePreference.self,
-                                    value: [provider: geo.frame(in: .named("tabBar"))]
-                                )
-                            }
-                        )
-                        .overlay(alignment: .bottom) {
-                            if tooltipProvider == provider {
-                                Text(provider.tabLabel)
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.primary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                                    .offset(y: 28)
-                                    .transition(.opacity.animation(.easeInOut(duration: 0.15)))
-                            }
-                        }
-                        .onHover { hovering in
-                            // Tooltip only for icon-only inactive tabs
-                            guard useIconOnly, !isSelected else {
-                                tooltipTask?.cancel()
-                                if tooltipProvider == provider { tooltipProvider = nil }
-                                return
-                            }
-                            if hovering {
-                                tooltipTask?.cancel()
-                                tooltipTask = Task { @MainActor in
-                                    try? await Task.sleep(for: .seconds(2))
-                                    guard !Task.isCancelled else { return }
-                                    tooltipProvider = provider
-                                }
-                            } else {
-                                tooltipTask?.cancel()
-                                tooltipProvider = nil
-                            }
-                        }
-                        .simultaneousGesture(TapGesture().onEnded {
-                            tooltipTask?.cancel()
-                            tooltipProvider = nil
-                            selection = provider
-                        })
-                        .simultaneousGesture(
-                            DragGesture(minimumDistance: 5, coordinateSpace: .named("tabBar"))
-                                .onChanged { value in
-                                    guard NSEvent.modifierFlags.contains(.command) else { return }
-
-                                    if draggedProvider == nil {
-                                        draggedProvider = provider
-                                        dragStartX = value.startLocation.x
-                                    }
-
-                                    let currentX = value.location.x
-
-                                    // Find which index the cursor is over
-                                    let targetIndex = providers.enumerated().first { _, id in
-                                        guard let frame = tabFrames[id] else { return false }
-                                        return currentX >= frame.minX && currentX <= frame.maxX
-                                    }?.offset
-
-                                    guard let target = targetIndex,
-                                          let dragged = draggedProvider,
-                                          let sourceIndex = providers.firstIndex(of: dragged),
-                                          target != sourceIndex else { return }
-
-                                    onMove?(dragged, target)
-                                }
-                                .onEnded { _ in
-                                    draggedProvider = nil
-                                }
-                        )
+                    tabItem(for: provider)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: providers)
@@ -142,6 +35,92 @@ struct ProviderTabView: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 16)
         .padding(.top, 12)
+    }
+
+    @ViewBuilder
+    private func tabItem(for provider: ProviderId) -> some View {
+        let isDragging = draggedProvider == provider
+        let isSelected = selection == provider
+        let showLabel = !useIconOnly || isSelected
+
+        tabContent(provider: provider, showLabel: showLabel, isSelected: isSelected)
+            .contentShape(Rectangle())
+            .background(isSelected ? Color.white.opacity(0.1) : .clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .foregroundStyle(isSelected ? .primary : .secondary)
+            .scaleEffect(isDragging ? 1.08 : 1.0, anchor: .center)
+            .shadow(
+                color: .black.opacity(isDragging ? 0.25 : 0),
+                radius: isDragging ? 6 : 0,
+                x: 0, y: isDragging ? 3 : 0
+            )
+            .zIndex(isDragging ? 1 : 0)
+            .animation(.easeInOut(duration: 0.15), value: draggedProvider)
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: TabFramePreference.self,
+                        value: [provider: geo.frame(in: .named("tabBar"))]
+                    )
+                }
+            )
+            .help(useIconOnly && !isSelected ? provider.tabLabel : "")
+            .simultaneousGesture(TapGesture().onEnded {
+                selection = provider
+            })
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 5, coordinateSpace: .named("tabBar"))
+                    .onChanged { value in
+                        guard NSEvent.modifierFlags.contains(.command) else { return }
+
+                        if draggedProvider == nil {
+                            draggedProvider = provider
+                            dragStartX = value.startLocation.x
+                        }
+
+                        let currentX = value.location.x
+
+                        let targetIndex = providers.enumerated().first { _, id in
+                            guard let frame = tabFrames[id] else { return false }
+                            return currentX >= frame.minX && currentX <= frame.maxX
+                        }?.offset
+
+                        guard let target = targetIndex,
+                              let dragged = draggedProvider,
+                              let sourceIndex = providers.firstIndex(of: dragged),
+                              target != sourceIndex else { return }
+
+                        onMove?(dragged, target)
+                    }
+                    .onEnded { _ in
+                        draggedProvider = nil
+                    }
+            )
+    }
+
+    @ViewBuilder
+    private func tabContent(provider: ProviderId, showLabel: Bool, isSelected: Bool) -> some View {
+        let inner = HStack(spacing: showLabel ? 5 : 0) {
+            providerTabIcon(for: provider, colorScheme: colorScheme)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 12, height: 12)
+                .opacity(isSelected ? 0.9 : 0.5)
+            if showLabel {
+                Text(provider.tabLabel)
+                    .lineLimit(1)
+            }
+        }
+        .font(.caption)
+        .fontWeight(.medium)
+        .padding(.vertical, 6)
+        .padding(.horizontal, showLabel ? 12 : 10)
+
+        if useIconOnly && isSelected {
+            inner.frame(width: 160)
+        } else {
+            inner.frame(maxWidth: .infinity)
+        }
     }
 }
 

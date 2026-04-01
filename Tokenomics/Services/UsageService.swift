@@ -84,7 +84,9 @@ actor UsageService {
         }
 
         do {
-            return try decoder.decode(UsageData.self, from: data)
+            let usage = try decoder.decode(UsageData.self, from: data)
+            Self.log.info("Plan inference: hasExtraUsage=\(usage.extraUsage != nil, privacy: .public), hasOpus=\(usage.sevenDayOpus != nil, privacy: .public), hasSonnet=\(usage.sevenDaySonnet != nil, privacy: .public) → \(usage.inferredPlan.rawValue, privacy: .public)")
+            return usage
         } catch {
             if let raw = String(data: data, encoding: .utf8) {
                 Self.log.error("Raw API response (decode failure): \(raw, privacy: .public)")

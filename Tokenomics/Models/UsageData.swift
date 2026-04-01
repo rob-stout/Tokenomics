@@ -10,9 +10,11 @@ struct UsageData: Decodable, Sendable {
     let sevenDayCowork: UsagePeriod?
     let extraUsage: ExtraUsage?
 
-    /// Inferred plan type based on available usage data
+    /// Inferred plan type based on available usage data.
+    /// Max plans include the `extra_usage` field (even when not opted in).
+    /// Pro plans have per-model breakdowns but no `extra_usage`.
     var inferredPlan: PlanType {
-        if extraUsage?.isEnabled == true {
+        if extraUsage != nil {
             return .max
         } else if sevenDayOpus != nil || sevenDaySonnet != nil {
             return .pro

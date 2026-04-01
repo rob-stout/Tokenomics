@@ -462,7 +462,12 @@ struct PopoverView: View {
 
                 Divider().padding(.horizontal, 16)
 
-                Button(action: { updaterService.checkForUpdates() }) {
+                Button(action: {
+                    // Activate the app so Sparkle's update window appears above the popover
+                    // without the popover dismissing and swallowing the interaction
+                    NSApp.activate(ignoringOtherApps: true)
+                    updaterService.checkForUpdates()
+                }) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.caption)
