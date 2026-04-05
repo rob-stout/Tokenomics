@@ -47,6 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch url.host {
         case "share":
             showShareSheet()
+        case "open":
+            NSApp.activate(ignoringOtherApps: true)
         default:
             break
         }

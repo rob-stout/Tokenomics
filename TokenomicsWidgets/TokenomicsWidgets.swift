@@ -59,6 +59,7 @@ struct TokenomicsWidget: Widget {
         .configurationDisplayName("AI Usage")
         .description("Track your AI coding tool usage at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .contentMarginsDisabled()
     }
 }
 
@@ -92,6 +93,22 @@ extension WidgetDataStore.WidgetSnapshot {
                 shortWindow: .init(label: "5-Hour", utilization: 65, resetsAt: Date().addingTimeInterval(3600), windowDuration: 18000),
                 longWindow: .init(label: "Context", utilization: 35, resetsAt: Date().addingTimeInterval(43200), windowDuration: 86400),
                 planLabel: "Plus"
+            ),
+            .init(
+                id: "gemini",
+                displayName: "Google AI",
+                shortLabel: "G",
+                shortWindow: .init(label: "Tokens", utilization: 12, resetsAt: Date().addingTimeInterval(5400), windowDuration: 18000),
+                longWindow: .init(label: "Requests", utilization: 8, resetsAt: Date().addingTimeInterval(172800), windowDuration: 604800),
+                planLabel: "Free"
+            ),
+            .init(
+                id: "copilot",
+                displayName: "GitHub Copilot",
+                shortLabel: "H",
+                shortWindow: .init(label: "Chat", utilization: 3, resetsAt: Date().addingTimeInterval(14400), windowDuration: 18000),
+                longWindow: .init(label: "Completions", utilization: 1, resetsAt: Date().addingTimeInterval(86400), windowDuration: 604800),
+                planLabel: "Free"
             )
         ],
         updatedAt: Date()

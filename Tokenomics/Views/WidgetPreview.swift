@@ -36,6 +36,20 @@ private struct WidgetPreviewContainer<Content: View>: View {
 
 // MARK: - Sample Data
 
+private let oneProvider = WidgetDataStore.WidgetSnapshot(
+    providers: [
+        .init(
+            id: "claude",
+            displayName: "Claude Code",
+            shortLabel: "C",
+            shortWindow: .init(label: "5-Hour", utilization: 42, resetsAt: Date().addingTimeInterval(7200), windowDuration: 18000),
+            longWindow: .init(label: "7-Day", utilization: 28, resetsAt: Date().addingTimeInterval(259200), windowDuration: 604800),
+            planLabel: "Pro"
+        )
+    ],
+    updatedAt: Date()
+)
+
 private let twoProviders = WidgetDataStore.WidgetSnapshot(
     providers: [
         .init(
@@ -110,6 +124,36 @@ private let fourProviders = WidgetDataStore.WidgetSnapshot(
     updatedAt: Date()
 )
 
+private let fiveProviders = WidgetDataStore.WidgetSnapshot(
+    providers: Array(fourProviders.providers) + [
+        .init(id: "cursor", displayName: "Cursor", shortLabel: "Cu",
+              shortWindow: .init(label: "Monthly", utilization: 81, resetsAt: Date().addingTimeInterval(172800), windowDuration: 2592000),
+              longWindow: nil,
+              planLabel: "Pro"),
+    ],
+    updatedAt: Date()
+)
+
+private let sixProviders = WidgetDataStore.WidgetSnapshot(
+    providers: Array(fiveProviders.providers) + [
+        .init(id: "elevenlabs", displayName: "ElevenLabs", shortLabel: "E",
+              shortWindow: .init(label: "Monthly", utilization: 15, resetsAt: Date().addingTimeInterval(604800), windowDuration: 2592000),
+              longWindow: nil,
+              planLabel: "Creator"),
+    ],
+    updatedAt: Date()
+)
+
+private let sevenProviders = WidgetDataStore.WidgetSnapshot(
+    providers: Array(sixProviders.providers) + [
+        .init(id: "runway", displayName: "Runway", shortLabel: "R",
+              shortWindow: .init(label: "Monthly", utilization: 48, resetsAt: Date().addingTimeInterval(345600), windowDuration: 2592000),
+              longWindow: nil,
+              planLabel: "Standard"),
+    ],
+    updatedAt: Date()
+)
+
 private let eightProviders = WidgetDataStore.WidgetSnapshot(
     providers: [
         .init(id: "claude", displayName: "Claude Code", shortLabel: "C",
@@ -166,6 +210,14 @@ private let eightProviders = WidgetDataStore.WidgetSnapshot(
     .background(Color(.windowBackgroundColor))
 }
 
+#Preview("Medium — 1 Provider") {
+    WidgetPreviewContainer(family: .systemMedium, colorScheme: .dark) {
+        MediumWidgetView(entry: UsageEntry(date: .now, snapshot: oneProvider, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
 #Preview("Medium — 2 Providers") {
     WidgetPreviewContainer(family: .systemMedium, colorScheme: .dark) {
         MediumWidgetView(entry: UsageEntry(date: .now, snapshot: twoProviders, selectedProvider: .smart))
@@ -201,6 +253,38 @@ private let eightProviders = WidgetDataStore.WidgetSnapshot(
 #Preview("Large — 3 Providers") {
     WidgetPreviewContainer(family: .systemLarge, colorScheme: .dark) {
         LargeWidgetView(entry: UsageEntry(date: .now, snapshot: threeProviders, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+#Preview("Large — 4 Providers") {
+    WidgetPreviewContainer(family: .systemLarge, colorScheme: .dark) {
+        LargeWidgetView(entry: UsageEntry(date: .now, snapshot: fourProviders, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+#Preview("Large — 5 Providers") {
+    WidgetPreviewContainer(family: .systemLarge, colorScheme: .dark) {
+        LargeWidgetView(entry: UsageEntry(date: .now, snapshot: fiveProviders, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+#Preview("Large — 6 Providers") {
+    WidgetPreviewContainer(family: .systemLarge, colorScheme: .dark) {
+        LargeWidgetView(entry: UsageEntry(date: .now, snapshot: sixProviders, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+#Preview("Large — 7 Providers") {
+    WidgetPreviewContainer(family: .systemLarge, colorScheme: .dark) {
+        LargeWidgetView(entry: UsageEntry(date: .now, snapshot: sevenProviders, selectedProvider: .smart))
     }
     .padding()
     .background(Color(.windowBackgroundColor))

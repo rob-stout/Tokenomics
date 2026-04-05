@@ -177,82 +177,93 @@ struct SmallWidgetView: View {
 
     var body: some View {
         if let provider = displayProvider {
-            ZStack(alignment: .topLeading) {
-                // Provider icon — top-left corner
-                providerIcon(provider.id, theme: theme)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 19, height: 19)
-                    .padding(.top, 14).padding(.leading, 14)
+            GeometryReader { geo in
+                let size = min(geo.size.width, geo.size.height)
+                let outerDia = size * 0.61
+                let innerDia = size * 0.46
+                let lineW = size * 0.07
+                let dotSize = lineW
+                let fontSize = size * 0.125
 
-                // Ring stack + label — rings 19pt from top, reset text 12pt from bottom
+                // Ring pushed slightly below center (top:bottom ≈ 3:2)
                 VStack(spacing: 0) {
+                    Spacer(minLength: 0)
                     ZStack {
                         // Outer ring track (short window)
                         Circle()
-                            .stroke(theme.barTrack, lineWidth: 12)
-                            .frame(width: 114, height: 114)
+                            .stroke(theme.barTrack, lineWidth: lineW)
+                            .frame(width: outerDia, height: outerDia)
 
                         // Outer ring fill (short window)
                         Circle()
                             .trim(from: 0, to: min(provider.shortWindow.utilization / 100.0, 1.0))
                             .stroke(
                                 theme.fillColor(for: provider.shortWindow.utilization),
-                                style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                                style: StrokeStyle(lineWidth: lineW, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
-                            .frame(width: 114, height: 114)
+                            .frame(width: outerDia, height: outerDia)
 
                         // Outer ring tracker dot (short window pace)
                         if provider.shortWindow.pace > 0.02 {
                             Circle()
                                 .fill(theme.paceDotColor)
-                                .frame(width: 12, height: 12)
-                                .offset(trackerDotOffset(progress: provider.shortWindow.pace, radius: 57))
+                                .frame(width: dotSize, height: dotSize)
+                                .offset(trackerDotOffset(progress: provider.shortWindow.pace, radius: outerDia / 2))
                         }
 
                         // Inner ring track (long window — only when available)
                         if let longWindow = provider.longWindow {
                             Circle()
-                                .stroke(theme.barTrack, lineWidth: 12)
-                                .frame(width: 85, height: 85)
+                                .stroke(theme.barTrack, lineWidth: lineW)
+                                .frame(width: innerDia, height: innerDia)
 
                             // Inner ring fill (long window)
                             Circle()
                                 .trim(from: 0, to: min(longWindow.utilization / 100.0, 1.0))
                                 .stroke(
                                     theme.fillColor(for: longWindow.utilization, isLong: true),
-                                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                                    style: StrokeStyle(lineWidth: lineW, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(-90))
-                                .frame(width: 85, height: 85)
+                                .frame(width: innerDia, height: innerDia)
 
                             // Inner ring tracker dot (long window pace)
                             if longWindow.pace > 0.02 {
                                 Circle()
                                     .fill(theme.paceDotColor)
-                                    .frame(width: 12, height: 12)
-                                    .offset(trackerDotOffset(progress: longWindow.pace, radius: 42.5))
+                                    .frame(width: dotSize, height: dotSize)
+                                    .offset(trackerDotOffset(progress: longWindow.pace, radius: innerDia / 2))
                             }
                         }
 
                         // Percentage — centered in rings
                         Text("\(Int(provider.shortWindow.utilization))%")
-                            .font(.system(size: 21, weight: .bold))
+                            .font(.system(size: fontSize, weight: .bold))
                             .monospacedDigit()
                             .foregroundStyle(theme.shortColor)
                     }
+                    .offset(y: size * 0.024)
 
                     Spacer(minLength: 0)
-
-                    // Reset countdown — anchored 12pt from bottom
+                    // Reset countdown — pinned to bottom
                     Text("Resets in \(provider.shortWindow.shortTimeUntilReset)")
-                        .font(.system(size: 8.7))
+                        .font(.system(size: size * 0.052))
                         .foregroundStyle(theme.labelColor)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, size * 0.06)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.top, 19)
+            }
+            .overlay(alignment: .topLeading) {
+                GeometryReader { geo in
+                    let s = min(geo.size.width, geo.size.height)
+                    providerIcon(provider.id, theme: theme)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: s * 0.112, height: s * 0.112)
+                        .padding(.top, s * 0.082)
+                        .padding(.leading, s * 0.082)
+                }
             }
         } else {
             NoDataView()
@@ -298,36 +309,17 @@ struct MediumWidgetView: View {
                             .foregroundStyle(theme.labelColor)
                     }
                 }
-                // Header bottom padding scales with provider count to reclaim vertical space
-                .padding(.bottom, {
-                    if overflowCount > 0 { return 10 }                        // 4+ providers
-                    if visibleProviders.count == 3 { return 16 }              // exactly 3
-                    if visibleProviders.count == 2 { return 16 }              // exactly 2
-                    return 20                                                  // 1 provider
-                }())
+                .padding(.bottom, useCompact ? 0 : 20)
 
                 // Provider rows
                 if useCompact {
-                    if overflowCount > 0 {
-                        // 4+ providers (visibleProviders capped at 3): tighter 16pt gap
-                        VStack(alignment: .leading, spacing: 16) {
-                            ForEach(visibleProviders, id: \.id) { provider in
-                                CompactProviderRow(provider: provider)
+                    // 2+ providers: compact rows with clamped spacing
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
+                            if index > 0 {
+                                Spacer(minLength: 12).frame(maxHeight: 24)
                             }
-                        }
-                    } else if visibleProviders.count == 3 {
-                        // Exactly 3 providers: 20pt gap
-                        VStack(alignment: .leading, spacing: 20) {
-                            ForEach(visibleProviders, id: \.id) { provider in
-                                CompactProviderRow(provider: provider)
-                            }
-                        }
-                    } else {
-                        // 2 providers: fixed 20pt gap
-                        VStack(alignment: .leading, spacing: 20) {
-                            ForEach(visibleProviders, id: \.id) { provider in
-                                CompactProviderRow(provider: provider)
-                            }
+                            CompactProviderRow(provider: provider)
                         }
                     }
                 } else {
@@ -364,8 +356,8 @@ struct MediumWidgetView: View {
 
 // MARK: - Large Widget
 
-/// Full-height widget. 1–4 providers: spacious single-column.
-/// 5–7: compact 2-column with fixed 24pt gap.
+/// Full-height widget. 1–3 providers: spacious single-column.
+/// 4–7: compact rows with fixed 24pt gap.
 /// 8+: compact 2-column, space-between + overflow footer.
 struct LargeWidgetView: View {
     let entry: UsageEntry
@@ -374,7 +366,7 @@ struct LargeWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
-            let useCompact = snapshot.providers.count >= 5
+            let useCompact = snapshot.providers.count >= 4
             let maxVisible = 7
             let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
             let overflowCount = snapshot.providers.count - maxVisible
@@ -397,37 +389,29 @@ struct LargeWidgetView: View {
                 .padding(.bottom, hasOverflow ? 14 : 20)
 
                 // Provider rows
-                if useCompact && hasOverflow {
-                    // 8+ providers: space-between for maximum density
+                if useCompact {
+                    // 4+ providers: compact rows with clamped spacing
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
                             if index > 0 {
-                                Spacer(minLength: 0)
+                                Spacer(minLength: 12).frame(maxHeight: 28)
                             }
                             CompactProviderRow(provider: provider)
                         }
                     }
-                    .frame(maxHeight: .infinity)
-                } else if useCompact {
-                    // 5–7 providers: compact with fixed 24pt gap
-                    VStack(alignment: .leading, spacing: 24) {
-                        ForEach(visibleProviders, id: \.id) { provider in
-                            CompactProviderRow(provider: provider)
-                        }
-                    }
                 } else {
-                    // 1–4 providers: spacious single-column with fixed 20pt gap
-                    VStack(alignment: .leading, spacing: 20) {
-                        ForEach(visibleProviders, id: \.id) { provider in
+                    // 1–3 providers: spacious single-column with clamped spacing
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
+                            if index > 0 {
+                                Spacer(minLength: 16).frame(maxHeight: 24)
+                            }
                             LargeProviderRow(provider: provider)
                         }
                     }
                 }
 
-                // Trailing spacer only when NOT using space-between layout
-                if !(useCompact && hasOverflow) {
-                    Spacer(minLength: 0)
-                }
+                Spacer(minLength: 0)
 
                 // Footer — overflow indicator or share CTA
                 if hasOverflow {
@@ -436,7 +420,7 @@ struct LargeWidgetView: View {
                         .foregroundStyle(theme.labelColor)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 12)
-                } else if useCompact && visibleProviders.count <= 6 {
+                } else if visibleProviders.count <= 7 {
                     ShareCTA()
                         .padding(.top, 12)
                 }
@@ -663,8 +647,8 @@ struct WidgetProgressBar: View {
                     let paceX = geometry.size.width * min(max(pace, 0), 1)
                     Circle()
                         .fill(theme.paceDotColor)
-                        .frame(width: 5, height: 5)
-                        .offset(x: paceX - 2.5)
+                        .frame(width: 4, height: 4)
+                        .offset(x: paceX - 2)
                 }
             }
         }
