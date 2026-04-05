@@ -309,7 +309,7 @@ struct MediumWidgetView: View {
                             .foregroundStyle(theme.labelColor)
                     }
                 }
-                .padding(.bottom, useCompact ? 0 : 20)
+                .padding(.bottom, useCompact ? 8 : 20)
 
                 // Provider rows
                 if useCompact {
@@ -317,7 +317,7 @@ struct MediumWidgetView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
                             if index > 0 {
-                                Spacer(minLength: 12).frame(maxHeight: 24)
+                                Spacer(minLength: 8).frame(maxHeight: 24)
                             }
                             CompactProviderRow(provider: provider)
                         }
