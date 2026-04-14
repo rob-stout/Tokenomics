@@ -17,10 +17,17 @@ schemes:
     build:
       targets:
         Tokenomics: all
+        TokenomicsTests: [test]
     run:
       config: Debug
     archive:
       config: Release
+    test:
+      config: Debug
+      targets:
+        - name: TokenomicsTests
+          parallelizable: true
+          randomExecutionOrder: true
 targets:
   Tokenomics:
     type: application
@@ -137,3 +144,24 @@ targets:
           DEVELOPMENT_TEAM: RPDDQP7KZ5
           CODE_SIGN_IDENTITY: "Developer ID Application"
           PROVISIONING_PROFILE_SPECIFIER: "Tokenomics Widget Developer ID"
+
+  TokenomicsTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget:
+      macOS: "14.0"
+    sources:
+      - path: TokenomicsTests
+    dependencies:
+      - target: Tokenomics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics.tests
+        PRODUCT_NAME: TokenomicsTests
+        SWIFT_STRICT_CONCURRENCY: complete
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        GENERATE_INFOPLIST_FILE: YES
+      configs:
+        debug:
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
