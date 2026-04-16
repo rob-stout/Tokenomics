@@ -21,7 +21,7 @@ Select the **Tokenomics** or **TokenomicsIntegration** scheme before running.
 
 ## Test Suite Overview
 
-### TokenomicsTests (unit tests) — 122 tests across 11 files
+### TokenomicsTests (unit tests) — 161 tests across 12 files
 
 | File | Module | Tests |
 |---|---|---|
@@ -36,6 +36,37 @@ Select the **Tokenomics** or **TokenomicsIntegration** scheme before running.
 | `TrackingBarMathTests.swift` | `WindowUsage.pace`, bar fill | Clamp math (0%, 50%, 100%, >100%, negative), pace at start/midpoint/end, zero-duration windows |
 | `NotificationContentTests.swift` | `NotificationService` content | Title/body string construction per provider, 100%/120% edge cases, identifier format |
 | `ProviderParsingTests.swift` | All providers except Claude | Fixture-based JSON/JSONL decode tests for Codex, Cursor, Copilot, Runway, ElevenLabs, Gemini |
+| `WidgetThemeTests.swift` | `WidgetTheme` | Widget color token pinning — see "Widget theme pinning" section below |
+
+### Widget theme pinning
+
+`WidgetThemeTests.swift` pins every color token in every `WidgetTheme` preset so an accidental change to any RGB value, opacity, or gradient stop location causes an immediate test failure.
+
+**Why it's needed:** Widget color tokens have been accidentally overwritten during refactors. Visual regression only surfaces after a build to a real device. These tests catch it at the unit-test level.
+
+**Presets covered:**
+
+| Preset | Role |
+|---|---|
+| `.dark` | Full-color branded dark background |
+| `.light` | Full-color branded light background |
+| `.accented` | Retired system-semantic preset — structural properties pinned (opacities, iconSuffix, empty gradient) |
+
+**Token coverage per preset (`.dark` and `.light`):**
+- `labelColor` — RGB + alpha
+- `shortColor` — RGB + alpha
+- `longColor` — RGB + alpha
+- `barTrack` — RGB + alpha
+- `barFillOpacity` — scalar
+- `iconSuffix` — string
+- `paceDotColor` — RGB + alpha
+- `gradientStops` — count, per-stop location, per-stop RGB + alpha
+
+**Resolver tests:** `WidgetTheme.current(for:renderingMode:)` is tested for all six `(ColorScheme × WidgetRenderingMode)` combinations (`.dark`/`.light` × `.fullColor`/`.accented`/`.vibrant`). The resolver intentionally ignores `renderingMode` and keys only on `ColorScheme` — these tests enforce that contract.
+
+**Fill color tests:** `fillColor(for:isLong:)` is tested at 0%, 100%, and 150% utilization, for both `isLong: false` (returns `shortColor`) and `isLong: true` (returns `longColor`), plus a default parameter test.
+
+**Color comparison approach:** SwiftUI `Color` doesn't implement meaningful `Equatable` for custom colors. Each color is resolved to `NSColor` in the sRGB color space via `NSColor(swiftUIColor).usingColorSpace(.sRGB)`, then individual RGBA components are compared with `accuracy: 0.0001` (~0.025 out of 255 — well below any perceptible change).
 
 ### TokenomicsIntegrationTests — 8 tests across 2 files
 
@@ -100,9 +131,9 @@ These tests were written to catch specific past bugs. If any of these fail, do n
 | `Widget extension rendering` | `TokenomicsWidgetEntryView` is visual — correctness is tested by eyeballing on a real device. |
 | `ActivityMonitor.swift` | Wraps `NSWorkspace` event observation — no testable pure logic surface. |
 | `LaunchAtLoginService.swift` | Thin wrapper over `SMAppService`. Tested at the OS level during QA. |
-| Color tokens | Colors live in `UsageBarView.swift` (`UsageState.color`) and `MenuBarRingsView.swift` (hardcoded CGColor alpha values). The palette is two colors (orange/red for state, white for bar fill), not a multi-mode token system. Pinning these as exact hex values would couple tests to SwiftUI/AppKit internals without adding meaningful coverage — behavior is verified visually. |
+| `UsageState.color` and `MenuBarRingsView` CGColor alphas | These are view-layer colors (orange/red for state, white for bar fill) tied directly to SwiftUI/AppKit rendering. Pinning them would couple tests to SwiftUI internals without adding meaningful behavioral coverage — verified visually. Widget theme color tokens are covered separately in `WidgetThemeTests.swift`. |
 | StableDiffusionProvider parsing | `BalanceHistory` is private and depends on `UserDefaults.standard` (hard to isolate without test-specific key injection). Balance math is a simple single-field decode. Covered manually. |
-| Midjourney, Suno, Udio providers | No API integration (`hasAPI = false`) — no parse path to test. |
+| Midjourney, Suno, Udio providers | Placeholder providers listed for future support, not yet implemented (coming soon). They have no API integration and no parsing logic — there is nothing to test yet. |
 
 ## Architecture Notes for Tests
 
