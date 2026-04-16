@@ -1,0 +1,26 @@
+{
+  "membershipType": "pro",
+  "isUnlimited": false,
+  "individualUsage": {
+    "plan": {
+      "enabled": true,
+      "used": 350,
+      "limit": 500,
+      "remaining": 150,
+      "breakdown": {
+        "included": 500,
+        "bonus": 0,
+        "total": 500
+      },
+      "totalPercentUsed": 70.0
+    },
+    "onDemand": {
+      "enabled": false,
+      "used": 0,
+      "limit": null
+    }
+  },
+  "billingCycleStart": "2026-04-01T00:00:00Z",
+  "billingCycleEnd": "2026-05-01T00:00:00Z",
+  "autoModelSelectedDisplayMessage": null
+}

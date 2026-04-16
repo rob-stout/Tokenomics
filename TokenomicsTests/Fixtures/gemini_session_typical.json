@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "type": "user",
+      "timestamp": "2026-04-14T10:00:00.000Z",
+      "tokens": null
+    },
+    {
+      "type": "gemini",
+      "timestamp": "2026-04-14T10:00:05.123Z",
+      "tokens": {
+        "input": 1200,
+        "output": 800,
+        "total": 2000
+      }
+    },
+    {
+      "type": "user",
+      "timestamp": "2026-04-14T10:05:00.000Z",
+      "tokens": null
+    },
+    {
+      "type": "gemini",
+      "timestamp": "2026-04-14T10:05:10.456Z",
+      "tokens": {
+        "input": 3000,
+        "output": 1500,
+        "total": 4500
+      }
+    }
+  ]
+}

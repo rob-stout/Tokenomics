@@ -1,0 +1,18 @@
+{
+  "membershipType": "free",
+  "isUnlimited": false,
+  "individualUsage": {
+    "plan": {
+      "enabled": true,
+      "used": 45,
+      "limit": 50,
+      "remaining": 5,
+      "breakdown": null,
+      "totalPercentUsed": 90.0
+    },
+    "onDemand": null
+  },
+  "billingCycleStart": "2026-04-01T00:00:00Z",
+  "billingCycleEnd": "2026-05-01T00:00:00Z",
+  "autoModelSelectedDisplayMessage": "Using claude-3.5-sonnet (free model)"
+}

@@ -3,18 +3,25 @@
 ## Running Tests
 
 ```bash
-# Full test run (via xcodebuild)
+# Unit tests (fast, no entitlements required)
 xcodebuild test -scheme Tokenomics -destination 'platform=macOS'
 
-# Pre-PR gate (regenerates project + build + test)
+# Integration tests (requires App Group entitlement for widget sync)
+xcodebuild test -scheme TokenomicsIntegration -destination 'platform=macOS'
+
+# Pre-PR gate (regenerates project + build + both test suites)
 ./scripts/pre-pr-check.sh
+
+# Skip integration phase (CI without App Group entitlements)
+SKIP_INTEGRATION=1 ./scripts/pre-pr-check.sh
 ```
 
 Tests also run inside Xcode via Product → Test (Cmd+U) or the test navigator.
+Select the **Tokenomics** or **TokenomicsIntegration** scheme before running.
 
 ## Test Suite Overview
 
-**35 tests across 6 files — all critical-path, no fluff.**
+### TokenomicsTests (unit tests) — 122 tests across 11 files
 
 | File | Module | Tests |
 |---|---|---|
@@ -25,6 +32,39 @@ Tests also run inside Xcode via Product → Test (Cmd+U) or the test navigator.
 | `PollingServiceTests.swift` | `PollingService`, `ProviderSchedule` | Initial tick fires immediately, start idempotency, isRunning, schedule due-date math, idle state |
 | `ClaudeProviderTests.swift` | `ClaudeProvider` | Token rotation detection logic (3 branches), plan label mapping |
 | `ProviderTests.swift` | `Provider`, `AppError` | Identity, display labels, short label uniqueness, connection state, error descriptions |
+| `UsageStateTests.swift` | `UsageState` | Threshold boundary pinning (70/90/100) for caution/warning/depleted |
+| `TrackingBarMathTests.swift` | `WindowUsage.pace`, bar fill | Clamp math (0%, 50%, 100%, >100%, negative), pace at start/midpoint/end, zero-duration windows |
+| `NotificationContentTests.swift` | `NotificationService` content | Title/body string construction per provider, 100%/120% edge cases, identifier format |
+| `ProviderParsingTests.swift` | All providers except Claude | Fixture-based JSON/JSONL decode tests for Codex, Cursor, Copilot, Runway, ElevenLabs, Gemini |
+
+### TokenomicsIntegrationTests — 8 tests across 2 files
+
+| File | Module | Tests |
+|---|---|---|
+| `NotificationPostingTests.swift` | `NotificationService` + seam | `add()` called with correct content on threshold cross; not called below threshold or when disconnected |
+| `WidgetSyncTests.swift` | `WidgetDataStore` | Roundtrip write→read equality; multi-provider; second write replaces first; Sparkle relaunch persistence |
+
+### Provider Fixtures (`TokenomicsTests/Fixtures/`)
+
+| File | Provider | Covers |
+|---|---|---|
+| `codex_session_typical.jsonl` | Codex | rate_limits + token_count, plan_type=pro |
+| `codex_session_missing_rate_limits.jsonl` | Codex | token_count only (no rate_limits) |
+| `codex_session_missing_token_count.jsonl` | Codex | rate_limits only (no token_count) |
+| `codex_session_unknown_fields.jsonl` | Codex | Forward compat: extra fields ignored |
+| `cursor_usage_pro.json` | Cursor | Pro plan, server-computed percent |
+| `cursor_usage_free.json` | Cursor | Free plan, autoModelSelectedDisplayMessage |
+| `cursor_usage_missing_fields.json` | Cursor | Null individualUsage graceful fallback |
+| `copilot_user_free.json` | Copilot | Free SKU, limited quotas |
+| `copilot_user_individual.json` | Copilot | Individual SKU, null quotas |
+| `copilot_user_unknown_sku.json` | Copilot | Unknown SKU → copilotPlan fallback |
+| `runway_credits_typical.json` | Runway | Credits with reset date |
+| `runway_credits_no_reset.json` | Runway | Credits with null resets_at |
+| `elevenlabs_subscription_creator.json` | ElevenLabs | Creator tier, Unix reset |
+| `elevenlabs_subscription_free.json` | ElevenLabs | Free tier, null reset |
+| `elevenlabs_subscription_missing_tier.json` | ElevenLabs | Missing tier → "Free" fallback |
+| `gemini_session_typical.json` | Gemini | Two gemini messages with tokens |
+| `gemini_session_no_tokens.json` | Gemini | Gemini message with null tokens |
 
 ## Regression Tests (Mandatory)
 
@@ -42,6 +82,14 @@ These tests were written to catch specific past bugs. If any of these fail, do n
 | `testSmartMode_emptyPinnedSet_isActive` | Empty pinned set = smart (worst-of-N) mode |
 | `testStart_firesInitialTickImmediately` | Initial tick fires on start, not after first interval |
 | `testTokenRotation_differentToken_triggersClear` | Token rotation clears rate-limit backoff |
+| `testSparkleRelaunch_dataPersistedAcrossReads` | Widget data survives Sparkle post-install relaunch (commit d5cee6d regression) |
+| `testEvaluate_thresholdCrossed_callsAddWithCorrectContent` | `fireNotification` actually calls `.add()` — production code path, not just state machine |
+
+## Production Seams Added
+
+| Seam | File | Rationale |
+|---|---|---|
+| `NotificationCenterProtocol` | `NotificationService.swift` | Minimal protocol over `UNUserNotificationCenter` — allows injecting `FakeNotificationCenter` in integration tests without touching the OS notification system. `UNUserNotificationCenter` conforms via extension. `NotificationService.init(notificationCenter:)` defaults to `UNUserNotificationCenter.current()` — zero behavior change in production. |
 
 ## What's Deliberately Skipped
 
@@ -49,13 +97,18 @@ These tests were written to catch specific past bugs. If any of these fail, do n
 |---|---|
 | `UpdaterService.swift` | Sparkle delegate — integration-level, depends on `SPUStandardUserDriverDelegate` lifecycle that doesn't run headlessly. Test via manual TestFlight builds. |
 | `KeychainService.swift` | Wraps Apple's Security framework. Mocking `SecItemCopyMatching` via swizzling isn't worth the fragility at this scale. ClaudeProvider's token-rotation logic is covered by logic-level tests instead. |
-| `Widget extension rendering` | `TokenomicsWidgetEntryView` is visual — correctness is tested by eyeballing on a real device. Widget data store (`WidgetDataStore`) reads from App Group UserDefaults; covered indirectly by SettingsService tests. |
+| `Widget extension rendering` | `TokenomicsWidgetEntryView` is visual — correctness is tested by eyeballing on a real device. |
 | `ActivityMonitor.swift` | Wraps `NSWorkspace` event observation — no testable pure logic surface. |
 | `LaunchAtLoginService.swift` | Thin wrapper over `SMAppService`. Tested at the OS level during QA. |
+| Color tokens | Colors live in `UsageBarView.swift` (`UsageState.color`) and `MenuBarRingsView.swift` (hardcoded CGColor alpha values). The palette is two colors (orange/red for state, white for bar fill), not a multi-mode token system. Pinning these as exact hex values would couple tests to SwiftUI/AppKit internals without adding meaningful coverage — behavior is verified visually. |
+| StableDiffusionProvider parsing | `BalanceHistory` is private and depends on `UserDefaults.standard` (hard to isolate without test-specific key injection). Balance math is a simple single-field decode. Covered manually. |
+| Midjourney, Suno, Udio providers | No API integration (`hasAPI = false`) — no parse path to test. |
 
 ## Architecture Notes for Tests
 
-- **No network calls**: `UsageService` tests validate backoff math directly (the actor's state is isolated; a future refactor could inject a `URLSession` to enable full mock-network tests via `MockURLProtocol`, which is already stubbed in `UsageServiceTests.swift`).
+- **No network calls**: All provider tests use local fixture files. Network paths are tested only indirectly via the state-machine and content-construction tests.
 - **No keychain access**: Token-rotation detection is extracted to pure conditional logic in `ClaudeProviderTests`.
 - **UserDefaults isolation**: `SettingsServiceTests` cleans up all touched keys in `tearDown()` to prevent cross-test contamination.
-- **Swift 6 strict concurrency**: All tests compile with `SWIFT_STRICT_CONCURRENCY: complete`. `NotificationServiceTests` is `@MainActor` to match the service.
+- **Swift 6 strict concurrency**: All tests compile with `SWIFT_STRICT_CONCURRENCY: complete`. `NotificationServiceTests` and `NotificationPostingTests` are `@MainActor` to match the service.
+- **Widget sync in CI**: `WidgetSyncTests` uses `appGroupAvailable` guard — tests skip gracefully when the App Group container isn't provisioned (CI without entitlements). They pass locally with a signed debug build.
+- **Codex JSONL parsing**: Tests decode individual JSONL lines via mirror structs (the event wrappers `CodexSessionEvent`/`CodexTokenCountEvent` are private). `CodexRateLimits`, `CodexTokenCount`, `CodexRateLimitWindow`, and `CodexCredits` are internal and tested directly via `@testable`.

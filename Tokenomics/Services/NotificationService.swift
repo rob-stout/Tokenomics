@@ -2,6 +2,19 @@ import Foundation
 import UserNotifications
 import os
 
+// MARK: - Notification Center Protocol
+
+/// Seam for injecting a fake UNUserNotificationCenter in integration tests.
+/// Production code uses `UNUserNotificationCenter.current()` which cannot be
+/// meaningfully overridden in the test process.
+protocol NotificationCenterProtocol: Sendable {
+    func add(_ request: UNNotificationRequest) async throws
+    func notificationSettings() async -> UNNotificationSettings
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
+}
+
+extension UNUserNotificationCenter: NotificationCenterProtocol {}
+
 // MARK: - Alert State
 
 /// Per-(provider, window) state machine for hysteresis
@@ -33,9 +46,14 @@ final class NotificationService: ObservableObject {
 
     private let logger = Logger(subsystem: "com.robstout.tokenomics", category: "NotificationService")
 
+    /// The notification center used to post requests. Injected for testing;
+    /// defaults to the shared system center.
+    private let notificationCenter: any NotificationCenterProtocol
+
     // MARK: - Init
 
-    init() {
+    init(notificationCenter: (any NotificationCenterProtocol)? = nil) {
+        self.notificationCenter = notificationCenter ?? UNUserNotificationCenter.current()
         Task { await refreshPermissionStatus() }
     }
 
@@ -166,7 +184,7 @@ final class NotificationService: ObservableObject {
             )
 
             do {
-                try await UNUserNotificationCenter.current().add(request)
+                try await notificationCenter.add(request)
                 logger.info("Notification fired: \(identifier)")
             } catch {
                 logger.error("Failed to deliver notification \(identifier): \(error)")
@@ -184,7 +202,7 @@ final class NotificationService: ObservableObject {
             return true
         case .notDetermined:
             do {
-                let granted = try await UNUserNotificationCenter.current()
+                let granted = try await notificationCenter
                     .requestAuthorization(options: [.alert, .sound])
                 permissionStatus = granted ? .authorized : .denied
                 logger.info("Notification permission request result: granted=\(granted)")
@@ -201,7 +219,7 @@ final class NotificationService: ObservableObject {
     }
 
     private func refreshPermissionStatus() async {
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        let settings = await notificationCenter.notificationSettings()
         permissionStatus = settings.authorizationStatus
     }
 }

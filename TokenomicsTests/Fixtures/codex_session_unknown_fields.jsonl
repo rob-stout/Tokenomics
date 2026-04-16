@@ -1,0 +1,2 @@
+{"type":"event_msg","payload":{"rate_limits":{"primary":{"used_percent":55.0,"window_minutes":300,"resets_at":1750000000.0},"secondary":{"used_percent":5.0,"window_minutes":300,"resets_at":1750000000.0},"credits":{"has_credits":true,"unlimited":false,"balance":"$5.00"},"plan_type":"pro","new_future_field":"some_value","another_new_field":42}}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":30000,"output_tokens":5000},"model_context_window":200000,"future_field":"ignored"}}}

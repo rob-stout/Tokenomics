@@ -28,6 +28,20 @@ schemes:
         - name: TokenomicsTests
           parallelizable: true
           randomExecutionOrder: true
+
+  TokenomicsIntegration:
+    build:
+      targets:
+        Tokenomics: all
+        TokenomicsIntegrationTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - name: TokenomicsIntegrationTests
+          parallelizable: false
+          randomExecutionOrder: false
 targets:
   Tokenomics:
     type: application
@@ -152,12 +166,37 @@ targets:
       macOS: "14.0"
     sources:
       - path: TokenomicsTests
+        excludes:
+          - Fixtures
+      - path: TokenomicsTests/Fixtures
+        buildPhase: resources
     dependencies:
       - target: Tokenomics
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics.tests
         PRODUCT_NAME: TokenomicsTests
+        SWIFT_STRICT_CONCURRENCY: complete
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        GENERATE_INFOPLIST_FILE: YES
+      configs:
+        debug:
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
+
+  TokenomicsIntegrationTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget:
+      macOS: "14.0"
+    sources:
+      - path: TokenomicsIntegrationTests
+    dependencies:
+      - target: Tokenomics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics.integration-tests
+        PRODUCT_NAME: TokenomicsIntegrationTests
         SWIFT_STRICT_CONCURRENCY: complete
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         GENERATE_INFOPLIST_FILE: YES
