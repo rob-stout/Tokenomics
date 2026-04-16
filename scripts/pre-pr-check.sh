@@ -34,11 +34,18 @@ echo ""
 
 # 3. Run the unit test suite
 echo "[3/4] Running TokenomicsTests (unit tests)..."
+set +o pipefail
 xcodebuild test \
   -scheme Tokenomics \
   -destination 'platform=macOS' \
   -project "$XCODEPROJ" \
-  | grep -E "(passed|failed|error:|Test session results)" | head -80
+  | grep -E "(passed|failed|error:|Test session results)" | tail -20
+UNIT_EXIT=${PIPESTATUS[0]}
+set -o pipefail
+if [ "$UNIT_EXIT" != "0" ]; then
+  echo "Unit tests FAILED (xcodebuild exit $UNIT_EXIT)"
+  exit 1
+fi
 
 echo ""
 
@@ -47,11 +54,18 @@ if [ "$SKIP_INTEGRATION" = "1" ]; then
   echo "[4/4] Integration tests SKIPPED (SKIP_INTEGRATION=1)"
 else
   echo "[4/4] Running TokenomicsIntegrationTests..."
+  set +o pipefail
   xcodebuild test \
     -scheme TokenomicsIntegration \
     -destination 'platform=macOS' \
     -project "$XCODEPROJ" \
-    | grep -E "(passed|failed|skipped|error:|Test session results)" | head -80
+    | grep -E "(passed|failed|skipped|error:|Test session results)" | tail -20
+  INTEGRATION_EXIT=${PIPESTATUS[0]}
+  set -o pipefail
+  if [ "$INTEGRATION_EXIT" != "0" ]; then
+    echo "Integration tests FAILED (xcodebuild exit $INTEGRATION_EXIT)"
+    exit 1
+  fi
 fi
 
 echo ""
