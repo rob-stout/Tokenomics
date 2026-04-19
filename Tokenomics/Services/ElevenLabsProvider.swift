@@ -64,6 +64,15 @@ actor ElevenLabsProvider: UsageProvider {
         }
     }
 
+    // MARK: - Helpers
+
+    /// Returns the billing cycle duration. Uses 31 days to cover worst-case
+    /// calendar months. Passes 0 when `resetsAt` is distantFuture (nil API
+    /// field) so the pace dot hides honestly.
+    static func cycleDuration(for resetsAt: Date) -> TimeInterval {
+        resetsAt == Date.distantFuture ? 0 : 31 * 24 * 3600
+    }
+
     // MARK: - Mapping
 
     private func mapToSnapshot(_ sub: ElevenLabsSubscription) -> ProviderUsageSnapshot {
@@ -78,8 +87,7 @@ actor ElevenLabsProvider: UsageProvider {
             resetsAt = Date.distantFuture
         }
 
-        // Estimate cycle as ~30 days from now to reset
-        let cycleDuration: TimeInterval = 30 * 24 * 3600
+        let cycleDuration = Self.cycleDuration(for: resetsAt)
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal

@@ -68,6 +68,14 @@ actor RunwayProvider: UsageProvider {
         }
     }
 
+    // MARK: - Helpers
+
+    /// Returns the billing cycle duration. Passes 0 when `resetsAt` is
+    /// distantFuture (nil API field) so the pace dot hides honestly.
+    static func cycleDuration(for resetsAt: Date) -> TimeInterval {
+        resetsAt == Date.distantFuture ? 0 : 30 * 24 * 3600
+    }
+
     // MARK: - Mapping
 
     private func mapToSnapshot(_ response: RunwayCreditsResponse) -> ProviderUsageSnapshot {
@@ -84,8 +92,7 @@ actor RunwayProvider: UsageProvider {
             resetsAt = Date.distantFuture
         }
 
-        let cycleStart = Date()
-        let cycleDuration = max(resetsAt.timeIntervalSince(cycleStart), 30 * 24 * 3600)
+        let cycleDuration = Self.cycleDuration(for: resetsAt)
 
         return ProviderUsageSnapshot(
             shortWindow: WindowUsage(

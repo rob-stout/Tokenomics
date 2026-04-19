@@ -93,7 +93,7 @@ struct HowItWorksView: View {
                         icon: "circle.fill",
                         color: .white,
                         title: "Pace Indicator",
-                        description: "The white dot on each bar marks where even usage would be at this point in the window. Helps you gauge whether to slow down or if you have room to work."
+                        description: "The white dot marks where you'd be if usage were perfectly even across the billing window. Bar behind the dot \u{2014} you have headroom. Bar past the dot \u{2014} you're running ahead of pace. The dot only appears when a provider returns a cycle start date. Without that anchor, the math is a guess, so we hide it. ElevenLabs, Cursor, and Stability AI may not show it if the API response omits that date."
                     )
                     legendRow(
                         icon: "percent",

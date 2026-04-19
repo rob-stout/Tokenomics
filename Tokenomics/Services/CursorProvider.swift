@@ -145,6 +145,16 @@ actor CursorProvider: UsageProvider {
         }
     }
 
+    // MARK: - Helpers
+
+    /// Returns the billing cycle duration when both endpoints are known.
+    /// Without `start`, cycleDuration would equal remaining time and pace
+    /// would always read 0 — so returns 0 to hide the dot honestly.
+    static func cycleDuration(start: Date?, end: Date?) -> TimeInterval {
+        guard let start, let end else { return 0 }
+        return end.timeIntervalSince(start)
+    }
+
     // MARK: - Mapping
 
     private func mapToSnapshot(_ summary: CursorUsageSummary) -> ProviderUsageSnapshot {
@@ -163,8 +173,7 @@ actor CursorProvider: UsageProvider {
         }
 
         let resetsAt = summary.billingCycleEnd ?? Date.distantFuture
-        let cycleStart = summary.billingCycleStart ?? Date()
-        let cycleDuration = resetsAt.timeIntervalSince(cycleStart)
+        let cycleDuration = Self.cycleDuration(start: summary.billingCycleStart, end: summary.billingCycleEnd)
 
         // Build sublabel from actual data
         let sublabel: String

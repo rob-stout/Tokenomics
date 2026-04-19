@@ -900,3 +900,145 @@ a UI hat. Designing the correct model before writing the first integration
 line is the decision that only looks obvious in hindsight.
 
 ---
+
+## 2026-04-06 — v2.7.3–2.7.4: When Production Lies and Preview Tells the Truth [UX+UI]
+
+**Phase**: The Craft — production bug investigation, parametric layout design, and the discipline of testing every state
+
+**The Problem**: Three widget bugs appeared in production that were invisible
+in Xcode previews. The small widget's provider icon was colliding with the
+outer ring. At four providers, the large widget's last row clipped to
+"Completi..." — a layout overflow of ~35pt. The medium widget's overflow
+indicator tapped correctly but did nothing visible. Every bug had passed
+preview review because the conditions that triggered them were never present
+in any preview.
+
+This is a different class of problem than a code bug. The code was
+correct for the state it was shown. The state it was shown was insufficient.
+
+**UX Thinking**: The first hypothesis was that Xcode previews don't match
+production rendering — that the tool was lying. I pushed back on this framing.
+It's almost never the tool. And here it wasn't: the root causes were a
+combination of insufficient preview data (the overflow states simply couldn't
+be seen with two providers), hardcoded pixel values with no margin for
+container variation, and system content margins doubling up with explicit
+padding once `.contentMarginsDisabled()` was absent. Three separate causes,
+all invisible until production — but all diagnosable once the preview data
+was extended to every meaningful state.
+
+The lesson isn't "previews lie." It's "your preview data defines the design
+space you can see." Blind spots are not tool failures — they are test coverage
+failures. The fix was building preview blocks for 1, 2, 3, 4, 5, 6, 7, and 8
+providers across every widget size. A layout problem that cannot be seen
+cannot be designed around.
+
+**UI Craft — Parametric Ring Geometry**: The small widget overflow fix exposed
+the deeper problem. The initial response was to adjust pixel values: reduce
+the outer ring diameter from 114pt to 104pt. That's a patch, not a solution.
+If the container size differs at all between preview and production, any
+hardcoded value breaks.
+
+The redesign expressed every ring element as a percentage of the container
+width instead:
+
+- Outer ring: 61% of container width
+- Inner ring: 46% of container width
+- Stroke weight: 7% of width
+- Font size: 12.5% of width
+- Provider icon: 11.2% of width
+- Corner padding: 8.2% of width
+
+This is the same principle as responsive web design — but applied at the
+widget geometry level. Every element scales with its container. Preview and
+production become equivalent by definition, because the layout language
+doesn't depend on a fixed coordinate space. The widget now renders correctly
+at whatever size the system allocates, not the size it was designed for.
+
+**UI Craft — Clamped Flexible Spacers**: The large widget had the same
+problem in the vertical dimension. Fixed 24pt gaps between provider rows
+look fine at two providers. At seven providers, 6 × 24pt = 144pt of gap
+alone, regardless of available height. The fix replaced fixed gaps with
+clamped flexible spacers: `Spacer(minLength: 8).frame(maxHeight: 24)`.
+
+The spacer flexes between its bounds — it will never crush to less than 8pt
+(providers remain distinct) and will never expand beyond 24pt (providers
+never float apart). Proportional space, bounded at both ends. This is
+parametric thinking applied to vertical layout: not a fixed value, but a
+range with principled constraints.
+
+**UI Craft — Visual vs. Mathematical Centering**: A small but telling detail
+emerged mid-session. The reset countdown text below the rings appeared to sit
+too low — the rings felt like they floated up relative to the visual center
+of the widget. The cause was text frame line-height padding: the bounding
+box around the "Resets in..." text includes invisible leading above the cap
+height that throws off true geometric centering. A `.offset(y: 4)` pushed
+the ring cluster slightly below mathematical center. The result reads as
+balanced; the center is not where the math says it is.
+
+This is the kind of correction that separates "technically correct" from
+"feels right." The code computes mathematical center. The eye perceives
+optical balance. When they conflict, the eye wins.
+
+**UI Craft — Pace Dot Sizing**: A smaller detail, same principle. The pace
+dot on the progress bar was 5pt; the bar track it sat on was 4pt. A bump
+that rises above the surface it's tracking is visually wrong — it implies
+a mistake rather than a position marker. Sizing the dot to match the bar
+(4pt) made the relationship read correctly. Craft is the sum of all the
+small things that no one will notice if they're right, and everyone will
+feel if they're wrong.
+
+**Key Decision**: Compact layout threshold for the large widget lowered from
+5+ to 4+ providers. This came directly from the layout math: `LargeProviderRow`
+at 4 providers overflows by ~35pt. The fix wasn't to squeeze the spacious
+layout harder — it was to switch modes earlier. Accepting that the spacious
+layout simply doesn't fit 4 providers, and adjusting the threshold accordingly,
+is cleaner than trying to rescue a layout that has the wrong shape for its content.
+
+A secondary decision: the medium widget's "+x in app" tap activates the app
+but cannot open the popover programmatically. macOS `MenuBarExtra` windows
+are system-managed; there is no API to force them open. Rather than building
+a fragile workaround, the implementation uses `NSApp.activate(ignoringOtherApps: true)` —
+the HIG-compliant behavior. The user activates the app; the menu bar icon
+is one click away. Fighting the platform is a design decision, and the
+right answer here was not to fight it.
+
+**Process Worth Repeating**: This session used a written spec (`docs/widget-fix-spec.md`)
+before any implementation: measured root causes, before/after diagrams,
+explicit pixel values, and a prioritized fix order. Designer wrote it;
+developer implemented from it; a senior review pass verified the implementation
+matched the spec and caught a stale comment. The spec made the implementation
+reviewable. A verbal brief would have allowed the "implement the fix you
+meant" vs. "implement the fix that was described" ambiguity to survive into
+the next review cycle.
+
+**What I Learned**: The hardest class of bug to catch is the one that
+requires a state you haven't thought to test. The overflow at 4 providers
+didn't exist in any preview because no preview had 4 providers. The lesson
+isn't to add more test cases reactively — it's to think about the full
+state space before considering the layout done. For a widget that supports
+1–8 providers, "does it work?" requires answering for all eight counts,
+not just the two that were convenient to preview.
+
+The parametric refactor came out of the same thinking: if your layout is
+expressed in fixed values, you have implicitly made an assumption about
+the container. Making that assumption explicit — and then eliminating it
+in favor of proportional expressions — is the design version of writing
+testable code. The layout tells you what it depends on.
+
+**Artifacts to Capture**:
+- Small widget before/after: fixed 114pt ring (overlapping icon) vs. proportional 61% ring (clear separation)
+- Preview matrix: 1, 2, 3, 4, 5, 6, 7, 8 providers across small/medium/large — the test coverage grid that made these bugs visible
+- Large widget at 4 providers: before (LargeProviderRow, "Completi..." clipping) vs. after (CompactProviderRow, full content visible)
+- Parametric values table: outer ring 61%, inner ring 46%, stroke 7%, font 12.5%, icon 11.2%, padding 8.2% — the proportional design system
+- Visual centering offset detail: `.offset(y: 4)` and why the math is wrong but the eye is right
+- Clamped spacer diagram: `Spacer(minLength: 8).frame(maxHeight: 24)` — min prevents crushing, max prevents floating
+- `widget-fix-spec.md` — the written design spec as a process artifact; proof that the designer led the implementation, not the other way around
+
+**Story Thread**: "The Craft" arc, continued. The previous widget entry
+designed the layout system from scratch under constraint. This entry stress-
+tested that system against the full state space — and found where the
+assumptions were hiding. The parametric redesign is the direct outcome of
+asking "what does this layout depend on?" rather than "what pixel value
+fixes this?"
+
+---
