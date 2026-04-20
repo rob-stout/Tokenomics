@@ -127,7 +127,7 @@ struct PopoverView: View {
             }
 
             ShareLink(
-                item: URL(string: "https://github.com/rob-stout/Tokenomics")!,
+                item: URL(string: "https://robrstout.com/work/tokenomics/")!,
                 message: Text("I'm tracking my AI coding tool usage with Tokenomics!")
             ) {
                 Image(systemName: "square.and.arrow.up")
