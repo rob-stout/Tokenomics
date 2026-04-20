@@ -6,9 +6,52 @@ import WidgetKit
 /// Bridges Sparkle's SPUUpdater into SwiftUI as an observable object.
 /// Implements gentle reminders for background (LSUIElement) apps so
 /// update alerts surface inside the popover instead of getting buried.
+/// Persists the "an update is pending" flag across app restarts so the blue
+/// dot on Settings / Check for Updates doesn't disappear when the user quits.
+///
+/// Extracted from `UpdaterService` so the logic can be unit-tested without
+/// spinning up Sparkle. Works against any `UserDefaults` instance, including
+/// a disposable one used by tests.
+struct PendingUpdateStore {
+    static let defaultKey = "PendingUpdateVersion"
+
+    let defaults: UserDefaults
+    let key: String
+
+    init(defaults: UserDefaults = .standard, key: String = PendingUpdateStore.defaultKey) {
+        self.defaults = defaults
+        self.key = key
+    }
+
+    /// Record that `version` is available to install.
+    func mark(version: String) {
+        defaults.set(version, forKey: key)
+    }
+
+    /// Forget any stored pending version (user installed or skipped).
+    func clear() {
+        defaults.removeObject(forKey: key)
+    }
+
+    /// Decide whether the dot should be shown on launch.
+    ///
+    /// Returns `true` if a stored pending version exists and is strictly newer
+    /// than `currentVersion`. If the stored version is stale (equal or older
+    /// than what's now installed), clears it as a side effect and returns `false`.
+    func shouldShowBadge(currentVersion: String) -> Bool {
+        guard let pending = defaults.string(forKey: key) else { return false }
+        if pending.compare(currentVersion, options: .numeric) == .orderedDescending {
+            return true
+        }
+        defaults.removeObject(forKey: key)
+        return false
+    }
+}
+
 @MainActor
 final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     private var updaterController: SPUStandardUpdaterController!
+    private let pendingStore = PendingUpdateStore()
 
     @Published var canCheckForUpdates = false
     @Published var updateAvailable = false
@@ -33,10 +76,25 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUS
         // Observe Sparkle's canCheckForUpdates property via KVO
         updaterController.updater.publisher(for: \.canCheckForUpdates)
             .assign(to: &$canCheckForUpdates)
+
+        let current = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? ""
+        updateAvailable = pendingStore.shouldShowBadge(currentVersion: current)
     }
 
     func checkForUpdates() {
         updaterController.checkForUpdates(nil)
+    }
+
+    // MARK: - Pending update persistence
+
+    private func markPendingUpdate(_ version: String) {
+        pendingStore.mark(version: version)
+        updateAvailable = true
+    }
+
+    private func clearPendingUpdate() {
+        pendingStore.clear()
+        updateAvailable = false
     }
 
     // MARK: - SPUStandardUserDriverDelegate
@@ -47,11 +105,11 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUS
         _ update: SUAppcastItem,
         andInImmediateFocus immediateFocus: Bool
     ) -> Bool {
+        // Persist the badge so the dot survives quit/relaunch
+        markPendingUpdate(update.displayVersionString)
+
         // If Sparkle wants immediate focus, let it show the native alert
         if immediateFocus { return true }
-
-        // Show badge in our popover
-        updateAvailable = true
 
         // Send a system notification so the user knows without opening the popover
         let center = UNUserNotificationCenter.current()
@@ -69,12 +127,26 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUS
         return false
     }
 
+    /// Called right before Sparkle shows the update dialog. LSUIElement apps
+    /// need to be explicitly activated or the dialog appears behind other windows.
+    func standardUserDriverWillHandleShowingUpdate(
+        _ handleShowingUpdate: Bool,
+        forUpdate update: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        markPendingUpdate(update.displayVersionString)
+        guard handleShowingUpdate else { return }
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) {
-        updateAvailable = false
+        // Keep the dot visible until the user explicitly installs or skips
     }
 
     func standardUserDriverWillFinishUpdateSession() {
-        updateAvailable = false
+        // Return to menu-bar-only mode after the update dialog closes
+        NSApp.setActivationPolicy(.accessory)
     }
 
     // MARK: - SPUUpdaterDelegate
@@ -83,5 +155,20 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUS
     nonisolated func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
         guard error == nil else { return }
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Clear the persistent dot when the user installs or skips. "Remind Me Later"
+    /// (dismiss) leaves the dot in place so they see it again on next launch.
+    nonisolated func updater(
+        _ updater: SPUUpdater,
+        userDidMake choice: SPUUserUpdateChoice,
+        forUpdate updateItem: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        let shouldClear = (choice == .install || choice == .skip)
+        guard shouldClear else { return }
+        Task { @MainActor in
+            self.clearPendingUpdate()
+        }
     }
 }
