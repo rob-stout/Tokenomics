@@ -6,11 +6,14 @@ struct TokenomicsApp: App {
     @StateObject private var viewModel = UsageViewModel()
     @StateObject private var updaterService = UpdaterService()
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
 
-    /// 1–3 providers: 360pt (labels fit comfortably).
-    /// 4+ providers: 400pt (icon-only tabs, active tab shows label).
+    /// Popover width depends on both provider count (4+ need extra room for
+    /// icon-only tabs) and user-selected text size (Medium/Large need wider
+    /// popovers to avoid cramping or truncating).
     private var popoverWidth: CGFloat {
-        viewModel.visibleProviders.count >= 4 ? 400 : 360
+        let size = TextSize(rawValue: textSizeRaw) ?? .compact
+        return size.popoverWidth(providerCount: viewModel.visibleProviders.count)
     }
 
     var body: some Scene {

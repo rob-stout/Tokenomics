@@ -5,6 +5,8 @@ import UserNotifications
 struct NotificationsView: View {
     @ObservedObject var viewModel: UsageViewModel
 
+    @Environment(\.tokenomicsTextSize) private var textSize
+
     /// Live notification permission status — checked when the view appears
     @State private var authStatus: UNAuthorizationStatus = .notDetermined
 
@@ -170,7 +172,7 @@ struct NotificationsView: View {
                 Button(action: { adjustThreshold(for: providerId, delta: -10) }) {
                     Image(systemName: "minus")
                         .font(.caption2)
-                        .frame(width: 22, height: 22)
+                        .frame(width: 22 * textSize.iconScale, height: 22 * textSize.iconScale)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -184,7 +186,7 @@ struct NotificationsView: View {
                 Button(action: { adjustThreshold(for: providerId, delta: 10) }) {
                     Image(systemName: "plus")
                         .font(.caption2)
-                        .frame(width: 22, height: 22)
+                        .frame(width: 22 * textSize.iconScale, height: 22 * textSize.iconScale)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

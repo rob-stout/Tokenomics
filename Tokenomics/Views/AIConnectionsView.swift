@@ -8,6 +8,7 @@ struct AIConnectionsView: View {
     @State private var patText = ""
     @State private var apiKeyText = ""
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.tokenomicsTextSize) private var textSize
 
     var body: some View {
         VStack(spacing: 0) {
@@ -116,9 +117,9 @@ struct AIConnectionsView: View {
                 providerIcon(for: provider)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 16, height: 16)
+                    .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
             }
-            .frame(width: 26, height: 26)
+            .frame(width: 26 * textSize.iconScale, height: 26 * textSize.iconScale)
             .background(Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 6)

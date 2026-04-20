@@ -9,6 +9,7 @@ struct ProviderTabView: View {
     var onMove: ((_ provider: ProviderId, _ toIndex: Int) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.tokenomicsTextSize) private var textSize
     @State private var draggedProvider: ProviderId?
     @State private var dragStartX: CGFloat = 0
     @State private var tabFrames: [ProviderId: CGRect] = [:]
@@ -104,7 +105,7 @@ struct ProviderTabView: View {
             providerTabIcon(for: provider, colorScheme: colorScheme)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 12, height: 12)
+                .frame(width: 12 * textSize.iconScale, height: 12 * textSize.iconScale)
                 .opacity(isSelected ? 0.9 : 0.5)
             if showLabel {
                 Text(provider.tabLabel)

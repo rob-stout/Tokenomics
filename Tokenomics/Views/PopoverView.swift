@@ -8,6 +8,8 @@ struct PopoverView: View {
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
     @State private var showingGeminiPlanSetup = false
+    @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
+    private var textSize: TextSize { TextSize(rawValue: textSizeRaw) ?? .compact }
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
@@ -22,6 +24,8 @@ struct PopoverView: View {
                 AIConnectionsView(viewModel: viewModel)
             } else if viewModel.showNotifications {
                 NotificationsView(viewModel: viewModel)
+            } else if viewModel.showTextSize {
+                TextSizeView(onDismiss: { viewModel.showTextSize = false })
             } else if viewModel.showSettings {
                 settingsView
             } else if !viewModel.hasCompletedOnboarding {
@@ -33,6 +37,8 @@ struct PopoverView: View {
         .animation(.easeInOut(duration: 0.2), value: viewModel.showSettings)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showAIConnections)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showNotifications)
+        .dynamicTypeSize(textSize.dynamicTypeSize)
+        .environment(\.tokenomicsTextSize, textSize)
         .background {
             // Hidden buttons to register keyboard shortcuts within the popover
             VStack {
@@ -424,6 +430,16 @@ struct PopoverView: View {
                     viewModel.showNotifications = true
                 }
 
+                Divider().padding(.horizontal, 16)
+
+                settingsNavRow(
+                    icon: "textformat.size",
+                    label: "Text Size",
+                    detail: textSize.displayName
+                ) {
+                    viewModel.showTextSize = true
+                }
+
                 // ── Learn ──
                 sectionLabel("Learn")
 
@@ -448,7 +464,7 @@ struct PopoverView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "ladybug")
                             .font(.caption)
-                            .frame(width: 16, height: 16)
+                            .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
                             .foregroundStyle(.secondary)
                         Text("Report Bugs / Feedback")
                             .font(.caption)
@@ -471,7 +487,7 @@ struct PopoverView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.caption)
-                            .frame(width: 16, height: 16)
+                            .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
                             .foregroundStyle(.secondary)
                         Text(updaterService.updateAvailable ? "Update Available" : "Check for Updates")
                             .font(.caption)
@@ -500,7 +516,7 @@ struct PopoverView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "power")
                             .font(.caption)
-                            .frame(width: 16, height: 16)
+                            .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
                             .foregroundStyle(.secondary)
                         Text("Quit Tokenomics")
                             .font(.caption)
@@ -528,10 +544,11 @@ struct PopoverView: View {
     }
 
     private func settingsRow(icon: String, label: String, @ViewBuilder trailing: () -> some View) -> some View {
-        HStack(spacing: 8) {
+        let iconSide = 16 * textSize.iconScale
+        return HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.caption)
-                .frame(width: 16, height: 16)
+                .frame(width: iconSide, height: iconSide)
                 .foregroundStyle(.secondary)
             Text(label)
                 .font(.caption)
@@ -543,11 +560,12 @@ struct PopoverView: View {
     }
 
     private func settingsNavRow(icon: String, label: String, detail: String? = nil, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        let iconSide = 16 * textSize.iconScale
+        return Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.caption)
-                    .frame(width: 16, height: 16)
+                    .frame(width: iconSide, height: iconSide)
                     .foregroundStyle(.secondary)
                 Text(label)
                     .font(.caption)

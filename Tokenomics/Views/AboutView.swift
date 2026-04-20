@@ -5,6 +5,8 @@ import SwiftUI
 struct AboutView: View {
     let onDismiss: () -> Void
 
+    @Environment(\.tokenomicsTextSize) private var textSize
+
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
@@ -54,7 +56,7 @@ struct AboutView: View {
                     HStack(spacing: 12) {
                         Image(nsImage: NSApp.applicationIconImage)
                             .resizable()
-                            .frame(width: 48, height: 48)
+                            .frame(width: 48 * textSize.iconScale, height: 48 * textSize.iconScale)
                             .cornerRadius(10)
 
                         VStack(alignment: .leading, spacing: 2) {
@@ -151,7 +153,7 @@ struct AboutView: View {
                 Image(systemName: icon)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .frame(width: 16, alignment: .center)
+                    .frame(width: 16 * textSize.iconScale, alignment: .center)
 
                 Text(label)
                     .font(.caption)

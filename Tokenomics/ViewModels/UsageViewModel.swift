@@ -39,6 +39,7 @@ final class UsageViewModel: ObservableObject {
     @Published var showAbout = false
     @Published var showHowItWorks = false
     @Published var showNotifications = false
+    @Published var showTextSize = false
 
     /// API key entry sheet — lifted here so resetNavigation can guard against
     /// dismissing AIConnectionsView while the sheet is open (the sheet window
@@ -397,6 +398,7 @@ final class UsageViewModel: ObservableObject {
         showAbout = false
         showHowItWorks = false
         showNotifications = false
+        showTextSize = false
     }
 
     // MARK: - Private

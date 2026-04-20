@@ -3,6 +3,8 @@ import SwiftUI
 /// Reference screen explaining how Tokenomics works and what UI elements mean.
 /// Displayed inline within the popover, replacing the main content.
 struct HowItWorksView: View {
+    @Environment(\.tokenomicsTextSize) private var textSize
+
     let onDismiss: () -> Void
 
     var body: some View {
@@ -154,7 +156,7 @@ struct HowItWorksView: View {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundStyle(color)
-                .frame(width: 16, alignment: .center)
+                .frame(width: 16 * textSize.iconScale, alignment: .center)
                 .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 2) {
