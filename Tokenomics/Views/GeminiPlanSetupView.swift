@@ -21,15 +21,15 @@ struct GeminiPlanSetupView: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "chart.bar.doc.horizontal")
-                .font(.title2)
+                .scaledFont(.title2)
                 .foregroundStyle(.secondary)
 
             Text(isEditing ? "Change Gemini plan" : "Choose your Gemini plan")
-                .font(.caption)
+                .scaledFont(.caption)
                 .fontWeight(.semibold)
 
             Text("Tokenomics uses your plan to calculate daily limits.")
-                .font(.caption)
+                .scaledFont(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
@@ -42,7 +42,7 @@ struct GeminiPlanSetupView: View {
             .padding(.top, 4)
 
             Text(selectedPlan.limitSummary)
-                .font(.caption2)
+                .scaledFont(.caption2)
                 .foregroundStyle(.secondary)
                 .animation(.none, value: selectedPlan)
 
@@ -58,7 +58,7 @@ struct GeminiPlanSetupView: View {
                     onCancel()
                 }
                 .buttonStyle(.plain)
-                .font(.caption)
+                .scaledFont(.caption)
                 .foregroundStyle(.secondary)
             }
         }

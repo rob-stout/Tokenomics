@@ -23,7 +23,7 @@ struct TextSizeView: View {
                 }
 
                 Text("The popover resizes to fit.")
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -41,7 +41,7 @@ struct TextSizeView: View {
                     Image(systemName: "chevron.left")
                     Text("Back")
                 }
-                .font(.caption)
+                .scaledFont(.caption)
                 .padding(.vertical, 4)
                 .padding(.trailing, 8)
                 .contentShape(Rectangle())
@@ -52,7 +52,7 @@ struct TextSizeView: View {
             Spacer()
 
             Text("Text Size")
-                .font(.headline)
+                .scaledFont(.headline)
                 .fontWeight(.medium)
 
             Spacer()
@@ -62,7 +62,7 @@ struct TextSizeView: View {
                 Image(systemName: "chevron.left")
                 Text("Back")
             }
-            .font(.caption)
+            .scaledFont(.caption)
             .hidden()
         }
         .padding(.horizontal, 16)
@@ -79,11 +79,11 @@ struct TextSizeView: View {
         } label: {
             HStack(spacing: 8) {
                 Text(size.displayName)
-                    .font(.caption)
+                    .scaledFont(.caption)
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.caption)
+                        .scaledFont(.caption)
                         .foregroundStyle(.blue)
                 }
             }

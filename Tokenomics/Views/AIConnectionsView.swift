@@ -34,7 +34,7 @@ struct AIConnectionsView: View {
 
                     // Hint text
                     Text("Toggle to show or hide providers. Reorder in the main view.")
-                        .font(.caption2)
+                        .scaledFont(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                         .padding(10)
@@ -61,7 +61,7 @@ struct AIConnectionsView: View {
                     Image(systemName: "chevron.left")
                     Text("Settings")
                 }
-                .font(.caption)
+                .scaledFont(.caption)
                 .padding(.vertical, 4)
                 .padding(.trailing, 8)
                 .contentShape(Rectangle())
@@ -72,7 +72,7 @@ struct AIConnectionsView: View {
             Spacer()
 
             Text("Providers")
-                .font(.headline)
+                .scaledFont(.headline)
                 .fontWeight(.medium)
 
             Spacer()
@@ -82,7 +82,7 @@ struct AIConnectionsView: View {
                 Image(systemName: "chevron.left")
                 Text("Settings")
             }
-            .font(.caption)
+            .scaledFont(.caption)
             .hidden()
         }
         .padding(.horizontal, 16)
@@ -94,7 +94,7 @@ struct AIConnectionsView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.caption2)
+            .scaledFont(.caption2)
             .fontWeight(.semibold)
             .foregroundStyle(.secondary)
             .padding(.top, 12)
@@ -130,24 +130,24 @@ struct AIConnectionsView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(provider.displayName)
-                    .font(.caption)
+                    .scaledFont(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(isConnected && !isHidden ? .primary : .secondary)
 
                 if isConnected {
                     Text(connection.statusText)
-                        .font(.caption2)
+                        .scaledFont(.caption2)
                         .foregroundStyle(.green)
                 } else if provider.hasAPI {
                     Text(connection.statusText)
-                        .font(.caption2)
+                        .scaledFont(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
                 // Shared pool description for platform providers
                 if let poolDesc = provider.sharedPoolDescription, !isConnected {
                     Text(poolDesc)
-                        .font(.caption2)
+                        .scaledFont(.caption2)
                         .foregroundStyle(.tertiary)
                 }
 
@@ -162,7 +162,7 @@ struct AIConnectionsView: View {
                                 viewModel.refresh()
                             }) {
                                 Text(plan.displayLabel)
-                                    .font(.caption2)
+                                    .scaledFont(.caption2)
                                     .fontWeight(.medium)
                                     .padding(.vertical, 4)
                                     .padding(.horizontal, 8)
@@ -223,7 +223,7 @@ struct AIConnectionsView: View {
     private func notConnectedControl(for provider: ProviderId, connection: ProviderConnectionState) -> some View {
         if !provider.hasAPI {
             Text("Coming Soon")
-                .font(.caption2)
+                .scaledFont(.caption2)
                 .foregroundStyle(.tertiary)
         } else if provider.usesAPIKeyAuth {
             smallActionButton("Connect") { viewModel.apiKeyEntryProvider = provider }
@@ -295,7 +295,7 @@ struct AIConnectionsView: View {
     private func smallActionButton(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.caption2)
+                .scaledFont(.caption2)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 3)
@@ -323,16 +323,16 @@ struct AIConnectionsView: View {
     private var patEntrySheet: some View {
         VStack(spacing: 16) {
             Text("Connect GitHub Copilot")
-                .font(.headline)
+                .scaledFont(.headline)
 
             Text("Enter a fine-grained Personal Access Token with **Plan (read)** permission.")
-                .font(.caption)
+                .scaledFont(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             SecureField("ghp_...", text: $patText)
                 .textFieldStyle(.roundedBorder)
-                .font(.caption)
+                .scaledFont(.caption)
 
             HStack {
                 Button("Create Token") {
@@ -341,7 +341,7 @@ struct AIConnectionsView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .font(.caption)
+                .scaledFont(.caption)
                 .foregroundStyle(.secondary)
 
                 Spacer()
@@ -376,15 +376,15 @@ struct AIConnectionsView: View {
     private var apiKeyEntrySheet: some View {
         VStack(spacing: 16) {
             Text("Connect \(viewModel.apiKeyEntryProvider?.displayName ?? "")")
-                .font(.headline)
+                .scaledFont(.headline)
 
             Text("Enter your API key.")
-                .font(.caption)
+                .scaledFont(.caption)
                 .foregroundStyle(.secondary)
 
             SecureField("API Key", text: $apiKeyText)
                 .textFieldStyle(.roundedBorder)
-                .font(.caption)
+                .scaledFont(.caption)
 
             HStack {
                 Spacer()

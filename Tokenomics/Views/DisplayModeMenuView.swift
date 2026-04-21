@@ -23,7 +23,7 @@ struct DisplayModeMenuView: View {
 
             // Pin a specific provider
             Label("Pin Tracker:", systemImage: "pin")
-                .font(.caption2)
+                .scaledFont(.caption2)
 
             ForEach(viewModel.visibleProviders) { provider in
                 Button(action: { viewModel.togglePin(for: provider) }) {
@@ -38,7 +38,7 @@ struct DisplayModeMenuView: View {
         } label: {
             HStack(spacing: 2) {
                 Image(systemName: viewModel.isSmartMode ? "circle.circle" : "pin.fill")
-                    .font(.caption)
+                    .scaledFont(.caption)
                     .imageScale(.small)
                     .foregroundStyle(.secondary)
                 Image(systemName: "chevron.down")

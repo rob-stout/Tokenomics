@@ -36,7 +36,7 @@ struct NotificationsView: View {
                     let connected = viewModel.connectedProviders
                     if connected.isEmpty {
                         Text("No providers connected.")
-                            .font(.caption)
+                            .scaledFont(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.vertical, 10)
                     } else {
@@ -50,7 +50,7 @@ struct NotificationsView: View {
                 }
 
                 Text("Notify when usage crosses this threshold.")
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
                     .padding(.bottom, 12)
@@ -73,7 +73,7 @@ struct NotificationsView: View {
                 }
 
                 Text("Which usage window triggers alerts.")
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
             }
@@ -95,7 +95,7 @@ struct NotificationsView: View {
                     Image(systemName: "chevron.left")
                     Text("Settings")
                 }
-                .font(.caption)
+                .scaledFont(.caption)
                 .padding(.vertical, 4)
                 .padding(.trailing, 8)
                 .contentShape(Rectangle())
@@ -106,7 +106,7 @@ struct NotificationsView: View {
             Spacer()
 
             Text("Notifications")
-                .font(.headline)
+                .scaledFont(.headline)
                 .fontWeight(.medium)
 
             Spacer()
@@ -116,7 +116,7 @@ struct NotificationsView: View {
                 Image(systemName: "chevron.left")
                 Text("Settings")
             }
-            .font(.caption)
+            .scaledFont(.caption)
             .hidden()
         }
         .padding(.horizontal, 16)
@@ -130,13 +130,13 @@ struct NotificationsView: View {
         Button(action: openSystemNotificationSettings) {
             HStack(spacing: 6) {
                 Image(systemName: "bell.slash")
-                    .font(.caption)
+                    .scaledFont(.caption)
                 Text("Notifications are disabled in System Settings.")
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .multilineTextAlignment(.leading)
                 Spacer()
                 Image(systemName: "arrow.up.forward.square")
-                    .font(.caption2)
+                    .scaledFont(.caption2)
             }
             .foregroundStyle(.orange)
             .padding(8)
@@ -150,7 +150,7 @@ struct NotificationsView: View {
 
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
-            .font(.caption2)
+            .scaledFont(.caption2)
             .fontWeight(.semibold)
             .foregroundStyle(.secondary)
             .padding(.bottom, 4)
@@ -164,14 +164,14 @@ struct NotificationsView: View {
 
         HStack(spacing: 10) {
             Text(providerId.displayName)
-                .font(.caption)
+                .scaledFont(.caption)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             // Stepper: minus button, threshold label, plus button
             HStack(spacing: 0) {
                 Button(action: { adjustThreshold(for: providerId, delta: -10) }) {
                     Image(systemName: "minus")
-                        .font(.caption2)
+                        .scaledFont(.caption2)
                         .frame(width: 22 * textSize.iconScale, height: 22 * textSize.iconScale)
                         .contentShape(Rectangle())
                 }
@@ -179,13 +179,13 @@ struct NotificationsView: View {
                 .disabled(!binding.wrappedValue.isEnabled || binding.wrappedValue.threshold <= 50)
 
                 Text("\(binding.wrappedValue.threshold)%")
-                    .font(.caption)
+                    .scaledFont(.caption)
                     .monospacedDigit()
                     .frame(width: 36)
 
                 Button(action: { adjustThreshold(for: providerId, delta: 10) }) {
                     Image(systemName: "plus")
-                        .font(.caption2)
+                        .scaledFont(.caption2)
                         .frame(width: 22 * textSize.iconScale, height: 22 * textSize.iconScale)
                         .contentShape(Rectangle())
                 }

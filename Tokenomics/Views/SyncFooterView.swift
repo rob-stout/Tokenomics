@@ -31,7 +31,7 @@ struct SyncFooterView: View {
         HStack {
             TimelineView(.periodic(from: .now, by: 60)) { _ in
                 Text(syncText)
-                    .font(.caption)
+                    .scaledFont(.caption)
                     .foregroundStyle(.tertiary)
                     .help(isStale ? "Rate limited — showing most recent available data." : "")
             }

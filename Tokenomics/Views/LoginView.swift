@@ -11,12 +11,12 @@ struct LoginView: View {
                 .foregroundStyle(.secondary)
 
             Text("Track your AI coding usage.")
-                .font(.subheadline)
+                .scaledFont(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             Text("Tokenomics reads your credentials automatically. Just sign in to at least one supported tool.")
-                .font(.caption)
+                .scaledFont(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
 
@@ -28,7 +28,7 @@ struct LoginView: View {
 
             if let docsURL = URL(string: "https://code.claude.com/docs/en/setup") {
                 Link("Setup Guide", destination: docsURL)
-                    .font(.caption)
+                    .scaledFont(.caption)
             }
         }
         .padding()

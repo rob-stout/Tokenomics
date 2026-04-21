@@ -18,17 +18,6 @@ enum TextSize: String, CaseIterable, Codable {
         }
     }
 
-    /// The DynamicTypeSize applied at the popover root. Apple's ladder scales
-    /// small text (captions) proportionally more than body text, which is
-    /// exactly what readability-driven users want.
-    var dynamicTypeSize: DynamicTypeSize {
-        switch self {
-        case .compact: return .large        // Apple's "default"
-        case .medium:  return .xLarge       // body 17→19pt, caption 10→12pt
-        case .large:   return .xxLarge      // body 17→21pt, caption 10→14pt
-        }
-    }
-
     /// Multiplier for icons that should grow alongside text
     /// (provider tab icons, settings-row glyphs).
     /// Structural chrome (padding, progress bar height) does NOT use this.
@@ -64,6 +53,64 @@ extension EnvironmentValues {
     var tokenomicsTextSize: TextSize {
         get { self[TokenomicsTextSizeKey.self] }
         set { self[TokenomicsTextSizeKey.self] = newValue }
+    }
+}
+
+// MARK: - Scaled Font
+
+/// Applies an explicit point size to text based on the current TextSize.
+/// Exists because SwiftUI's `.dynamicTypeSize` barely moves semantic fonts on
+/// macOS (xxLarge ≈ +1pt on body text) — not enough scaling for users who
+/// actually need bigger text. This modifier gives us real +2pt / +4pt bumps.
+///
+/// Base sizes match macOS SF Pro defaults for each TextStyle. Weight defaults
+/// match the style's implicit weight (.headline is semibold, the rest regular).
+/// Callers can still chain `.fontWeight(...)` to override.
+struct ScaledFontModifier: ViewModifier {
+    let style: Font.TextStyle
+    @Environment(\.tokenomicsTextSize) private var textSize
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: scaledSize, weight: defaultWeight))
+    }
+
+    private var baseSize: CGFloat {
+        switch style {
+        case .caption2:    return 10
+        case .caption:     return 10
+        case .footnote:    return 10
+        case .subheadline: return 11
+        case .callout:     return 12
+        case .body:        return 13
+        case .headline:    return 13
+        case .title3:      return 15
+        case .title2:      return 17
+        case .title:       return 22
+        case .largeTitle:  return 26
+        @unknown default:  return 13
+        }
+    }
+
+    private var defaultWeight: Font.Weight {
+        style == .headline ? .semibold : .regular
+    }
+
+    private var scaledSize: CGFloat {
+        let addition: CGFloat
+        switch textSize {
+        case .compact: addition = 0
+        case .medium:  addition = 2
+        case .large:   addition = 4
+        }
+        return baseSize + addition
+    }
+}
+
+extension View {
+    /// Drop-in replacement for `.font(.caption)` etc. that scales with the
+    /// popover text size preference.
+    func scaledFont(_ style: Font.TextStyle) -> some View {
+        modifier(ScaledFontModifier(style: style))
     }
 }
 

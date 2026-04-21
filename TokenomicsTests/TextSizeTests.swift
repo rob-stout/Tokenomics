@@ -83,21 +83,6 @@ final class TextSizeTests: XCTestCase {
         }
     }
 
-    // MARK: - dynamicTypeSize
-
-    /// Compact maps to Apple's "default" (.large). If this drifts to .medium
-    /// or smaller, existing users on upgrade would see text shrink.
-    func testDynamicTypeSize_compactMapsToAppleLarge() {
-        XCTAssertEqual(TextSize.compact.dynamicTypeSize, .large)
-    }
-
-    /// Each step up the ladder should correspond to a larger DynamicTypeSize.
-    /// DynamicTypeSize is Comparable, so we can check ordering directly.
-    func testDynamicTypeSize_stepsUpMonotonically() {
-        XCTAssertLessThan(TextSize.compact.dynamicTypeSize, TextSize.medium.dynamicTypeSize)
-        XCTAssertLessThan(TextSize.medium.dynamicTypeSize, TextSize.large.dynamicTypeSize)
-    }
-
     // MARK: - displayName + raw values
 
     /// Raw values are the persistence contract — changing them silently would

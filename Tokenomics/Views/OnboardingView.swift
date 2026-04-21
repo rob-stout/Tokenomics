@@ -20,11 +20,11 @@ struct OnboardingView: View {
 
                 VStack(spacing: 4) {
                     Text("Track your AI coding usage")
-                        .font(.subheadline)
+                        .scaledFont(.subheadline)
                         .fontWeight(.semibold)
 
                     Text("at a glance from the menu bar.")
-                        .font(.caption)
+                        .scaledFont(.caption)
                         .foregroundStyle(.secondary)
                 }
 
@@ -59,7 +59,7 @@ struct OnboardingView: View {
         HStack(spacing: 10) {
             // Provider icon — filled if connected, dimmed if not installed
             Text(provider.shortLabel)
-                .font(.caption)
+                .scaledFont(.caption)
                 .fontWeight(.semibold)
                 .frame(width: 26, height: 26)
                 .background(isConnected ? Color(nsColor: .quaternaryLabelColor) : .clear)
@@ -73,12 +73,12 @@ struct OnboardingView: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(provider.displayName)
-                    .font(.caption)
+                    .scaledFont(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(isConnected ? .primary : .secondary)
 
                 Text(connectionStatusText(connection))
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .foregroundStyle(connectionStatusColor(connection))
             }
 
@@ -95,7 +95,7 @@ struct OnboardingView: View {
                         provider.openInstallInTerminal()
                     }
                 }
-                .font(.caption2)
+                .scaledFont(.caption2)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 3)
                 .overlay(
@@ -110,7 +110,7 @@ struct OnboardingView: View {
                         viewModel.showSettings = true
                         viewModel.showAIConnections = true
                     }
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
                     .overlay(
@@ -124,7 +124,7 @@ struct OnboardingView: View {
                             NSWorkspace.shared.open(url)
                         }
                     }
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
                     .overlay(
@@ -136,7 +136,7 @@ struct OnboardingView: View {
                     Button("Sign In") {
                         provider.openLoginInTerminal()
                     }
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 3)
                     .overlay(

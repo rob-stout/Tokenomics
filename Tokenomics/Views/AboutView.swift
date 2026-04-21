@@ -20,7 +20,7 @@ struct AboutView: View {
                         Image(systemName: "chevron.left")
                         Text("Back")
                     }
-                    .font(.caption)
+                    .scaledFont(.caption)
                     .padding(.vertical, 4)
                     .padding(.trailing, 8)
                     .contentShape(Rectangle())
@@ -31,7 +31,7 @@ struct AboutView: View {
                 Spacer()
 
                 Text("About")
-                    .font(.headline)
+                    .scaledFont(.headline)
                     .fontWeight(.medium)
 
                 Spacer()
@@ -41,7 +41,7 @@ struct AboutView: View {
                     Image(systemName: "chevron.left")
                     Text("Back")
                 }
-                .font(.caption)
+                .scaledFont(.caption)
                 .hidden()
             }
             .padding(.horizontal, 16)
@@ -61,10 +61,10 @@ struct AboutView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Tokenomics")
-                                .font(.title3)
+                                .scaledFont(.title3)
                                 .fontWeight(.semibold)
                             Text("v\(appVersion)")
-                                .font(.caption)
+                                .scaledFont(.caption)
                                 .foregroundStyle(.tertiary)
                         }
                     }
@@ -73,7 +73,7 @@ struct AboutView: View {
 
                     // What it is
                     Text("A menu bar tool for developers using AI coding assistants. Glance at your rate limits without leaving your editor.")
-                        .font(.caption)
+                        .scaledFont(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -81,7 +81,7 @@ struct AboutView: View {
 
                     // Built by
                     Text("Built by Rob Stout")
-                        .font(.caption)
+                        .scaledFont(.caption)
                         .fontWeight(.medium)
 
                     // Links
@@ -117,16 +117,16 @@ struct AboutView: View {
                     HStack(spacing: 16) {
                         if let privacyURL = URL(string: "https://github.com/rob-stout/Tokenomics/blob/main/docs/PRIVACY.md") {
                             Link("Privacy Policy", destination: privacyURL)
-                                .font(.caption)
+                                .scaledFont(.caption)
                         }
                         if let licenseURL = URL(string: "https://github.com/rob-stout/Tokenomics/blob/main/LICENSE") {
                             Link("License", destination: licenseURL)
-                                .font(.caption)
+                                .scaledFont(.caption)
                         }
                     }
 
                     Text("Tokenomics is not affiliated with, endorsed by, or sponsored by Anthropic PBC, OpenAI Inc., or Google LLC.")
-                        .font(.caption2)
+                        .scaledFont(.caption2)
                         .foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -139,7 +139,7 @@ struct AboutView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.subheadline)
+            .scaledFont(.subheadline)
             .fontWeight(.semibold)
     }
 
@@ -151,17 +151,17 @@ struct AboutView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.caption)
+                    .scaledFont(.caption)
                     .foregroundStyle(.secondary)
                     .frame(width: 16 * textSize.iconScale, alignment: .center)
 
                 Text(label)
-                    .font(.caption)
+                    .scaledFont(.caption)
 
                 Spacer()
 
                 Image(systemName: "arrow.up.right")
-                    .font(.caption2)
+                    .scaledFont(.caption2)
                     .foregroundStyle(.tertiary)
             }
             .contentShape(Rectangle())

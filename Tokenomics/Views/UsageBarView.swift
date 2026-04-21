@@ -36,11 +36,11 @@ struct UsageBarView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(label)
-                    .font(.subheadline)
+                    .scaledFont(.subheadline)
                     .foregroundStyle(.primary)
                 Spacer()
                 Text("\(Int(utilization))%")
-                    .font(.title2)
+                    .scaledFont(.title2)
                     .fontWeight(.semibold)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -74,7 +74,7 @@ struct UsageBarView: View {
             .frame(height: Self.barHeight)
 
             Text(sublabel)
-                .font(.caption)
+                .scaledFont(.caption)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)

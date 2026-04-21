@@ -112,7 +112,7 @@ struct ProviderTabView: View {
                     .lineLimit(1)
             }
         }
-        .font(.caption)
+        .scaledFont(.caption)
         .fontWeight(.medium)
         .padding(.vertical, 6)
         .padding(.horizontal, showLabel ? 12 : 10)

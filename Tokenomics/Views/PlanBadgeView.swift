@@ -23,7 +23,7 @@ struct PlanBadgeView: View {
 
     private var badgeContent: some View {
         Text(label)
-            .font(.caption2)
+            .scaledFont(.caption2)
             .fontWeight(.medium)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
