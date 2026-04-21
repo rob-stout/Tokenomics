@@ -24,3 +24,6 @@ Packages/
 
 # Secrets
 .env
+
+# Internal planning — not meant to ship
+docs/roadmap.md

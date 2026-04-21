@@ -125,7 +125,7 @@ struct AboutView: View {
                         }
                     }
 
-                    Text("Tokenomics is not affiliated with, endorsed by, or sponsored by Anthropic PBC, OpenAI Inc., or Google LLC.")
+                    Text("Tokenomics is not affiliated with, endorsed by, or sponsored by any of the AI providers whose usage data it displays. All trademarks are the property of their respective owners.")
                         .scaledFont(.caption2)
                         .foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)

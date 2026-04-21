@@ -154,6 +154,9 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .claude, .copilot, .cursor, .codex, .gemini: return true
         case .elevenlabs, .runway, .stableDiffusion: return true
+        // When flipping any of these to `true`, update docs/PRIVACY.md —
+        // the placeholder note currently tells users Tokenomics makes no
+        // network calls or credential reads for these three.
         case .midjourney, .suno, .udio: return false
         }
     }

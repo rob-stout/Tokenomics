@@ -204,8 +204,8 @@ struct SmallWidgetView: View {
                             .rotationEffect(.degrees(-90))
                             .frame(width: outerDia, height: outerDia)
 
-                        // Outer ring tracker dot (short window pace)
-                        if provider.shortWindow.pace > 0.02 {
+                        // Outer ring tracker dot (short window pace) — runway indicator
+                        if provider.shortWindow.pace > 0.01 && provider.shortWindow.pace < 0.99 {
                             Circle()
                                 .fill(theme.paceDotColor)
                                 .frame(width: dotSize, height: dotSize)
@@ -228,8 +228,8 @@ struct SmallWidgetView: View {
                                 .rotationEffect(.degrees(-90))
                                 .frame(width: innerDia, height: innerDia)
 
-                            // Inner ring tracker dot (long window pace)
-                            if longWindow.pace > 0.02 {
+                            // Inner ring tracker dot (long window pace) — runway indicator
+                            if longWindow.pace > 0.01 && longWindow.pace < 0.99 {
                                 Circle()
                                     .fill(theme.paceDotColor)
                                     .frame(width: dotSize, height: dotSize)
@@ -642,8 +642,8 @@ struct WidgetProgressBar: View {
                         height: 4
                     )
 
-                // Pace tracker dot — shows time elapsed through the window
-                if pace > 0.02 {
+                // Pace tracker dot — runway indicator (time elapsed through the window)
+                if pace > 0.01 && pace < 0.99 {
                     let paceX = geometry.size.width * min(max(pace, 0), 1)
                     Circle()
                         .fill(theme.paceDotColor)
