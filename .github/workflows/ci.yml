@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: macos-14
+    timeout-minutes: 20
+
+    env:
+      # Ad-hoc sign in CI — no access to the Developer ID cert,
+      # and tests don't need a distributable binary.
+      XCODEBUILD_FLAGS: >-
+        CODE_SIGN_IDENTITY=-
+        CODE_SIGNING_REQUIRED=NO
+        CODE_SIGNING_ALLOWED=NO
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+
+      - name: Build (Debug)
+        run: |
+          xcodebuild build \
+            -project Tokenomics.xcodeproj \
+            -scheme Tokenomics \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            $XCODEBUILD_FLAGS
+
+      - name: Unit tests (TokenomicsTests)
+        run: |
+          xcodebuild test \
+            -project Tokenomics.xcodeproj \
+            -scheme Tokenomics \
+            -destination 'platform=macOS' \
+            $XCODEBUILD_FLAGS
+
+      # Widget-sync tests skip themselves in CI (no App Group entitlement),
+      # but NotificationPostingTests still run. Set repository variable
+      # SKIP_INTEGRATION=1 to bypass entirely if it gets noisy.
+      - name: Integration tests (TokenomicsIntegration)
+        if: ${{ vars.SKIP_INTEGRATION != '1' }}
+        run: |
+          xcodebuild test \
+            -project Tokenomics.xcodeproj \
+            -scheme TokenomicsIntegration \
+            -destination 'platform=macOS' \
+            $XCODEBUILD_FLAGS
