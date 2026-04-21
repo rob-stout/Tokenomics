@@ -4,6 +4,8 @@ import SwiftUI
 struct DisplayModeMenuView: View {
     @ObservedObject var viewModel: UsageViewModel
 
+    @Environment(\.tokenomicsTextSize) private var textSize
+
     var body: some View {
         Menu {
             // Header
@@ -42,10 +44,10 @@ struct DisplayModeMenuView: View {
                     .imageScale(.small)
                     .foregroundStyle(.secondary)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 6, weight: .semibold))
+                    .font(.system(size: 6 * textSize.iconScale, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
-            .frame(width: 28, height: 28)
+            .frame(width: 28 * textSize.iconScale, height: 28 * textSize.iconScale)
             .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)

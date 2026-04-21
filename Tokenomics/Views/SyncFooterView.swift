@@ -11,6 +11,8 @@ struct SyncFooterView: View {
     var isStale: Bool = false
     @ObservedObject var viewModel: UsageViewModel
 
+    @Environment(\.tokenomicsTextSize) private var textSize
+
     private var syncText: String {
         guard let lastSynced else { return "Not yet synced" }
         let interval = Date.now.timeIntervalSince(lastSynced)
@@ -41,8 +43,8 @@ struct SyncFooterView: View {
             // Refresh button
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 13))
-                    .frame(width: 28, height: 28)
+                    .font(.system(size: 13 * textSize.iconScale))
+                    .frame(width: 28 * textSize.iconScale, height: 28 * textSize.iconScale)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -57,7 +59,7 @@ struct SyncFooterView: View {
                     .frame(height: 12)
 
                 DisplayModeMenuView(viewModel: viewModel)
-                    .frame(height: 16)
+                    .frame(height: 16 * textSize.iconScale)
             }
 
             Divider()
@@ -66,8 +68,8 @@ struct SyncFooterView: View {
             // Settings gear
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 13))
-                    .frame(width: 28, height: 28)
+                    .font(.system(size: 13 * textSize.iconScale))
+                    .frame(width: 28 * textSize.iconScale, height: 28 * textSize.iconScale)
                     .contentShape(Rectangle())
                     .overlay(alignment: .topTrailing) {
                         if updateAvailable {
