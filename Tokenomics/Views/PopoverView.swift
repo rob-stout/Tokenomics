@@ -10,6 +10,11 @@ struct PopoverView: View {
     @State private var showingGeminiPlanSetup = false
     @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
     private var textSize: TextSize { TextSize(rawValue: textSizeRaw) ?? .compact }
+
+    /// Feature flag for the new connector-based onboarding flow. Off by default
+    /// while the flow is being validated. Enable for testing via:
+    ///   `defaults write com.robstout.tokenomics newOnboardingEnabled -bool true`
+    @AppStorage("newOnboardingEnabled") private var newOnboardingEnabled: Bool = false
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
@@ -29,7 +34,11 @@ struct PopoverView: View {
             } else if viewModel.showSettings {
                 settingsView
             } else if !viewModel.hasCompletedOnboarding {
-                OnboardingView(viewModel: viewModel)
+                if newOnboardingEnabled {
+                    ConnectorContainer(viewModel: viewModel) { /* completion handled by VM */ }
+                } else {
+                    OnboardingView(viewModel: viewModel)
+                }
             } else {
                 mainContent
             }

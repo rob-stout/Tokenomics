@@ -47,6 +47,10 @@ final class UsageViewModel: ObservableObject {
     /// tear down the parent view before the sheet renders).
     @Published var apiKeyEntryProvider: ProviderId?
 
+    /// Copilot PAT entry sheet — promoted from AIConnectionsView's local @State
+    /// so the new connector flow can trigger it from outside that view.
+    @Published var copilotPATEntryRequested: Bool = false
+
     // MARK: - Providers
 
     private let providers: [ProviderId: any UsageProvider] = [

@@ -4,7 +4,6 @@ import SwiftUI
 struct AIConnectionsView: View {
     @ObservedObject var viewModel: UsageViewModel
     @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
-    @State private var showingPATEntry = false
     @State private var patText = ""
     @State private var apiKeyText = ""
     @Environment(\.colorScheme) private var colorScheme
@@ -212,7 +211,7 @@ struct AIConnectionsView: View {
             }
         }
         .opacity(isHidden ? 0.7 : 1)
-        .sheet(isPresented: $showingPATEntry) {
+        .sheet(isPresented: $viewModel.copilotPATEntryRequested) {
             patEntrySheet
         }
     }
@@ -231,10 +230,10 @@ struct AIConnectionsView: View {
             // Copilot has its own PAT sheet
             switch connection {
             case .notInstalled, .installedNoAuth:
-                smallActionButton("Connect") { showingPATEntry = true }
+                smallActionButton("Connect") { viewModel.copilotPATEntryRequested = true }
                     .help("Enter a GitHub Personal Access Token")
             case .authExpired:
-                smallActionButton("Reconnect") { showingPATEntry = true }
+                smallActionButton("Reconnect") { viewModel.copilotPATEntryRequested = true }
                     .help("Enter a new GitHub Personal Access Token")
             default:
                 EmptyView()
@@ -348,7 +347,7 @@ struct AIConnectionsView: View {
 
                 Button("Cancel") {
                     patText = ""
-                    showingPATEntry = false
+                    viewModel.copilotPATEntryRequested = false
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -358,7 +357,7 @@ struct AIConnectionsView: View {
                     guard !trimmed.isEmpty else { return }
                     CopilotKeychainService.savePAT(trimmed)
                     patText = ""
-                    showingPATEntry = false
+                    viewModel.copilotPATEntryRequested = false
                     viewModel.redetectProviders()
                     viewModel.refresh()
                 }
