@@ -229,6 +229,111 @@ extension ProviderId {
     }
 }
 
+// MARK: - Brand Identity
+
+/// A user-facing brand grouping. Several `ProviderId`s can belong to one brand
+/// when they share an account but track separate usage meters per surface
+/// (e.g. OpenAI's ChatGPT consumer chat and Codex CLI are one brand, two
+/// pools). Anthropic is the only case where the account itself returns one
+/// unified set of windows — the brand still maps to a set, just a single-pool
+/// one.
+///
+/// Used by:
+/// - `MultiSelectStep` rows (brand-level)
+/// - Popover tabs (brand-level) with per-pool sub-sections inside
+/// - Pin Tracker dropdown (per-pool entries, derived from the brand map)
+/// - Medium/large widgets (brand parent row + per-pool sub-rows)
+///
+/// Small widgets stay at the ProviderId layer (they pick one pool at a time
+/// via an additive enum, no brand grouping needed).
+enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
+    case anthropic
+    case openai
+    case google
+    case copilot
+    case cursor
+    case stability
+    case midjourney
+    case runway
+    case elevenlabs
+    case suno
+    case udio
+
+    var id: String { rawValue }
+
+    /// Human-readable name shown in tabs, settings, and the multi-select.
+    var displayName: String {
+        switch self {
+        case .anthropic:  return "Claude"
+        case .openai:     return "ChatGPT"
+        case .google:     return "Gemini"
+        case .copilot:    return "GitHub Copilot"
+        case .cursor:     return "Cursor"
+        case .stability:  return "Stability AI"
+        case .midjourney: return "Midjourney"
+        case .runway:     return "Runway"
+        case .elevenlabs: return "ElevenLabs"
+        case .suno:       return "Suno"
+        case .udio:       return "Udio"
+        }
+    }
+
+    /// Corporate attribution shown as row sub-text. nil when the brand name
+    /// already encodes the company (e.g. "Cursor", "Runway").
+    var companyAttribution: String? {
+        switch self {
+        case .anthropic: return "Anthropic"
+        case .openai:    return "OpenAI"
+        case .google:    return "Google"
+        default:         return nil
+        }
+    }
+
+    /// The set of `ProviderId`s that contribute usage data to this brand.
+    /// A brand with multiple ProviderIds is a "multi-pool" brand — its UI
+    /// surfaces (popover tab body, widget block) render one section per
+    /// ProviderId stacked beneath the brand header.
+    ///
+    /// Single-pool brands return a one-element set; the rendering layer can
+    /// treat them uniformly with multi-pool brands without special-casing.
+    var pools: Set<ProviderId> {
+        switch self {
+        case .anthropic:  return [.claude]
+        case .openai:     return [.chatgpt, .codex]
+        case .google:     return [.gemini]
+        case .copilot:    return [.copilot]
+        case .cursor:     return [.cursor]
+        case .stability:  return [.stableDiffusion]
+        case .midjourney: return [.midjourney]
+        case .runway:     return [.runway]
+        case .elevenlabs: return [.elevenlabs]
+        case .suno:       return [.suno]
+        case .udio:       return [.udio]
+        }
+    }
+}
+
+extension ProviderId {
+    /// The brand this ProviderId belongs to. Inverse of `BrandId.pools`.
+    /// Deterministic — the brand → pools map is partitioned (no ProviderId
+    /// appears in two brands), so this is well-defined.
+    var brand: BrandId {
+        switch self {
+        case .claude:           return .anthropic
+        case .chatgpt, .codex:  return .openai
+        case .gemini:           return .google
+        case .copilot:          return .copilot
+        case .cursor:           return .cursor
+        case .stableDiffusion:  return .stability
+        case .midjourney:       return .midjourney
+        case .runway:           return .runway
+        case .elevenlabs:       return .elevenlabs
+        case .suno:             return .suno
+        case .udio:             return .udio
+        }
+    }
+}
+
 // MARK: - Connection State
 
 /// Describes the current state of a provider's connection

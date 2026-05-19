@@ -138,6 +138,51 @@ final class UsageViewModel: ObservableObject {
         visibleProviders.count > 1
     }
 
+    // MARK: - Brand-level accessors (Phase 5.6 foundation)
+    //
+    // These helpers group `visibleProviders` by `BrandId` for the brand-aware
+    // popover / widget / Pin Tracker surfaces. They live alongside the
+    // existing per-ProviderId accessors — both shapes are exposed so the new
+    // rendering paths can opt in behind `FeatureFlags.brandAggregation` while
+    // the legacy paths keep working unchanged.
+
+    /// Brands that have at least one visible provider, in the order their
+    /// first-visible provider appears. Stable for tab ordering.
+    var enabledBrands: [BrandId] {
+        Self.brandList(from: visibleProviders)
+    }
+
+    /// Returns the visible `ProviderState`s for the given brand's pools, in
+    /// the same order they appear in `visibleProviders`. Multi-pool brands
+    /// return 2+ states; single-pool brands return 1 (or 0 if the brand has
+    /// no visible providers).
+    func pools(for brand: BrandId) -> [ProviderState] {
+        Self.providers(in: brand, from: visibleProviders)
+            .compactMap { providerStates[$0] }
+    }
+
+    /// Pure helper: collapses a provider list into the unique brands that
+    /// own them, preserving the order each brand first appears. Separated
+    /// from `enabledBrands` so it can be exercised in tests without standing
+    /// up a full view model (whose `providerStates` is private-set).
+    static func brandList(from providers: [ProviderId]) -> [BrandId] {
+        var seen = Set<BrandId>()
+        var result: [BrandId] = []
+        for providerId in providers {
+            let brand = providerId.brand
+            if seen.insert(brand).inserted {
+                result.append(brand)
+            }
+        }
+        return result
+    }
+
+    /// Pure helper: filters a provider list to those owned by the given brand,
+    /// preserving order. Companion to `brandList(from:)`.
+    static func providers(in brand: BrandId, from providers: [ProviderId]) -> [ProviderId] {
+        providers.filter { $0.brand == brand }
+    }
+
     /// State for the currently selected provider
     var currentProviderState: ProviderState? {
         guard let tab = selectedTab else { return nil }

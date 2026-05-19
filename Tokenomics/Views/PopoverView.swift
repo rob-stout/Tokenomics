@@ -8,6 +8,14 @@ struct PopoverView: View {
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
     @State private var showingGeminiPlanSetup = false
+    /// Reveals the hidden "Beta features" section in Settings. Set to `true`
+    /// only when the user holds Option while opening Settings (checked in
+    /// `settingsView.onAppear`). Resets when Settings closes.
+    @State private var betaFeaturesVisible = false
+    /// Mirrors `FeatureFlags.brandAggregation` for binding to the toggle UI.
+    /// Initialized from UserDefaults each time Settings appears so flips from
+    /// the `defaults write` command path stay in sync.
+    @State private var brandAggregationFlag = FeatureFlags.brandAggregation
     @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
     private var textSize: TextSize { TextSize(rawValue: textSizeRaw) ?? .compact }
 
@@ -553,6 +561,11 @@ struct PopoverView: View {
 
                 Divider().padding(.horizontal, 16)
 
+                // ── Beta Features (hidden — hold Option while opening Settings) ──
+                if betaFeaturesVisible {
+                    betaFeaturesSection
+                }
+
                 Button {
                     NSApplication.shared.terminate(nil)
                 } label: {
@@ -572,6 +585,45 @@ struct PopoverView: View {
                 .padding(.vertical, 9)
             }
         }
+        .onAppear {
+            // Reveal the Beta features section only if Option is held when
+            // Settings opens. This is the documented "Option-click Settings"
+            // entry point — once the section is visible, the toggle value
+            // persists in UserDefaults regardless of whether the section is
+            // shown on the next open.
+            betaFeaturesVisible = NSEvent.modifierFlags.contains(.option)
+            brandAggregationFlag = FeatureFlags.brandAggregation
+        }
+    }
+
+    // MARK: - Beta Features Section
+
+    /// Hidden section in Settings revealed by holding Option while opening
+    /// the Settings panel. Houses runtime feature flags for in-flight UX
+    /// changes that need an easy rollback while stabilizing. See
+    /// `Services/FeatureFlags.swift`.
+    @ViewBuilder
+    private var betaFeaturesSection: some View {
+        sectionLabel("Beta features")
+
+        settingsRow(icon: "rectangle.3.group", label: "Brand aggregation") {
+            Toggle("", isOn: $brandAggregationFlag)
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
+                .onChange(of: brandAggregationFlag) { newValue in
+                    FeatureFlags.brandAggregation = newValue
+                }
+        }
+
+        Text("Groups ChatGPT chat + Codex CLI (and Gemini chat + CLI) under one brand tab in the popover, with stacked progress sections inside. Affects medium / large widgets and the Pin Tracker dropdown too. Off = today's per-provider layout.")
+            .scaledFont(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 9)
+
+        Divider().padding(.horizontal, 16)
     }
 
     // MARK: - Onboarding Launcher Card
