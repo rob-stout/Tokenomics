@@ -69,6 +69,11 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
             // while we poll for the bundle + sign-in.
             return [Item(label: l1, state: c), Item(label: l2, state: a),
                     Item(label: l3, state: u), Item(label: l4, state: u)]
+        case .skipped:
+            // Skipped is transient — the VM fires the outcome callback and the
+            // view is dismissed before the stepper is painted. Return empty.
+            return []
+
         case .failed(let error):
             // Keep the stepper visible on failure so users can see which step failed.
             // Infer the failed step from the error type — avoids storing history.
@@ -101,6 +106,8 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
         case addAnother
         /// User is done with onboarding.
         case allSet
+        /// User skipped this step — orchestrator routes around it.
+        case skipped
     }
 
     private let onOutcome: (Outcome) -> Void
@@ -290,6 +297,11 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
             // Terminal states — stop polling.
             if case .connected = current { return }
             if case .failed = current { return }
+            if case .skipped = current {
+                // Propagate skip immediately — don't wait for a user tap.
+                await MainActor.run { self.onOutcome(.skipped) }
+                return
+            }
 
             // Reset the clock whenever the state changes so slow user-driven
             // flows (OAuth in browser, reading docs) don't fire a spurious timeout.

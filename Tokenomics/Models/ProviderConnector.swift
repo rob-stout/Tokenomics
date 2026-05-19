@@ -115,6 +115,11 @@ enum ConnectorStep: Sendable, Equatable {
 
     /// Something went wrong; show recovery affordance.
     case failed(ConnectorError)
+
+    /// User chose to skip this step. The orchestrator routes around it without
+    /// waiting for a connection. This is a terminal state — polling stops when
+    /// the connector emits it, same as `.connected`.
+    case skipped
 }
 
 // MARK: - Connector error

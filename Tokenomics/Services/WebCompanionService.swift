@@ -2,6 +2,16 @@ import Foundation
 import os
 import WidgetKit
 
+// MARK: - WebCompanionStateProvider
+
+/// The read-only surface of `WebCompanionService` that connectors depend on.
+/// Defined as a protocol so tests can substitute a lightweight stub without
+/// touching FSEvents or the App Group container.
+protocol WebCompanionStateProvider: Actor {
+    /// Returns the most-recently cached extension state.
+    func currentState() async -> ExtSideState
+}
+
 // MARK: - WebCompanionService
 
 /// Reads `ext-side.json` from the App Group container and exposes the extension's
@@ -10,7 +20,7 @@ import WidgetKit
 ///
 /// This actor does NOT write any files. Writing `mac-side.json` is
 /// MacSideStateExporter's responsibility.
-actor WebCompanionService {
+actor WebCompanionService: WebCompanionStateProvider {
 
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "WebCompanionService")
 
@@ -177,11 +187,19 @@ actor WebCompanionService {
     }
 }
 
-// MARK: - ExtSideState empty sentinel
+// MARK: - ExtSideState helpers
 
 extension ExtSideState {
     /// Convenience empty state for when the file is absent.
     static var empty: ExtSideState {
         ExtSideState(updatedAt: .distantPast, snapshots: [:], providerVisibility: [:])
+    }
+
+    /// Returns true when `updatedAt` is within `window` seconds of `now`.
+    /// The bridge writes `updatedAt` on every heartbeat (~60s cadence from the
+    /// extension), so "fresh" means the extension connected recently enough to
+    /// consider the NMH bridge active.
+    func isFresh(at now: Date = Date(), within window: TimeInterval = 300) -> Bool {
+        now.timeIntervalSince(updatedAt) <= window
     }
 }

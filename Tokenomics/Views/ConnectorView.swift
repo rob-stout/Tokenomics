@@ -227,6 +227,8 @@ struct ConnectorView: View {
             return "Connected."
         case .failed:
             return "Something didn't go through."
+        case .skipped:
+            return ""
         }
     }
 
@@ -252,7 +254,7 @@ struct ConnectorView: View {
                 deviceCodeRow(code)
                     .padding(.top, Tokens.Spacing.s2)
             }
-        case .connected, .failed:
+        case .connected, .failed, .skipped:
             EmptyView()
         }
     }
@@ -311,6 +313,8 @@ struct ConnectorView: View {
             return "Continue"
         case .failed(let error):
             return error.recoveryActionLabel
+        case .skipped:
+            return ""
         }
     }
 

@@ -194,6 +194,11 @@ struct ConnectorContainer: View {
                     }
                 case .allSet:
                     completeOnboarding()
+                case .skipped:
+                    // Treat a skipped step the same as "all set" for now.
+                    // The Phase 5.5 orchestrator will route this differently
+                    // when BrowserExtensionConnector is wired into the synthesis flow.
+                    completeOnboarding()
                 }
             }
         )
