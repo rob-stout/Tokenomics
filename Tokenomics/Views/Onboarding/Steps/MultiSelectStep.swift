@@ -30,13 +30,13 @@ struct MultiSelectStep: View {
     @Environment(\.colorScheme) private var scheme
 
     private enum CategoryGroup {
-        case chat
+        case multiPurpose
         case code
         case media
 
         var label: String {
             switch self {
-            case .chat: return "AI you chat with"
+            case .multiPurpose: return "AI you do multiple things with"
             case .code: return "AI you code with"
             case .media: return "AI for images, video, or audio"
             }
@@ -46,28 +46,40 @@ struct MultiSelectStep: View {
     private struct Row: Identifiable {
         let provider: ProviderId
         let label: String
+        /// Persistent attribution shown as row sub-text (e.g. "Anthropic").
+        /// When detection also yields an annotation, the two join on one line
+        /// with " · ".
+        let subLabel: String?
         var id: ProviderId { provider }
     }
 
     /// Provider → category map. Source of truth for which rows appear and where.
-    /// Placeholders (midjourney/suno/udio) are omitted until they have working
-    /// data paths — adding them here when their connectors land is the only
-    /// change needed.
+    ///
+    /// Rows are **brand-level**, not pool-level. The "ChatGPT" row's primary
+    /// `ProviderId` is `.chatgpt`, but the brand also covers Codex CLI usage
+    /// (`.codex`); the planner/router resolves each brand to its full
+    /// ProviderId set downstream. Popover tabs follow the same brand grouping
+    /// and surface the pools as separate progress sections; widgets render
+    /// per-pool because their layout is more constrained.
+    ///
+    /// Suno and Udio are omitted until they have working data paths — adding
+    /// them here when their connectors land is the only change needed.
     private var groups: [(CategoryGroup, [Row])] {
         [
-            (.chat, [
-                Row(provider: .claude, label: "Claude"),
-                Row(provider: .codex, label: "ChatGPT"),
-                Row(provider: .gemini, label: "Gemini"),
+            (.multiPurpose, [
+                Row(provider: .claude,  label: "Claude",  subLabel: "Anthropic"),
+                Row(provider: .chatgpt, label: "ChatGPT", subLabel: "OpenAI"),
+                Row(provider: .gemini,  label: "Gemini",  subLabel: "Google"),
             ]),
             (.code, [
-                Row(provider: .copilot, label: "GitHub Copilot"),
-                Row(provider: .cursor, label: "Cursor"),
+                Row(provider: .copilot, label: "GitHub Copilot", subLabel: nil),
+                Row(provider: .cursor,  label: "Cursor",         subLabel: nil),
             ]),
             (.media, [
-                Row(provider: .stableDiffusion, label: "Stability AI"),
-                Row(provider: .runway, label: "Runway"),
-                Row(provider: .elevenlabs, label: "ElevenLabs"),
+                Row(provider: .stableDiffusion, label: "Stability AI", subLabel: nil),
+                Row(provider: .midjourney,      label: "Midjourney",   subLabel: nil),
+                Row(provider: .runway,          label: "Runway",       subLabel: nil),
+                Row(provider: .elevenlabs,      label: "ElevenLabs",   subLabel: nil),
             ]),
         ]
     }
@@ -157,7 +169,7 @@ struct MultiSelectStep: View {
 
     private func rowView(_ row: Row) -> some View {
         let isSelected = selected.contains(row.provider)
-        let annotation = detectionAnnotations[row.provider]
+        let subtext = composedSubtext(for: row)
 
         return Button {
             if isSelected {
@@ -174,8 +186,8 @@ struct MultiSelectStep: View {
                         .font(Tokens.Typography.Onboarding.body)
                         .foregroundStyle(Tokens.Color.text(scheme))
 
-                    if let annotation {
-                        Text(annotation)
+                    if let subtext {
+                        Text(subtext)
                             .font(.custom("DM Sans", size: 11))
                             .foregroundStyle(Tokens.Color.textSubtle(scheme))
                     }
@@ -188,6 +200,19 @@ struct MultiSelectStep: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// Joins persistent attribution (e.g. "Anthropic") and detection annotation
+    /// (e.g. "signed in at claude.ai") into a single sub-text line. Either may
+    /// be absent; both absent renders nothing.
+    private func composedSubtext(for row: Row) -> String? {
+        let annotation = detectionAnnotations[row.provider]
+        switch (row.subLabel, annotation) {
+        case let (.some(sub), .some(ann)): return "\(sub) · \(ann)"
+        case let (.some(sub), .none):      return sub
+        case let (.none, .some(ann)):      return ann
+        case (.none, .none):               return nil
+        }
     }
 
     private func checkbox(isSelected: Bool) -> some View {
@@ -232,14 +257,14 @@ private struct MultiSelectPreviewWrapper: View {
 }
 
 private let detectedSample: [ProviderId: String] = [
-    .claude: "signed in at claude.ai",
-    .codex: "ChatGPT.app installed",
+    .claude: "Claude Code CLI · signed in at claude.ai",
+    .chatgpt: "ChatGPT.app installed",
     .cursor: "Cursor.app installed"
 ]
 
 #Preview("Multi-select — detections — light") {
     MultiSelectPreviewWrapper(
-        selected: [.claude, .codex, .cursor],
+        selected: [.claude, .chatgpt, .cursor],
         detectionAnnotations: detectedSample
     )
     .preferredColorScheme(.light)
@@ -247,7 +272,7 @@ private let detectedSample: [ProviderId: String] = [
 
 #Preview("Multi-select — detections — dark") {
     MultiSelectPreviewWrapper(
-        selected: [.claude, .codex, .cursor],
+        selected: [.claude, .chatgpt, .cursor],
         detectionAnnotations: detectedSample
     )
     .preferredColorScheme(.dark)

@@ -23,11 +23,59 @@ struct ConnectorContainer: View {
     /// "Add another" as "close window" rather than routing back to chooser.
     @State private var isPreTargeted = false
 
+    // MARK: - Phase 3 (smart synthesis) draft state — stub data
+    //
+    // The multi-select and setup-plan screens currently run on hardcoded
+    // detection annotations + a stubbed plan so the visual flow can be
+    // reviewed end-to-end against the Figma board. Real detection + plan
+    // generation land in follow-up tasks; until then "Start setup" on the
+    // plan screen falls back to the existing chooser.
+    @State private var draftSelection: Set<ProviderId> = [.claude, .chatgpt, .cursor]
+
+    private let stubDetectionAnnotations: [ProviderId: String] = [
+        .claude: "Claude Code CLI · signed in at claude.ai",
+        .chatgpt: "ChatGPT.app installed",
+        .cursor: "Cursor.app installed"
+    ]
+
+    private var stubSetupPlan: SetupPlan {
+        SetupPlan(
+            providerCount: max(draftSelection.count, 1),
+            stepCount: 3,
+            estimatedDuration: "about a minute",
+            steps: [
+                .init(
+                    number: 1,
+                    title: "Install the Tokenomics browser extension",
+                    description: "Covers 2 of the tools you picked at once:",
+                    timeEstimate: "~1 min",
+                    covers: ["Claude (via claude.ai)", "ChatGPT (via chat.openai.com)"]
+                ),
+                .init(
+                    number: 2,
+                    title: "Confirm Claude Code is connected",
+                    description: "Already installed on your Mac — we just need to read your credentials.",
+                    timeEstimate: "~5 sec",
+                    covers: nil
+                ),
+                .init(
+                    number: 3,
+                    title: "Confirm Cursor is connected",
+                    description: "Already installed on your Mac — we just need to read your local data.",
+                    timeEstimate: "~5 sec",
+                    covers: nil
+                ),
+            ]
+        )
+    }
+
     @Environment(\.colorScheme) private var scheme
 
     enum Screen {
         case welcome
         case permissions
+        case multiSelect
+        case setupPlan
         case chooser
         case connector
     }
@@ -42,10 +90,33 @@ struct ConnectorContainer: View {
                 )
             case .permissions:
                 PermissionsStep(
-                    onContinue: { screen = .chooser },
+                    onContinue: { screen = .multiSelect },
                     onBack: { screen = .welcome }
                 )
                 // Match chooser's winbody inset — mockup .winbody padding 32/40/28
+                .padding(.top, Tokens.Spacing.s6)
+                .padding(.horizontal, 40)
+                .padding(.bottom, Tokens.Spacing.s5 + 4)
+            case .multiSelect:
+                MultiSelectStep(
+                    selected: $draftSelection,
+                    detectionAnnotations: stubDetectionAnnotations,
+                    onContinue: { screen = .setupPlan },
+                    onSetupOneAtATime: { screen = .chooser },
+                    onBack: { screen = .permissions }
+                )
+                .padding(.top, Tokens.Spacing.s6)
+                .padding(.horizontal, 40)
+                .padding(.bottom, Tokens.Spacing.s5 + 4)
+            case .setupPlan:
+                SetupPlanStep(
+                    plan: stubSetupPlan,
+                    // Placeholder: real batched execution lands in a follow-up
+                    // task. For now, "Start setup" hands off to the existing
+                    // chooser so the rest of the flow stays clickable.
+                    onStart: { screen = .chooser },
+                    onBack: { screen = .multiSelect }
+                )
                 .padding(.top, Tokens.Spacing.s6)
                 .padding(.horizontal, 40)
                 .padding(.bottom, Tokens.Spacing.s5 + 4)
@@ -88,9 +159,10 @@ struct ConnectorContainer: View {
                 screen = .chooser
             }
             // If the user previously finished onboarding but re-opened via Settings,
-            // land on the chooser instead of welcome/permissions so they can add
-            // more providers without re-running the first-launch chrome.
-            if viewModel.hasCompletedOnboarding && (screen == .welcome || screen == .permissions) {
+            // land on the chooser instead of welcome/permissions/synthesis so they
+            // can add more providers without re-running the first-launch chrome.
+            let firstLaunchScreens: [Screen] = [.welcome, .permissions, .multiSelect, .setupPlan]
+            if viewModel.hasCompletedOnboarding && firstLaunchScreens.contains(screen) {
                 screen = .chooser
             }
         }
