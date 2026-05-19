@@ -21,6 +21,28 @@ enum WidgetDataStore {
     struct WidgetSnapshot: Codable {
         let providers: [ProviderEntry]
         let updatedAt: Date
+        /// Whether the brand-aggregation layout is enabled at snapshot time.
+        /// Stamped by the main app so the widget extension (a separate process
+        /// without access to the app's UserDefaults domain) can gate the
+        /// brand-grouping rendering path correctly.
+        ///
+        /// Nil in legacy snapshots written before 5.6.B — widget treats nil
+        /// as false (flag-off) so the old layout is preserved.
+        let brandAggregationEnabled: Bool?
+
+        // Backward-compatible init: callers that don't supply brandAggregationEnabled
+        // (tests, placeholder, legacy decode) default to nil → flag off.
+        init(providers: [ProviderEntry], updatedAt: Date, brandAggregationEnabled: Bool? = nil) {
+            self.providers = providers
+            self.updatedAt = updatedAt
+            self.brandAggregationEnabled = brandAggregationEnabled
+        }
+
+        /// Convenience accessor — defaults nil to false so rendering code
+        /// can use this without optional gymnastics.
+        var isBrandAggregationEnabled: Bool {
+            brandAggregationEnabled ?? false
+        }
 
         struct ProviderEntry: Codable {
             let id: String
@@ -30,6 +52,33 @@ enum WidgetDataStore {
             /// Nil for providers that only expose a single usage metric.
             let longWindow: WindowEntry?
             let planLabel: String
+            /// Brand grouping key — set to the parent BrandId.rawValue when
+            /// brand-aggregation rendering is active. Nil in legacy snapshots
+            /// so existing widgets decode cleanly (no migration needed).
+            ///
+            /// The widget renderer reads this only when FeatureFlags.brandAggregation
+            /// is on; the flag-off code path never touches this field.
+            let brandId: String?
+
+            // Backward-compatible memberwise init so all existing call sites that
+            // omit brandId keep compiling without changes.
+            init(
+                id: String,
+                displayName: String,
+                shortLabel: String,
+                shortWindow: WindowEntry,
+                longWindow: WindowEntry?,
+                planLabel: String,
+                brandId: String? = nil
+            ) {
+                self.id = id
+                self.displayName = displayName
+                self.shortLabel = shortLabel
+                self.shortWindow = shortWindow
+                self.longWindow = longWindow
+                self.planLabel = planLabel
+                self.brandId = brandId
+            }
         }
 
         struct WindowEntry: Codable {
@@ -102,11 +151,21 @@ enum WidgetDataStore {
                         windowDuration: long.windowDuration
                     )
                 },
-                planLabel: snapshot.planLabel
+                planLabel: snapshot.planLabel,
+                // Stamp the brand key on every entry so the medium/large
+                // brand-aggregation renderer can group sub-rows by parent.
+                // The flag-off code path ignores this field entirely.
+                brandId: id.brand.rawValue
             )
         }
 
-        let widgetSnapshot = WidgetSnapshot(providers: entries, updatedAt: Date())
+        let widgetSnapshot = WidgetSnapshot(
+            providers: entries,
+            updatedAt: Date(),
+            // Stamp the flag so the widget extension (a separate process) can
+            // read the value that was current when the snapshot was written.
+            brandAggregationEnabled: FeatureFlags.brandAggregation
+        )
 
         guard let url = sharedFileURL,
               let data = try? JSONEncoder().encode(widgetSnapshot) else { return }

@@ -163,8 +163,12 @@ struct SmallWidgetView: View {
         case .cursor:
             return providers.first(where: { $0.id == "cursor" })
         case .codex:
+            // Existing "OpenAI" selection — resolves to Codex CLI data.
+            // Raw value "codex" is the on-disk identity; this must always
+            // resolve to the codex provider so saved configs downgrade safely.
             return providers.first(where: { $0.id == "codex" })
         case .gemini:
+            // Existing "Google AI" selection — resolves to Gemini CLI data.
             return providers.first(where: { $0.id == "gemini" })
         case .elevenlabs:
             return providers.first(where: { $0.id == "elevenlabs" })
@@ -172,6 +176,18 @@ struct SmallWidgetView: View {
             return providers.first(where: { $0.id == "runway" })
         case .stableDiffusion:
             return providers.first(where: { $0.id == "stableDiffusion" })
+        // MARK: Phase 5.6.C additions
+        case .chatgpt:
+            // Consumer ChatGPT pool — NMH bridge data.
+            return providers.first(where: { $0.id == "chatgpt" })
+        case .codexCLI:
+            // Explicit Codex CLI selection — same data source as .codex.
+            // Presented as a distinct picker entry so users who understand
+            // the pool split can label their widget accurately.
+            return providers.first(where: { $0.id == "codex" })
+        case .geminiCLI:
+            // Explicit Gemini CLI selection — same data source as .gemini.
+            return providers.first(where: { $0.id == "gemini" })
         }
     }
 
@@ -283,6 +299,11 @@ struct SmallWidgetView: View {
 
 /// Shows all connected providers with both usage windows.
 /// Uses compact rows for 2–3 providers, spacious single-column for 1.
+///
+/// When `snapshot.isBrandAggregationEnabled`, multi-pool brands render a parent
+/// brand header row followed by indented per-pool compact sub-rows. Single-pool
+/// brands render unchanged as a single compact row. The flag-off code path
+/// (everything inside the `else` of the brand-aggregation check) is untouched.
 struct MediumWidgetView: View {
     let entry: UsageEntry
 
@@ -290,66 +311,120 @@ struct MediumWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
-            let useCompact = snapshot.providers.count >= 2
-            let maxVisible = 3
-            let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
-            let overflowCount = snapshot.providers.count - maxVisible
-
-            VStack(alignment: .leading, spacing: 0) {
-                // Header — timer always top-right
-                HStack {
-                    Text("Tokenomics")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(theme.labelColor)
-                    Spacer()
-                    if let updatedAt = entry.snapshot?.updatedAt {
-                        Text(updatedAt, style: .relative)
-                            .font(.caption2)
-                            .foregroundStyle(theme.labelColor)
-                    }
-                }
-                .padding(.bottom, useCompact ? 8 : 20)
-
-                // Provider rows
-                if useCompact {
-                    // 2+ providers: compact rows with clamped spacing
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
-                            if index > 0 {
-                                Spacer(minLength: 8).frame(maxHeight: 24)
-                            }
-                            CompactProviderRow(provider: provider)
-                        }
-                    }
-                } else {
-                    // 1 provider: spacious single-column, centered between header and footer
-                    Spacer(minLength: 0)
-                    ForEach(visibleProviders, id: \.id) { provider in
-                        LargeProviderRow(provider: provider)
-                    }
-                }
-
-                Spacer(minLength: 0)
-
-                // Footer — overflow indicator or share CTA
-                if overflowCount > 0 {
-                    Text("+\(overflowCount) in app")
-                        .font(.caption2)
-                        .foregroundStyle(theme.labelColor)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 10)
-                } else if visibleProviders.count <= 2 {
-                    ShareCTA()
-                        .padding(.top, 10)
-                }
+            if snapshot.isBrandAggregationEnabled {
+                brandAwareBody(snapshot: snapshot)
+            } else {
+                legacyBody(snapshot: snapshot)
             }
-            .widgetURL(URL(string: "tokenomics://open"))
-            .padding(.top, 14)
-            .padding(.bottom, 16)
-            .padding(.horizontal, 16)
         } else {
             NoDataView()
+        }
+    }
+
+    // MARK: Flag-off path (legacy — untouched)
+
+    @ViewBuilder
+    private func legacyBody(snapshot: WidgetDataStore.WidgetSnapshot) -> some View {
+        let useCompact = snapshot.providers.count >= 2
+        let maxVisible = 3
+        let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
+        let overflowCount = snapshot.providers.count - maxVisible
+
+        VStack(alignment: .leading, spacing: 0) {
+            widgetHeader(snapshot: snapshot)
+                .padding(.bottom, useCompact ? 8 : 20)
+
+            if useCompact {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
+                        if index > 0 {
+                            Spacer(minLength: 8).frame(maxHeight: 24)
+                        }
+                        CompactProviderRow(provider: provider)
+                    }
+                }
+            } else {
+                Spacer(minLength: 0)
+                ForEach(visibleProviders, id: \.id) { provider in
+                    LargeProviderRow(provider: provider)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if overflowCount > 0 {
+                Text("+\(overflowCount) in app")
+                    .font(.caption2)
+                    .foregroundStyle(theme.labelColor)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 10)
+            } else if visibleProviders.count <= 2 {
+                ShareCTA()
+                    .padding(.top, 10)
+            }
+        }
+        .widgetURL(URL(string: "tokenomics://open"))
+        .padding(.top, 14)
+        .padding(.bottom, 16)
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: Flag-on path (brand-aggregation)
+
+    @ViewBuilder
+    private func brandAwareBody(snapshot: WidgetDataStore.WidgetSnapshot) -> some View {
+        // Medium widget cap: 3 data rows (brand parent rows don't count against
+        // the cap — each pool sub-row counts as one row).
+        let maxDataRows = 3
+        let groups = BrandGrouping.group(providers: snapshot.providers, maxDataRows: maxDataRows)
+        let overflowCount = BrandGrouping.overflowCount(providers: snapshot.providers, maxDataRows: maxDataRows)
+        let rowCount = groups.flatMap { $0.pools }.count
+
+        VStack(alignment: .leading, spacing: 0) {
+            widgetHeader(snapshot: snapshot)
+                .padding(.bottom, 8)
+
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(groups.enumerated()), id: \.element.brandId) { index, group in
+                    if index > 0 {
+                        Spacer(minLength: 8).frame(maxHeight: 20)
+                    }
+                    BrandGroupRow(group: group)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if overflowCount > 0 {
+                Text("+\(overflowCount) in app")
+                    .font(.caption2)
+                    .foregroundStyle(theme.labelColor)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 10)
+            } else if rowCount <= 2 {
+                ShareCTA()
+                    .padding(.top, 10)
+            }
+        }
+        .widgetURL(URL(string: "tokenomics://open"))
+        .padding(.top, 14)
+        .padding(.bottom, 16)
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: Shared subview
+
+    @ViewBuilder
+    private func widgetHeader(snapshot: WidgetDataStore.WidgetSnapshot) -> some View {
+        HStack {
+            Text("Tokenomics")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(theme.labelColor)
+            Spacer()
+            Text(snapshot.updatedAt, style: .relative)
+                .font(.caption2)
+                .foregroundStyle(theme.labelColor)
         }
     }
 }
@@ -359,6 +434,10 @@ struct MediumWidgetView: View {
 /// Full-height widget. 1–3 providers: spacious single-column.
 /// 4–7: compact rows with fixed 24pt gap.
 /// 8+: compact 2-column, space-between + overflow footer.
+///
+/// When `snapshot.isBrandAggregationEnabled`, multi-pool brands render a parent
+/// brand header row followed by indented per-pool compact sub-rows. The flag-off
+/// code path is untouched.
 struct LargeWidgetView: View {
     let entry: UsageEntry
 
@@ -366,71 +445,297 @@ struct LargeWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot, !snapshot.providers.isEmpty {
-            let useCompact = snapshot.providers.count >= 4
-            let maxVisible = 7
-            let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
-            let overflowCount = snapshot.providers.count - maxVisible
-            let hasOverflow = overflowCount > 0
-
-            VStack(alignment: .leading, spacing: 0) {
-                // Header — timer top-right
-                HStack {
-                    Text("Tokenomics")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(theme.labelColor)
-                    Spacer()
-                    if let updatedAt = entry.snapshot?.updatedAt {
-                        Text(updatedAt, style: .relative)
-                            .font(.caption2)
-                            .foregroundStyle(theme.labelColor)
-                    }
-                }
-                .padding(.bottom, hasOverflow ? 14 : 20)
-
-                // Provider rows
-                if useCompact {
-                    // 4+ providers: compact rows with clamped spacing
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
-                            if index > 0 {
-                                Spacer(minLength: 12).frame(maxHeight: 28)
-                            }
-                            CompactProviderRow(provider: provider)
-                        }
-                    }
-                } else {
-                    // 1–3 providers: spacious single-column with clamped spacing
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
-                            if index > 0 {
-                                Spacer(minLength: 16).frame(maxHeight: 24)
-                            }
-                            LargeProviderRow(provider: provider)
-                        }
-                    }
-                }
-
-                Spacer(minLength: 0)
-
-                // Footer — overflow indicator or share CTA
-                if hasOverflow {
-                    Text("+\(overflowCount) in app")
-                        .font(.caption2)
-                        .foregroundStyle(theme.labelColor)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 12)
-                } else if visibleProviders.count <= 7 {
-                    ShareCTA()
-                        .padding(.top, 12)
-                }
+            if snapshot.isBrandAggregationEnabled {
+                brandAwareBody(snapshot: snapshot)
+            } else {
+                legacyBody(snapshot: snapshot)
             }
-            .widgetURL(URL(string: "tokenomics://open"))
-            .padding(.top, 14)
-            .padding(.bottom, 14)
-            .padding(.horizontal, 16)
         } else {
             NoDataView()
+        }
+    }
+
+    // MARK: Flag-off path (legacy — untouched)
+
+    @ViewBuilder
+    private func legacyBody(snapshot: WidgetDataStore.WidgetSnapshot) -> some View {
+        let useCompact = snapshot.providers.count >= 4
+        let maxVisible = 7
+        let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
+        let overflowCount = snapshot.providers.count - maxVisible
+        let hasOverflow = overflowCount > 0
+
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Tokenomics")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(theme.labelColor)
+                Spacer()
+                Text(snapshot.updatedAt, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(theme.labelColor)
+            }
+            .padding(.bottom, hasOverflow ? 14 : 20)
+
+            if useCompact {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
+                        if index > 0 {
+                            Spacer(minLength: 12).frame(maxHeight: 28)
+                        }
+                        CompactProviderRow(provider: provider)
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(visibleProviders.enumerated()), id: \.element.id) { index, provider in
+                        if index > 0 {
+                            Spacer(minLength: 16).frame(maxHeight: 24)
+                        }
+                        LargeProviderRow(provider: provider)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if hasOverflow {
+                Text("+\(overflowCount) in app")
+                    .font(.caption2)
+                    .foregroundStyle(theme.labelColor)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 12)
+            } else if visibleProviders.count <= 7 {
+                ShareCTA()
+                    .padding(.top, 12)
+            }
+        }
+        .widgetURL(URL(string: "tokenomics://open"))
+        .padding(.top, 14)
+        .padding(.bottom, 14)
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: Flag-on path (brand-aggregation)
+
+    @ViewBuilder
+    private func brandAwareBody(snapshot: WidgetDataStore.WidgetSnapshot) -> some View {
+        // Large widget cap: 6 data rows (same as the existing maxVisible=7 minus
+        // one seat reserved for the footer, giving visual breathing room).
+        let maxDataRows = 6
+        let groups = BrandGrouping.group(providers: snapshot.providers, maxDataRows: maxDataRows)
+        let overflowCount = BrandGrouping.overflowCount(providers: snapshot.providers, maxDataRows: maxDataRows)
+        let hasOverflow = overflowCount > 0
+
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Tokenomics")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(theme.labelColor)
+                Spacer()
+                Text(snapshot.updatedAt, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(theme.labelColor)
+            }
+            .padding(.bottom, hasOverflow ? 14 : 20)
+
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(groups.enumerated()), id: \.element.brandId) { index, group in
+                    if index > 0 {
+                        Spacer(minLength: 12).frame(maxHeight: 24)
+                    }
+                    BrandGroupRow(group: group)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if hasOverflow {
+                Text("+\(overflowCount) in app")
+                    .font(.caption2)
+                    .foregroundStyle(theme.labelColor)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 12)
+            } else {
+                ShareCTA()
+                    .padding(.top, 12)
+            }
+        }
+        .widgetURL(URL(string: "tokenomics://open"))
+        .padding(.top, 14)
+        .padding(.bottom, 14)
+        .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Brand Grouping (flag-on path only)
+
+/// A brand group assembled for the medium/large widget brand-aware layout.
+/// Contains the brand's display identity plus the ordered pool sub-rows.
+///
+/// The brand identity fields are derived from the first pool entry because the
+/// widget extension can't import the main app's BrandId enum. The resolver uses
+/// the provider icon of the first pool as the brand icon — this is intentional:
+/// single-pool brands show their own icon, and multi-pool brands show the primary
+/// pool's icon (chatgpt for openai, gemini for google).
+struct BrandGroup {
+    /// The BrandId raw value — used as the ForEach stable ID.
+    let brandId: String
+    /// Display name to show in the brand header row.
+    let brandDisplayName: String
+    /// Icon provider ID for the brand header row.
+    let brandIconId: String
+    /// Ordered pool sub-rows for this brand.
+    let pools: [WidgetDataStore.WidgetSnapshot.ProviderEntry]
+
+    /// Whether this brand has more than one pool. Single-pool brands collapse
+    /// the header + sub-row into a single flat compact row (same as flag-off).
+    var isMultiPool: Bool { pools.count > 1 }
+}
+
+/// Groups a flat provider list into `BrandGroup` values for the brand-aware layout.
+///
+/// Rules:
+/// - Preserves first-appearance order of brands (matching brand positioning used
+///   by the popover tab order and multi-select row order).
+/// - Each pool sub-row counts as one data row toward the cap.
+/// - Brand parent header rows do not count toward the cap — they're structural.
+/// - If a brand has zero visible pools after capping, it is omitted entirely
+///   (graceful degradation: no orphan headers).
+enum BrandGrouping {
+
+    /// Builds a sorted list of brand groups from a flat provider array.
+    /// - Parameters:
+    ///   - providers: The full ordered provider list from the snapshot.
+    ///   - maxDataRows: Maximum number of pool sub-rows to include in total.
+    ///     Brand header rows are not counted.
+    static func group(
+        providers: [WidgetDataStore.WidgetSnapshot.ProviderEntry],
+        maxDataRows: Int
+    ) -> [BrandGroup] {
+        var seen: [String: BrandGroup] = [:]
+        var order: [String] = []
+        var dataRowsUsed = 0
+
+        for provider in providers {
+            guard dataRowsUsed < maxDataRows else { break }
+
+            // brandId from the snapshot field; fall back to the provider's own id
+            // for entries written by older app versions (nil brandId).
+            let brandKey = provider.brandId ?? provider.id
+
+            if seen[brandKey] == nil {
+                seen[brandKey] = BrandGroup(
+                    brandId: brandKey,
+                    brandDisplayName: brandDisplayName(for: provider),
+                    brandIconId: provider.id,
+                    pools: [provider]
+                )
+                order.append(brandKey)
+            } else {
+                seen[brandKey] = BrandGroup(
+                    brandId: seen[brandKey]!.brandId,
+                    brandDisplayName: seen[brandKey]!.brandDisplayName,
+                    brandIconId: seen[brandKey]!.brandIconId,
+                    pools: seen[brandKey]!.pools + [provider]
+                )
+            }
+            dataRowsUsed += 1
+        }
+
+        // Return groups in first-appearance order, omitting any empty groups.
+        return order.compactMap { key in
+            guard let group = seen[key], !group.pools.isEmpty else { return nil }
+            return group
+        }
+    }
+
+    /// Count of providers that didn't fit within the maxDataRows cap.
+    static func overflowCount(
+        providers: [WidgetDataStore.WidgetSnapshot.ProviderEntry],
+        maxDataRows: Int
+    ) -> Int {
+        max(0, providers.count - maxDataRows)
+    }
+
+    /// Human-readable brand display name. For known brand keys, returns the
+    /// well-known brand name; for unknown keys, falls back to the provider's
+    /// own displayName. This keeps the widget extension free of BrandId imports.
+    private static func brandDisplayName(
+        for provider: WidgetDataStore.WidgetSnapshot.ProviderEntry
+    ) -> String {
+        switch provider.brandId {
+        case "anthropic": return "Claude"
+        case "openai":    return "ChatGPT"
+        case "google":    return "Gemini"
+        case "copilot":   return "GitHub Copilot"
+        case "cursor":    return "Cursor"
+        case "stability": return "Stability AI"
+        case "midjourney":return "Midjourney"
+        case "runway":    return "Runway"
+        case "elevenlabs":return "ElevenLabs"
+        case "suno":      return "Suno"
+        case "udio":      return "Udio"
+        default:          return provider.displayName
+        }
+    }
+}
+
+/// Renders one brand group: a compact parent brand header row followed by
+/// slightly-indented per-pool sub-rows for multi-pool brands, or a single
+/// flat compact row for single-pool brands.
+///
+/// Single-pool brand renders identically to the flag-off CompactProviderRow —
+/// the only visual difference is the brand's displayName is used instead of
+/// the provider's displayName when they differ.
+private struct BrandGroupRow: View {
+    let group: BrandGroup
+
+    @Environment(\.widgetTheme) private var theme
+
+    // Sub-row indent distinguishes pool rows from the brand header visually.
+    private let subRowIndent: CGFloat = 22
+
+    var body: some View {
+        if group.isMultiPool {
+            multiPoolLayout
+        } else {
+            // Single-pool: flat compact row, unchanged appearance.
+            // Use the brand displayName for the icon; pool data from the sole entry.
+            if let sole = group.pools.first {
+                CompactProviderRow(provider: sole)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var multiPoolLayout: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Brand header: icon + brand name (no usage data — structural row)
+            HStack(spacing: 8) {
+                providerIcon(group.brandIconId, theme: theme)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 13, height: 13)
+
+                Text(group.brandDisplayName)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(theme.shortColor.opacity(0.7))
+
+                Spacer()
+            }
+
+            // Per-pool sub-rows, indented to visually nest under the brand header
+            ForEach(Array(group.pools.enumerated()), id: \.element.id) { index, pool in
+                Spacer(minLength: 5).frame(maxHeight: 8)
+                HStack(spacing: 0) {
+                    // Indent spacer — creates the visual nesting
+                    Spacer().frame(width: subRowIndent)
+                    CompactProviderRow(provider: pool)
+                }
+            }
         }
     }
 }
