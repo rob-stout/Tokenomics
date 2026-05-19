@@ -16,6 +16,10 @@ struct PopoverView: View {
     /// Initialized from UserDefaults each time Settings appears so flips from
     /// the `defaults write` command path stay in sync.
     @State private var brandAggregationFlag = FeatureFlags.brandAggregation
+    /// Selected brand when `FeatureFlags.brandAggregation` is on.
+    /// Independent of `viewModel.selectedTab` (ProviderId) which drives the flag-off path.
+    /// Initialized lazily to `enabledBrands.first` when the flag-on tab bar renders.
+    @State private var selectedBrand: BrandId?
     @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
     private var textSize: TextSize { TextSize(rawValue: textSizeRaw) ?? .compact }
 
@@ -67,6 +71,15 @@ struct PopoverView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             viewModel.redetectProviders()
             viewModel.selectContextualTab()
+            // Sync selectedBrand when the flag is on: follow the worst-of-N or
+            // pinned provider that selectContextualTab just chose.
+            if FeatureFlags.brandAggregation {
+                if let tab = viewModel.selectedTab {
+                    selectedBrand = tab.brand
+                } else {
+                    selectedBrand = viewModel.enabledBrands.first
+                }
+            }
         }
         // Reset to home view when popover closes
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
@@ -84,6 +97,125 @@ struct PopoverView: View {
             .padding(.top, 12)
             .padding(.bottom, 8)
 
+        if FeatureFlags.brandAggregation {
+            brandMainContent
+        } else {
+            legacyMainContent
+        }
+
+        Divider()
+
+        // Footer (shared by both paths)
+        SyncFooterView(
+            lastSynced: viewModel.lastSynced,
+            isLoading: viewModel.isLoading,
+            onRefresh: { viewModel.refresh() },
+            onSettings: { viewModel.showSettings = true },
+            showDisplayMode: viewModel.installedProviders.count > 1,
+            updateAvailable: updaterService.updateAvailable,
+            isStale: viewModel.isShowingStaleData,
+            viewModel: viewModel
+        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Brand-aware tab bar + body (flag on)
+
+    /// Brand-aggregated tab bar + body. Shown when `FeatureFlags.brandAggregation` is on.
+    /// Each tab represents one brand; the body stacks a usage section per pool beneath it.
+    /// Tab height adapts naturally: single-pool brands render one block, multi-pool brands
+    /// render N blocks separated by dividers.
+    @ViewBuilder
+    private var brandMainContent: some View {
+        let brands = viewModel.enabledBrands
+
+        // Brand tab bar (only when more than one brand is visible)
+        if brands.count > 1 {
+            BrandTabView(
+                brands: brands,
+                selection: $selectedBrand
+            )
+            Spacer().frame(height: 4)
+        } else {
+            Divider()
+        }
+
+        // Body: stack one usage section per pool for the selected brand.
+        if !viewModel.isAuthenticated {
+            LoginView(viewModel: viewModel)
+        } else {
+            let activeBrand = selectedBrand ?? brands.first
+            if let brand = activeBrand {
+                brandBody(for: brand)
+                    // Key on the brand so SwiftUI resets animation state on tab switch
+                    .id(brand)
+                    .onAppear {
+                        // Seed selectedBrand on first render if not yet set
+                        if selectedBrand == nil {
+                            selectedBrand = brand
+                        }
+                    }
+            } else {
+                LoginView(viewModel: viewModel)
+            }
+        }
+    }
+
+    /// Stacked pool sections for the given brand.
+    /// Single-pool brands render exactly as the legacy path. Multi-pool brands
+    /// show each pool's section separated by a hairline divider + pool label.
+    @ViewBuilder
+    private func brandBody(for brand: BrandId) -> some View {
+        let pairs = viewModel.poolPairs(for: brand)
+
+        if pairs.isEmpty {
+            LoginView(viewModel: viewModel)
+        } else if pairs.count == 1, let (providerId, state) = pairs.first {
+            // Single-pool brand: identical rendering to the legacy per-provider path
+            providerContent(state, providerId: providerId)
+        } else {
+            // Multi-pool brand: stack pool sections, separated by dividers with labels
+            VStack(spacing: 0) {
+                ForEach(Array(pairs.enumerated()), id: \.element.0) { index, pair in
+                    let (providerId, state) = pair
+
+                    // Pool header label — distinguishes pools within the brand tab
+                    poolSectionHeader(for: providerId)
+
+                    providerContent(state, providerId: providerId)
+
+                    if index < pairs.count - 1 {
+                        Divider()
+                            .padding(.horizontal, 16)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Slim label row identifying a pool within a multi-pool brand tab.
+    /// Uses the pool's `tabLabel` which carries the tool-specific name
+    /// (e.g. "ChatGPT", "OpenAI" for codex).
+    private func poolSectionHeader(for providerId: ProviderId) -> some View {
+        HStack {
+            Text(providerId.pinTrackerLabel)
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.5)
+                .foregroundStyle(.tertiary)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
+    }
+
+    // MARK: - Legacy per-provider tab bar + body (flag off)
+
+    /// Original per-provider tab bar and body. Kept exactly as-is when the flag is off —
+    /// this is the rollback path.
+    @ViewBuilder
+    private var legacyMainContent: some View {
         // Tabs (only if multiple providers)
         if viewModel.showTabs {
             ProviderTabView(
@@ -104,30 +236,30 @@ struct PopoverView: View {
         if !viewModel.isAuthenticated {
             LoginView(viewModel: viewModel)
         } else if let state = viewModel.currentProviderState {
-            providerContent(state)
+            providerContent(state, providerId: viewModel.selectedTab ?? .claude)
                 .id(viewModel.selectedTab)
         } else {
             LoginView(viewModel: viewModel)
         }
-
-        Divider()
-
-        // Footer
-        SyncFooterView(
-            lastSynced: viewModel.lastSynced,
-            isLoading: viewModel.isLoading,
-            onRefresh: { viewModel.refresh() },
-            onSettings: { viewModel.showSettings = true },
-            showDisplayMode: viewModel.installedProviders.count > 1,
-            updateAvailable: updaterService.updateAvailable,
-            isStale: viewModel.isShowingStaleData,
-            viewModel: viewModel
-        )
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
     }
 
     // MARK: - Header
+
+    /// Usage snapshot for the active view, used by the plan badge.
+    /// Brand mode: uses the first pool of the selected brand.
+    /// Legacy mode: uses the currently selected provider tab.
+    private var activePlanLabel: (label: String, isGemini: Bool)? {
+        if FeatureFlags.brandAggregation {
+            let brand = selectedBrand ?? viewModel.enabledBrands.first
+            guard let brand else { return nil }
+            let firstPair = viewModel.poolPairs(for: brand).first
+            guard let (providerId, state) = firstPair, let usage = state.usage else { return nil }
+            return (usage.planLabel, providerId == .gemini)
+        } else {
+            guard let state = viewModel.currentProviderState, let usage = state.usage else { return nil }
+            return (usage.planLabel, viewModel.selectedTab == .gemini)
+        }
+    }
 
     private var header: some View {
         HStack {
@@ -137,11 +269,10 @@ struct PopoverView: View {
 
             Spacer()
 
-            if let state = viewModel.currentProviderState,
-               let usage = state.usage {
+            if let plan = activePlanLabel {
                 PlanBadgeView(
-                    label: usage.planLabel,
-                    onTap: viewModel.selectedTab == .gemini
+                    label: plan.label,
+                    onTap: plan.isGemini
                         ? { showingGeminiPlanSetup = true }
                         : nil
                 )
@@ -161,18 +292,20 @@ struct PopoverView: View {
 
     // MARK: - Provider Content
 
+    /// Renders the content block for a single provider pool.
+    /// `providerId` is passed explicitly so this can be called from both the legacy
+    /// path (using `viewModel.selectedTab`) and the brand path (iterating pool pairs).
     @ViewBuilder
-    private func providerContent(_ state: ProviderState) -> some View {
-        let currentTab = viewModel.selectedTab ?? .claude
+    private func providerContent(_ state: ProviderState, providerId: ProviderId) -> some View {
         if case .notInstalled = state.connection {
-            notConnectedView(for: currentTab, connection: state.connection)
+            notConnectedView(for: providerId, connection: state.connection)
         } else if case .installedNoAuth = state.connection {
-            notConnectedView(for: currentTab, connection: state.connection)
+            notConnectedView(for: providerId, connection: state.connection)
         } else if state.isLoading && state.usage == nil {
             loadingView
         } else if case .authExpired = state.connection {
-            authExpiredView(for: currentTab)
-        } else if currentTab == .gemini && (SettingsService.geminiPlan == nil || showingGeminiPlanSetup) {
+            authExpiredView(for: providerId)
+        } else if providerId == .gemini && (SettingsService.geminiPlan == nil || showingGeminiPlanSetup) {
             GeminiPlanSetupView(
                 currentPlan: SettingsService.geminiPlan,
                 onConfirm: { plan in
@@ -184,8 +317,8 @@ struct PopoverView: View {
                     ? { showingGeminiPlanSetup = false }
                     : nil
             )
-        } else if !currentTab.supportsUsageTracking {
-            comingSoonView(for: currentTab)
+        } else if !providerId.supportsUsageTracking {
+            comingSoonView(for: providerId)
         } else if let error = state.error, state.usage == nil {
             errorView(error)
         } else if let usage = state.usage {
@@ -688,13 +821,81 @@ struct PopoverView: View {
 
     // MARK: - Provider Visibility Section
 
-    /// Per-provider toggle rows shown under the "Providers" settings header.
-    /// Toggling writes to SettingsService, which notifies MacSideStateExporter via
-    /// NotificationCenter — callers here don't need to reach the exporter directly.
+    /// Provider toggle rows under the "Providers" settings header.
+    ///
+    /// Flag on: one toggle per brand — toggling affects ALL of that brand's pools.
+    ///   Storage stays at ProviderId granularity (hiddenProviders: Set<ProviderId>)
+    ///   so the per-pool source of truth is never lost and a rollback to flag-off
+    ///   preserves individual pool visibility states.
+    ///
+    /// Flag off: one toggle per ProviderId — today's exact behavior.
     @ViewBuilder
     private var providerVisibilitySection: some View {
         sectionLabel("Providers")
 
+        if FeatureFlags.brandAggregation {
+            brandVisibilityRows
+        } else {
+            legacyVisibilityRows
+        }
+    }
+
+    /// Brand-level visibility rows (flag on). One toggle per brand; toggling
+    /// on/off writes to all of that brand's pools simultaneously.
+    @ViewBuilder
+    private var brandVisibilityRows: some View {
+        ForEach(BrandId.allCases) { brand in
+            brandVisibilityRow(for: brand)
+            if brand != BrandId.allCases.last {
+                Divider().padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private func brandVisibilityRow(for brand: BrandId) -> some View {
+        // Brand is "enabled" when ALL of its pools are visible (none hidden).
+        let allEnabled = brand.pools.allSatisfy {
+            SettingsService.visibility(for: $0)?.enabled ?? true
+        }
+        // Use the primary pool's icon to represent the brand
+        let primaryProvider = ProviderId.allCases.first { brand.pools.contains($0) } ?? .claude
+
+        return HStack(spacing: 8) {
+            ProviderIcon(provider: primaryProvider)
+                .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(brand.displayName)
+                    .scaledFont(.caption)
+                if !allEnabled {
+                    Text("Hidden in menu bar and popup")
+                        .scaledFont(.footnote)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { brand.pools.allSatisfy { SettingsService.visibility(for: $0)?.enabled ?? true } },
+                set: { newValue in
+                    // Write the new state to every pool in the brand
+                    for pool in brand.pools {
+                        SettingsService.setVisibility(newValue, for: pool)
+                    }
+                }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .labelsHidden()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+    }
+
+    /// Per-ProviderId visibility rows (flag off). Kept exactly as-is for rollback safety.
+    @ViewBuilder
+    private var legacyVisibilityRows: some View {
         ForEach(ProviderId.allCases) { providerId in
             providerVisibilityRow(for: providerId)
             if providerId != ProviderId.allCases.last {

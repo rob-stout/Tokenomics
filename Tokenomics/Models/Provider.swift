@@ -209,6 +209,26 @@ extension ProviderId {
         }
     }
 
+    /// Label used by the Pin Tracker dropdown when `FeatureFlags.brandAggregation` is on.
+    /// Each pool gets its own entry with the tool-specific name so users can pin
+    /// "Codex CLI" independently of "ChatGPT" even though they share the OpenAI brand.
+    var pinTrackerLabel: String {
+        switch self {
+        case .claude:          return "Anthropic"
+        case .chatgpt:         return "ChatGPT"
+        case .codex:           return "Codex CLI"
+        case .gemini:          return "Gemini CLI"
+        case .copilot:         return "GitHub Copilot"
+        case .cursor:          return "Cursor"
+        case .stableDiffusion: return "Stability AI"
+        case .midjourney:      return "Midjourney"
+        case .runway:          return "Runway"
+        case .elevenlabs:      return "ElevenLabs"
+        case .suno:            return "Suno"
+        case .udio:            return "Udio"
+        }
+    }
+
     /// Base name for icon assets (without the -white/-black/-d.blue suffix).
     /// Maps enum rawValues to actual file names in Provider Icons/.
     var iconBaseName: String {

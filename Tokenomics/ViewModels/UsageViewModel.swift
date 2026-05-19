@@ -161,6 +161,16 @@ final class UsageViewModel: ObservableObject {
             .compactMap { providerStates[$0] }
     }
 
+    /// Returns `(ProviderId, ProviderState)` pairs for the given brand's visible pools,
+    /// ordered by `visibleProviders`. The tab body needs both the id (for routing
+    /// Gemini plan setup, auth-expired labels, etc.) and the state.
+    func poolPairs(for brand: BrandId) -> [(ProviderId, ProviderState)] {
+        Self.providers(in: brand, from: visibleProviders)
+            .compactMap { id in
+                providerStates[id].map { (id, $0) }
+            }
+    }
+
     /// Pure helper: collapses a provider list into the unique brands that
     /// own them, preserving the order each brand first appears. Separated
     /// from `enabledBrands` so it can be exercised in tests without standing

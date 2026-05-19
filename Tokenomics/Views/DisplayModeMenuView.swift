@@ -23,17 +23,40 @@ struct DisplayModeMenuView: View {
 
             Divider()
 
-            // Pin a specific provider
+            // Pin a specific provider (pool).
+            //
+            // Flag on: flat list of per-pool entries using pinTrackerLabel —
+            //   e.g. "Anthropic / ChatGPT / Codex CLI / GitHub Copilot / Cursor / Gemini CLI"
+            //   Pin storage stays at ProviderId granularity so old pins survive the upgrade.
+            //
+            // Flag off: per-ProviderId entries using displayName (today's behavior).
             Label("Pin Tracker:", systemImage: "pin")
                 .scaledFont(.caption2)
 
-            ForEach(viewModel.visibleProviders) { provider in
-                Button(action: { viewModel.togglePin(for: provider) }) {
-                    HStack {
-                        if viewModel.isPinned(provider) {
-                            Image(systemName: "pin.fill")
+            if FeatureFlags.brandAggregation {
+                // Per-pool flat list — surfaces tool-specific names so users can pin
+                // "Codex CLI" independently from "ChatGPT" within the same OpenAI brand.
+                ForEach(viewModel.visibleProviders) { provider in
+                    Button(action: { viewModel.togglePin(for: provider) }) {
+                        HStack {
+                            if viewModel.isPinned(provider) {
+                                Image(systemName: "pin.fill")
+                            }
+                            Text(provider.pinTrackerLabel)
                         }
-                        Text(provider.displayName)
+                    }
+                }
+            } else {
+                // Today's per-ProviderId entries with displayName (e.g. "Anthropic",
+                // "OpenAI", "Google AI"). Kept exactly as-is when the flag is off.
+                ForEach(viewModel.visibleProviders) { provider in
+                    Button(action: { viewModel.togglePin(for: provider) }) {
+                        HStack {
+                            if viewModel.isPinned(provider) {
+                                Image(systemName: "pin.fill")
+                            }
+                            Text(provider.displayName)
+                        }
                     }
                 }
             }
