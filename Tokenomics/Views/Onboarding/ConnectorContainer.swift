@@ -12,6 +12,11 @@ import SwiftUI
 struct ConnectorContainer: View {
     @ObservedObject var viewModel: UsageViewModel
 
+    /// WebCompanionService instance for BrowserExtensionConnector.
+    /// Passed in from the app root so it shares the same singleton the rest of
+    /// the app uses (FSEvents watch is already running on it).
+    var webCompanion: any WebCompanionStateProvider
+
     /// Called when the user finishes onboarding (either by tapping "I'm all set"
     /// after connecting or by skipping).
     var onComplete: () -> Void
@@ -23,51 +28,24 @@ struct ConnectorContainer: View {
     /// "Add another" as "close window" rather than routing back to chooser.
     @State private var isPreTargeted = false
 
-    // MARK: - Phase 3 (smart synthesis) draft state — stub data
-    //
-    // The multi-select and setup-plan screens currently run on hardcoded
-    // detection annotations + a stubbed plan so the visual flow can be
-    // reviewed end-to-end against the Figma board. Real detection + plan
-    // generation land in follow-up tasks; until then "Start setup" on the
-    // plan screen falls back to the existing chooser.
-    @State private var draftSelection: Set<ProviderId> = [.claude, .chatgpt, .cursor]
+    // MARK: - Synthesis flow state
 
-    private let stubDetectionAnnotations: [ProviderId: String] = [
-        .claude: "Claude Code CLI · signed in at claude.ai",
-        .chatgpt: "ChatGPT.app installed",
-        .cursor: "Cursor.app installed"
-    ]
+    /// Brand-level selection from MultiSelectStep. Starts empty; pre-populated
+    /// with detected brands once DetectionService runs on entering multiSelect.
+    @State private var draftSelection: Set<ProviderId> = []
 
-    private var stubSetupPlan: SetupPlan {
-        SetupPlan(
-            providerCount: max(draftSelection.count, 1),
-            stepCount: 3,
-            estimatedDuration: "about a minute",
-            steps: [
-                .init(
-                    number: 1,
-                    title: "Install the Tokenomics browser extension",
-                    description: "Covers 2 of the tools you picked at once:",
-                    timeEstimate: "~1 min",
-                    covers: ["Claude (via claude.ai)", "ChatGPT (via chat.openai.com)"]
-                ),
-                .init(
-                    number: 2,
-                    title: "Confirm Claude Code is connected",
-                    description: "Already installed on your Mac — we just need to read your credentials.",
-                    timeEstimate: "~5 sec",
-                    covers: nil
-                ),
-                .init(
-                    number: 3,
-                    title: "Confirm Cursor is connected",
-                    description: "Already installed on your Mac — we just need to read your local data.",
-                    timeEstimate: "~5 sec",
-                    covers: nil
-                ),
-            ]
-        )
-    }
+    /// Latest detection results — populated by DetectionService on the multiSelect
+    /// screen and kept alive for PlanBuilder (which needs them on the setupPlan screen).
+    @State private var detectionResults: [BrandId: BrandDetection] = [:]
+
+    /// Per-ProviderId annotation strings derived from detectionResults. Consumed
+    /// by MultiSelectStep to show "already detected" sub-labels under each row.
+    @State private var detectionAnnotations: [ProviderId: String] = [:]
+
+    /// Ordered queue of providers to execute in the synthesis path. Built from
+    /// the plan just before execution starts; `.chatgpt` represents the
+    /// BrowserExtensionConnector step (covers all web-companion providers).
+    @State private var synthesisQueue: [ProviderId] = []
 
     @Environment(\.colorScheme) private var scheme
 
@@ -100,7 +78,7 @@ struct ConnectorContainer: View {
             case .multiSelect:
                 MultiSelectStep(
                     selected: $draftSelection,
-                    detectionAnnotations: stubDetectionAnnotations,
+                    detectionAnnotations: detectionAnnotations,
                     onContinue: { screen = .setupPlan },
                     onSetupOneAtATime: { screen = .chooser },
                     onBack: { screen = .permissions }
@@ -108,13 +86,15 @@ struct ConnectorContainer: View {
                 .padding(.top, Tokens.Spacing.s6)
                 .padding(.horizontal, 40)
                 .padding(.bottom, Tokens.Spacing.s5 + 4)
+                // Run detection once when this screen appears. Results pre-populate
+                // draftSelection with detected brands and feed annotation labels.
+                .task(id: "detection") {
+                    await runDetection()
+                }
             case .setupPlan:
                 SetupPlanStep(
-                    plan: stubSetupPlan,
-                    // Placeholder: real batched execution lands in a follow-up
-                    // task. For now, "Start setup" hands off to the existing
-                    // chooser so the rest of the flow stays clickable.
-                    onStart: { screen = .chooser },
+                    plan: buildPlan(),
+                    onStart: startSynthesisExecution,
                     onBack: { screen = .multiSelect }
                 )
                 .padding(.top, Tokens.Spacing.s6)
@@ -175,6 +155,135 @@ struct ConnectorContainer: View {
         }
     }
 
+    // MARK: - Detection
+
+    /// Runs DetectionService concurrently, updates annotation state, and
+    /// pre-populates draftSelection with detected brands. Only overwrites
+    /// draftSelection on first detection (while it is still empty) so that
+    /// users who tapped Back and returned to multiSelect keep their edits.
+    @MainActor
+    private func runDetection() async {
+        let service = DetectionService()
+        let results = await service.detect()
+        detectionResults = results
+        detectionAnnotations = results.providerAnnotations
+
+        // Seed the selection with detected brands only on first entry — once the
+        // user has made manual edits we don't want to overwrite their choices.
+        if draftSelection.isEmpty {
+            let detectedProviderIds = results.values
+                .filter(\.isDetected)
+                .flatMap { detection in detection.brand.pools }
+            draftSelection = Set(detectedProviderIds).intersection(
+                Set(MultiSelectStep.selectableProviderIds)
+            )
+        }
+    }
+
+    // MARK: - Plan
+
+    /// Builds a SetupPlan from the current draft selection and latest detection
+    /// results. Called inline by the setupPlan case — always reflects current state.
+    private func buildPlan() -> SetupPlan {
+        let brandSelection = Set(draftSelection.map(\.brand))
+        return PlanBuilder.build(selection: brandSelection, detection: detectionResults)
+    }
+
+    // MARK: - Synthesis Execution
+
+    /// Called by SetupPlanStep's "Start setup" button. Converts the current
+    /// selection into an ordered execution queue and kicks off the first step.
+    ///
+    /// Queue ordering mirrors PlanBuilder's step ordering:
+    ///   1. BrowserExtensionConnector (covers all web-companion providers in one step)
+    ///   2. CLI/desktop providers, brand-alphabetical
+    ///   3. API-key providers, brand-alphabetical
+    ///
+    /// `.chatgpt` is used as the queue entry for the extension step because
+    /// BrowserExtensionConnector declares that as its `id`.
+    @MainActor
+    private func startSynthesisExecution() {
+        let brandSelection = Set(draftSelection.map(\.brand))
+        synthesisQueue = buildExecutionQueue(from: brandSelection)
+        advanceSynthesisQueue()
+    }
+
+    /// Pops the next provider from `synthesisQueue` and opens it, or finishes
+    /// onboarding if the queue is empty.
+    @MainActor
+    private func advanceSynthesisQueue() {
+        guard !synthesisQueue.isEmpty else {
+            completeOnboarding()
+            return
+        }
+        let next = synthesisQueue.removeFirst()
+        openSynthesis(provider: next)
+    }
+
+    /// Opens a connector in synthesis mode. Outcomes advance the queue rather
+    /// than routing to the chooser — the queue owns the sequencing here.
+    private func openSynthesis(provider: ProviderId) {
+        let connector = makeConnector(for: provider)
+        activeConnector = ConnectorViewModel(
+            connector: connector,
+            onOutcome: { [self] outcome in
+                switch outcome {
+                case .addAnother, .skipped:
+                    // In synthesis mode both "add another" and "skip" advance
+                    // to the next queued provider rather than dropping to chooser.
+                    screen = .connector  // keep showing ConnectorView chrome while VM swaps
+                    activeConnector = nil
+                    viewModel.redetectProviders()
+                    advanceSynthesisQueue()
+                case .allSet:
+                    completeOnboarding()
+                }
+            }
+        )
+        screen = .connector
+    }
+
+    /// Builds an ordered list of ProviderIds to execute for the given brand set.
+    ///
+    /// Extension-only providers collapse into a single `.chatgpt` entry
+    /// (BrowserExtensionConnector's id) because the extension covers all of
+    /// them in one install step. CLI and API-key providers each get one entry.
+    private func buildExecutionQueue(from brandSelection: Set<BrandId>) -> [ProviderId] {
+        var queue: [ProviderId] = []
+
+        // Extension step: one BrowserExtensionConnector run if any selected brand
+        // has a web-companion-only pool member (ChatGPT, Midjourney, etc.).
+        let hasWebCompanionProviders = brandSelection.contains { brand in
+            brand.pools.contains(where: isWebCompanionOnly)
+        }
+        if hasWebCompanionProviders {
+            queue.append(.chatgpt)
+        }
+
+        // CLI/desktop and API-key providers — one per provider ID, brand-alphabetical.
+        let sortedBrands = brandSelection.sorted { $0.rawValue < $1.rawValue }
+        for brand in sortedBrands {
+            let cliProviders = brand.pools
+                .filter { !isWebCompanionOnly($0) }
+                .sorted { $0.rawValue < $1.rawValue }
+            queue.append(contentsOf: cliProviders)
+        }
+
+        return queue
+    }
+
+    /// True when a ProviderId is only reachable via the browser extension — no
+    /// CLI tool and no local credentials path. Mirrors the same classification
+    /// in PlanBuilder (kept local to avoid exposing PlanBuilder internals).
+    private func isWebCompanionOnly(_ provider: ProviderId) -> Bool {
+        switch provider {
+        case .chatgpt, .midjourney, .suno, .udio:
+            return true
+        default:
+            return false
+        }
+    }
+
     // MARK: - Navigation
 
     private func open(provider: ProviderId) {
@@ -195,9 +304,7 @@ struct ConnectorContainer: View {
                 case .allSet:
                     completeOnboarding()
                 case .skipped:
-                    // Treat a skipped step the same as "all set" for now.
-                    // The Phase 5.5 orchestrator will route this differently
-                    // when BrowserExtensionConnector is wired into the synthesis flow.
+                    // Treat a skipped step the same as "all set" from the chooser path.
                     completeOnboarding()
                 }
             }
@@ -209,6 +316,7 @@ struct ConnectorContainer: View {
         viewModel.completeOnboarding()
         activeConnector = nil
         isPreTargeted = false
+        synthesisQueue = []
         onComplete()
     }
 
@@ -242,9 +350,29 @@ struct ConnectorContainer: View {
                 providerId: .elevenlabs,
                 provider: ElevenLabsProvider()
             )
-        case .chatgpt, .midjourney, .suno, .udio:
-            // Coming Soon / browser-session providers — picker disables these rows. Defensive fallback.
-            return ClaudeConnector()
+        case .chatgpt:
+            // In the synthesis flow .chatgpt is the BrowserExtensionConnector's id.
+            // In the chooser path this case was previously a defensive fallback —
+            // now it correctly routes to the extension install step.
+            return BrowserExtensionConnector(webCompanion: webCompanion)
+        case .midjourney, .suno, .udio:
+            // These are web-companion-only with no standalone connector yet.
+            // BrowserExtensionConnector covers them as part of the extension batch;
+            // reaching this path individually would be a routing bug. Defensive fallback.
+            return BrowserExtensionConnector(webCompanion: webCompanion)
         }
     }
+}
+
+// MARK: - MultiSelectStep selectable provider IDs
+
+extension MultiSelectStep {
+    /// The full set of ProviderId values that appear as rows in MultiSelectStep.
+    /// Used by ConnectorContainer to filter detection results to only the providers
+    /// the user can actually interact with in the multi-select screen.
+    static let selectableProviderIds: Set<ProviderId> = [
+        .claude, .chatgpt, .gemini,
+        .copilot, .cursor,
+        .stableDiffusion, .midjourney, .runway, .elevenlabs
+    ]
 }

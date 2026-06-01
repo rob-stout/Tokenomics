@@ -50,7 +50,7 @@ struct TokenomicsApp: App {
 
     private func onboardingScene() -> some Scene {
         let base = WindowGroup(id: "onboarding") {
-            OnboardingWindowRoot(viewModel: viewModel)
+            OnboardingWindowRoot(viewModel: viewModel, webCompanion: appDelegate.webCompanionService)
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 720, height: 560)
@@ -71,10 +71,11 @@ struct TokenomicsApp: App {
 /// is visible), then restores `.accessory` when it disappears.
 struct OnboardingWindowRoot: View {
     @ObservedObject var viewModel: UsageViewModel
+    var webCompanion: any WebCompanionStateProvider
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        ConnectorContainer(viewModel: viewModel) {
+        ConnectorContainer(viewModel: viewModel, webCompanion: webCompanion) {
             // Onboarding finished. Close the window and bring the menu bar
             // back into focus so the user can click the Tokenomics icon to
             // see their usage. (SwiftUI's MenuBarExtra doesn't expose a
