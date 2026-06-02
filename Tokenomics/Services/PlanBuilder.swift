@@ -20,12 +20,16 @@ struct PlanBuilder {
     // MARK: - Lane Classification
 
     /// Brands whose only connection path is the browser extension (no CLI, no API key).
-    private static let extensionOnlyBrands: Set<BrandId> = [.openai, .midjourney]
+    private static let extensionOnlyBrands: Set<BrandId> = [
+        .openai, .midjourney, .grok, .perplexity, .leonardo
+    ]
 
     /// Brands connected via a local CLI tool or desktop app credentials.
     private static let cliBrands: Set<BrandId> = [.anthropic, .openai, .google, .copilot, .cursor]
 
     /// Brands connected via a pasted API key stored in Keychain.
+    /// NOTE: elevenlabs uses Firebase bearer auth (browser-session via content script),
+    /// not a Keychain API key — it belongs in extensionOnlyBrands for setup purposes.
     private static let apiKeyBrands: Set<BrandId> = [.stability, .runway, .elevenlabs]
 
     // MARK: - Build
@@ -261,7 +265,7 @@ struct PlanBuilder {
     /// local credentials path and routes through the CLI lane.
     private static func isWebCompanionOnly(_ provider: ProviderId) -> Bool {
         switch provider {
-        case .chatgpt, .geminiConsumer, .midjourney, .suno, .udio:
+        case .chatgpt, .geminiConsumer, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
             return true
         default:
             return false
@@ -275,6 +279,9 @@ struct PlanBuilder {
         case .chatgpt:        return "ChatGPT (via chat.openai.com)"
         case .geminiConsumer: return "Gemini (via gemini.google.com)"
         case .midjourney:     return "Midjourney (via midjourney.com)"
+        case .grok:           return "Grok (via grok.com)"
+        case .perplexity:     return "Perplexity (via perplexity.ai)"
+        case .leonardo:       return "Leonardo (via app.leonardo.ai)"
         case .suno:           return "Suno (via suno.com)"
         case .udio:           return "Udio (via udio.com)"
         default:              return provider.displayName

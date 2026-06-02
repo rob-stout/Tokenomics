@@ -20,12 +20,16 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     // Image Generation
     case stableDiffusion
     case midjourney
+    case leonardo
     // Video Generation
     case runway
     // Music / Audio / Voice
     case elevenlabs
     case suno
     case udio
+    // AI Assistants / Search
+    case grok
+    case perplexity
 
     var id: String { rawValue }
 
@@ -40,10 +44,13 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .gemini: return "Google AI"
         case .stableDiffusion: return "Stability AI"
         case .midjourney: return "Midjourney"
+        case .leonardo: return "Leonardo"
         case .runway: return "Runway"
         case .elevenlabs: return "ElevenLabs"
         case .suno: return "Suno"
         case .udio: return "Udio"
+        case .grok: return "Grok"
+        case .perplexity: return "Perplexity"
         }
     }
 
@@ -59,10 +66,13 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .gemini: return "Google AI"
         case .stableDiffusion: return "Stability"
         case .midjourney: return "Midjourney"
+        case .leonardo: return "Leonardo"
         case .runway: return "Runway"
         case .elevenlabs: return "ElevenLabs"
         case .suno: return "Suno"
         case .udio: return "Udio"
+        case .grok: return "Grok"
+        case .perplexity: return "Perplexity"
         }
     }
 
@@ -83,10 +93,13 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .gemini: return "G"
         case .stableDiffusion: return "S"
         case .midjourney: return "M"
+        case .leonardo: return "L"
         case .runway: return "R"
         case .elevenlabs: return "E"
         case .suno: return "N"
         case .udio: return "D"
+        case .grok: return "K"
+        case .perplexity: return "Q"
         }
     }
 
@@ -99,7 +112,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .codex: return "codex login"
         case .gemini: return "gemini login"
         // Browser-session and API-key providers have no CLI auth
-        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
+        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .leonardo,
+             .runway, .elevenlabs, .suno, .udio, .grok, .perplexity: return ""
         }
     }
 
@@ -110,10 +124,12 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .elevenlabs, .runway, .stableDiffusion: return true
         // chatgpt and geminiConsumer data arrives via the NMH bridge (browser-session)
         case .chatgpt, .geminiConsumer: return true
+        // Web-companion readers via NMH bridge
+        case .midjourney, .grok, .perplexity, .leonardo: return true
         // When flipping any of these to `true`, update docs/PRIVACY.md —
         // the placeholder note currently tells users Tokenomics makes no
-        // network calls or credential reads for these three.
-        case .midjourney, .suno, .udio: return false
+        // network calls or credential reads for these providers.
+        case .suno, .udio: return false
         }
     }
 
@@ -140,7 +156,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .codex: return "npm install -g @openai/codex"
         case .gemini: return "npm install -g @google/gemini-cli"
         // Browser-session and API-key providers don't need installation
-        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
+        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .leonardo,
+             .runway, .elevenlabs, .suno, .udio, .grok, .perplexity: return ""
         }
     }
 
@@ -158,15 +175,17 @@ extension ProviderId {
         case imageGeneration = "IMAGE GENERATION"
         case videoGeneration = "VIDEO GENERATION"
         case musicAudioVoice = "MUSIC / AUDIO / VOICE"
+        case aiAssistants    = "AI ASSISTANTS"
     }
 
     var category: ProviderCategory {
         switch self {
         case .claude, .chatgpt, .geminiConsumer, .stableDiffusion: return .platforms
         case .copilot, .cursor, .codex, .gemini: return .codingTools
-        case .midjourney: return .imageGeneration
+        case .midjourney, .leonardo: return .imageGeneration
         case .runway: return .videoGeneration
         case .elevenlabs, .suno, .udio: return .musicAudioVoice
+        case .grok, .perplexity: return .aiAssistants
         }
     }
 
@@ -176,7 +195,7 @@ extension ProviderId {
         // geminiConsumer data comes via the NMH bridge — counts as "has API"
         // for the purposes of showing the setup CTA in the chooser.
         switch self {
-        case .midjourney, .suno, .udio: return false
+        case .suno, .udio: return false
         default: return true
         }
     }
@@ -193,6 +212,9 @@ extension ProviderId {
         case .codex: return "Codex CLI"
         case .gemini: return "Gemini CLI"
         case .stableDiffusion: return "Stable Diffusion · Stable Image · Stable Video"
+        case .grok: return "Grok · via browser session"
+        case .perplexity: return "Perplexity · via browser session"
+        case .leonardo: return "Leonardo · via browser session"
         default: return nil
         }
     }
@@ -208,14 +230,20 @@ extension ProviderId {
         case .copilot: return "#copilot"
         case .cursor: return "#cursor"
         case .stableDiffusion, .runway, .elevenlabs: return "#api-key"
-        case .midjourney, .suno, .udio: return ""
+        case .midjourney, .grok, .perplexity, .leonardo: return "#browser-extension"
+        case .suno, .udio: return ""
         }
     }
 
     /// Whether this provider authenticates via an API key stored in Keychain
     var usesAPIKeyAuth: Bool {
         switch self {
-        case .elevenlabs, .runway, .stableDiffusion: return true
+        // elevenlabs now uses Firebase bearer auth (content-script-delivered),
+        // not a Keychain API key — this flag gates APIKeyConnector which is
+        // no longer the right connector for it. Keep false here to avoid routing
+        // it to the old API-key flow. The connector factory handles it via
+        // BrowserExtensionConnector or a future ElevenLabsConnector.
+        case .runway, .stableDiffusion: return true
         default: return false
         }
     }
@@ -234,10 +262,13 @@ extension ProviderId {
         case .cursor:          return "Cursor"
         case .stableDiffusion: return "Stability AI"
         case .midjourney:      return "Midjourney"
+        case .leonardo:        return "Leonardo"
         case .runway:          return "Runway"
         case .elevenlabs:      return "ElevenLabs"
         case .suno:            return "Suno"
         case .udio:            return "Udio"
+        case .grok:            return "Grok"
+        case .perplexity:      return "Perplexity"
         }
     }
 
@@ -255,10 +286,16 @@ extension ProviderId {
         case .gemini: return "Gemini"
         case .stableDiffusion: return "stability"
         case .midjourney: return "midjourney"
+        // NOTE: No icon assets exist yet for leonardo/grok/perplexity.
+        // Add <name>-d.blue.svg and <name>-white.svg to
+        // Tokenomics/Resources/Provider Icons/ to complete the icon set.
+        case .leonardo: return "leonardo"
         case .runway: return "runway"
         case .elevenlabs: return "elevenlabs"
         case .suno: return "suno"
         case .udio: return "udio"
+        case .grok: return "grok"
+        case .perplexity: return "perplexity"
         }
     }
 }
@@ -288,10 +325,13 @@ enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
     case cursor
     case stability
     case midjourney
+    case leonardo
     case runway
     case elevenlabs
     case suno
     case udio
+    case grok
+    case perplexity
 
     var id: String { rawValue }
 
@@ -305,10 +345,13 @@ enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .cursor:     return "Cursor"
         case .stability:  return "Stability AI"
         case .midjourney: return "Midjourney"
+        case .leonardo:   return "Leonardo"
         case .runway:     return "Runway"
         case .elevenlabs: return "ElevenLabs"
         case .suno:       return "Suno"
         case .udio:       return "Udio"
+        case .grok:       return "Grok"
+        case .perplexity: return "Perplexity"
         }
     }
 
@@ -316,10 +359,13 @@ enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
     /// already encodes the company (e.g. "Cursor", "Runway").
     var companyAttribution: String? {
         switch self {
-        case .anthropic: return "Anthropic"
-        case .openai:    return "OpenAI"
-        case .google:    return "Google"
-        default:         return nil
+        case .anthropic:  return "Anthropic"
+        case .openai:     return "OpenAI"
+        case .google:     return "Google"
+        case .grok:       return "xAI"
+        case .perplexity: return "Perplexity AI"
+        case .leonardo:   return "Leonardo.Ai"
+        default:          return nil
         }
     }
 
@@ -340,10 +386,13 @@ enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .cursor:     return [.cursor]
         case .stability:  return [.stableDiffusion]
         case .midjourney: return [.midjourney]
+        case .leonardo:   return [.leonardo]
         case .runway:     return [.runway]
         case .elevenlabs: return [.elevenlabs]
         case .suno:       return [.suno]
         case .udio:       return [.udio]
+        case .grok:       return [.grok]
+        case .perplexity: return [.perplexity]
         }
     }
 }
@@ -361,10 +410,13 @@ extension ProviderId {
         case .cursor:                        return .cursor
         case .stableDiffusion:               return .stability
         case .midjourney:                    return .midjourney
+        case .leonardo:                      return .leonardo
         case .runway:                        return .runway
         case .elevenlabs:                    return .elevenlabs
         case .suno:                          return .suno
         case .udio:                          return .udio
+        case .grok:                          return .grok
+        case .perplexity:                    return .perplexity
         }
     }
 }

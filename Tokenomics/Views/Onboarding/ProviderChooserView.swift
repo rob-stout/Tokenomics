@@ -272,7 +272,7 @@ struct ProviderChooserView: View {
             return "Quick setup"
         case .claude, .stableDiffusion, .runway, .elevenlabs:
             return "Guided setup"
-        case .chatgpt, .geminiConsumer, .midjourney, .suno, .udio:
+        case .chatgpt, .geminiConsumer, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
             return ""
         }
     }

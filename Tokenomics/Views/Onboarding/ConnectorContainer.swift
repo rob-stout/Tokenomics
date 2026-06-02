@@ -277,7 +277,7 @@ struct ConnectorContainer: View {
     /// in PlanBuilder (kept local to avoid exposing PlanBuilder internals).
     private func isWebCompanionOnly(_ provider: ProviderId) -> Bool {
         switch provider {
-        case .chatgpt, .geminiConsumer, .midjourney, .suno, .udio:
+        case .chatgpt, .geminiConsumer, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
             return true
         default:
             return false
@@ -360,7 +360,7 @@ struct ConnectorContainer: View {
             // over the NMH bridge. No standalone connector; route through the
             // BrowserExtensionConnector just like ChatGPT/Midjourney.
             return BrowserExtensionConnector(webCompanion: webCompanion)
-        case .midjourney, .suno, .udio:
+        case .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
             // These are web-companion-only with no standalone connector yet.
             // BrowserExtensionConnector covers them as part of the extension batch;
             // reaching this path individually would be a routing bug. Defensive fallback.
@@ -378,6 +378,7 @@ extension MultiSelectStep {
     static let selectableProviderIds: Set<ProviderId> = [
         .claude, .chatgpt, .gemini,
         .copilot, .cursor,
-        .stableDiffusion, .midjourney, .runway, .elevenlabs
+        .stableDiffusion, .midjourney, .leonardo, .runway, .elevenlabs,
+        .grok, .perplexity
     ]
 }
