@@ -1,10 +1,16 @@
 /**
  * Regression tests for the Gemini consumer usage parser.
  *
- * The fixture is the actual batchexecute envelope captured 2026-06-01 from a
- * Free-tier account with 0% usage. Inner payload:
- *   [1,[[600,0,1,[[1780373288,362509000]]],[12096,0,2,[[1780960088,362513000]]]],false]
- *   periodType 1 = 5-Hour (cap 600), periodType 2 = Weekly (cap 12096), both 0 used.
+ * Fixtures are real batchexecute envelopes captured via chrome-devtools-mcp.
+ * The jSf9Qc inner payload is:
+ *   [schemaVer, [ [remaining, utilFraction, periodType, [[resetSec, nanos]]], … ], flag]
+ *   - index0 = remaining compute units (counts down with use)
+ *   - index1 = utilization as a 0–1 fraction (used / cap)  → utilization% = index1 * 100
+ *   periodType 1 = 5-Hour, 2 = Weekly.
+ *
+ * The before/after pair below proves the index meaning: a task that consumed
+ * 227 units moved index0 600→373 (5h) and index1 0→0.38 (= 227/600), confirming
+ * index1 is the fraction — NOT index0/index1 = cap/used.
  */
 
 import { test } from 'node:test';
@@ -12,33 +18,39 @@ import { strict as assert } from 'node:assert';
 
 import { extractRpc, mapToSnapshot } from './gemini';
 
-// ── Fixtures ──────────────────────────────────────────────────────
+// ── Fixtures (real captures) ──────────────────────────────────────
 
-// Real batchexecute envelope captured 2026-06-01 via chrome-devtools-mcp.
-// The envelope begins with )]}\' on its own line, then length-prefixed chunks.
-const REAL_FIXTURE = `)]}'
+// BEFORE the task — Free-tier account, 0% on both windows.
+const FIXTURE_ZERO = `)]}'
 
 189
 [["wrb.fr","jSf9Qc","[1,[[600,0,1,[[1780373288,362509000]]],[12096,0,2,[[1780960088,362513000]]]],false]",null,null,null,"generic"],["di",193],["af.httprm",192,"-7132290681884234964",20]]
 25
 [["e",4,null,null,225]]`;
 
-// Pinned "now" for deterministic utilization assertions.
-const NOW = 1_748_800_000_000; // arbitrary fixed timestamp well before the resets
+// AFTER the task — same account, after burning 227 compute units.
+// 5h: remaining 373, fraction 0.38 (→ 38%); weekly: remaining 11869, fraction 0.01873998 (→ 2%).
+const FIXTURE_USED = `)]}'
+
+200
+[["wrb.fr","jSf9Qc","[1,[[373,0.38,1,[[1780432870,316087000]]],[11869,0.01873998,2,[[1781019670,316166000]]]],false]",null,null,null,"generic"],["di",30],["af.httprm",29,"-1",20]]
+25
+[["e",4,null,null,200]]`;
+
+const NOW = 1_748_800_000_000; // fixed timestamp, well before the resets
 
 // ── extractRpc ────────────────────────────────────────────────────
 
-test('extractRpc: returns decoded inner payload for the real fixture', () => {
-  const inner = extractRpc(REAL_FIXTURE, 'jSf9Qc');
-  assert.ok(inner !== null, 'expected non-null result');
+test('extractRpc: decodes the inner payload for the real fixture', () => {
+  const inner = extractRpc(FIXTURE_ZERO, 'jSf9Qc');
   assert.ok(Array.isArray(inner), 'expected array');
 });
 
 test('extractRpc: returns null for an unknown rpcid', () => {
-  assert.equal(extractRpc(REAL_FIXTURE, 'unknownRpc'), null);
+  assert.equal(extractRpc(FIXTURE_ZERO, 'unknownRpc'), null);
 });
 
-test('extractRpc: returns null for a completely empty string', () => {
+test('extractRpc: returns null for an empty string', () => {
   assert.equal(extractRpc('', 'jSf9Qc'), null);
 });
 
@@ -47,103 +59,75 @@ test('extractRpc: returns null when the inner payload is not valid JSON', () => 
   assert.equal(extractRpc(broken, 'jSf9Qc'), null);
 });
 
-// ── mapToSnapshot — 0% case (real fixture) ────────────────────────
+// ── Gold path: real before/after captures ────────────────────────
 
-test('0% case: both windows at 0 utilization', () => {
-  const inner = extractRpc(REAL_FIXTURE, 'jSf9Qc');
-  assert.ok(inner !== null);
-  const snap = mapToSnapshot(inner, NOW);
-
+test('ZERO capture: both windows at 0%', () => {
+  const snap = mapToSnapshot(extractRpc(FIXTURE_ZERO, 'jSf9Qc'), NOW);
   assert.equal(snap.provider, 'geminiConsumer');
   assert.equal(snap.estimated, false);
   assert.equal(snap.planLabel, 'Gemini');
   assert.equal(snap.shortWindow.utilization, 0);
-  assert.ok(snap.longWindow !== null, 'expected a long window');
   assert.equal(snap.longWindow!.utilization, 0);
 });
 
-test('0% case: shortWindow is the 5-Hour window', () => {
-  const inner = extractRpc(REAL_FIXTURE, 'jSf9Qc');
-  const snap = mapToSnapshot(inner!, NOW);
-
-  assert.equal(snap.shortWindow.label, '5-Hour Window');
-  assert.equal(snap.shortWindow.windowDurationSec, 5 * 3600);
+test('USED capture: 5h = 38%, weekly = 2% (index1 is the fraction, not used count)', () => {
+  const snap = mapToSnapshot(extractRpc(FIXTURE_USED, 'jSf9Qc'), NOW);
+  assert.equal(snap.shortWindow.utilization, 38); // round(0.38 * 100)
+  assert.equal(snap.longWindow!.utilization, 2);  // round(0.01873998 * 100)
 });
 
-test('0% case: longWindow is the Weekly window', () => {
-  const inner = extractRpc(REAL_FIXTURE, 'jSf9Qc');
-  const snap = mapToSnapshot(inner!, NOW);
-
-  assert.ok(snap.longWindow !== null);
+test('window routing + durations: 5h → shortWindow, weekly → longWindow', () => {
+  const snap = mapToSnapshot(extractRpc(FIXTURE_ZERO, 'jSf9Qc'), NOW);
+  assert.equal(snap.shortWindow.label, '5-Hour Window');
+  assert.equal(snap.shortWindow.windowDurationSec, 5 * 3600);
   assert.equal(snap.longWindow!.label, 'Weekly');
   assert.equal(snap.longWindow!.windowDurationSec, 7 * 86400);
 });
 
-test('0% case: reset timestamps are ISO 8601 strings from epoch seconds', () => {
-  const inner = extractRpc(REAL_FIXTURE, 'jSf9Qc');
-  const snap = mapToSnapshot(inner!, NOW);
-
-  // Epoch 1780373288 → 5h window reset
-  const shortReset = new Date(snap.shortWindow.resetsAt).getTime();
-  assert.equal(shortReset, 1780373288 * 1000);
-
-  // Epoch 1780960088 → weekly reset
-  const longReset = new Date(snap.longWindow!.resetsAt).getTime();
-  assert.equal(longReset, 1780960088 * 1000);
+test('reset timestamps decode from epoch seconds to ISO 8601', () => {
+  const snap = mapToSnapshot(extractRpc(FIXTURE_ZERO, 'jSf9Qc'), NOW);
+  assert.equal(new Date(snap.shortWindow.resetsAt).getTime(), 1780373288 * 1000);
+  assert.equal(new Date(snap.longWindow!.resetsAt).getTime(), 1780960088 * 1000);
 });
 
-// ── mapToSnapshot — utilization math ─────────────────────────────
-
-test('50% utilization: 300 used of 600 cap → 50', () => {
-  // Construct an inner payload with non-zero usage.
-  const inner = [1, [[600, 300, 1, [[1780373288, 0]]], [12096, 0, 2, [[1780960088, 0]]]], false];
-  const snap = mapToSnapshot(inner, NOW);
-  assert.equal(snap.shortWindow.utilization, 50);
-});
-
-test('100% utilization: cap and used equal', () => {
-  const inner = [1, [[600, 600, 1, [[1780373288, 0]]], [12096, 12096, 2, [[1780960088, 0]]]], false];
-  const snap = mapToSnapshot(inner, NOW);
-  assert.equal(snap.shortWindow.utilization, 100);
-  assert.equal(snap.longWindow!.utilization, 100);
-});
-
-test('utilization clamps to 100 when used > cap', () => {
-  const inner = [1, [[600, 9999, 1, [[1780373288, 0]]]], false];
-  const snap = mapToSnapshot(inner, NOW);
-  assert.equal(snap.shortWindow.utilization, 100);
-});
-
-test('utilization is 0 when cap is 0 (avoids divide-by-zero)', () => {
-  const inner = [1, [[0, 500, 1, [[1780373288, 0]]]], false];
-  const snap = mapToSnapshot(inner, NOW);
-  assert.equal(snap.shortWindow.utilization, 0);
-});
-
-test('capturedAt is the passed-in now value', () => {
-  const inner = extractRpc(REAL_FIXTURE, 'jSf9Qc');
-  const snap = mapToSnapshot(inner!, NOW);
+test('capturedAt is the passed-in now', () => {
+  const snap = mapToSnapshot(extractRpc(FIXTURE_ZERO, 'jSf9Qc'), NOW);
   assert.equal(snap.capturedAt, NOW);
 });
 
-// ── mapToSnapshot — 5h vs weekly split ───────────────────────────
+// ── utilization math (index1 = 0–1 fraction) ─────────────────────
 
-test('periodType 1 → shortWindow, periodType 2 → longWindow', () => {
-  // Only the 5h window present.
-  const inner5h = [1, [[600, 120, 1, [[1780373288, 0]]]], false];
-  const snap5h = mapToSnapshot(inner5h, NOW);
-  assert.equal(snap5h.shortWindow.utilization, 20); // 120/600 = 20%
-  assert.equal(snap5h.longWindow, null);
-
-  // Only the weekly window present.
-  const innerWeekly = [1, [[12096, 6048, 2, [[1780960088, 0]]]], false];
-  const snapWeekly = mapToSnapshot(innerWeekly, NOW);
-  assert.equal(snapWeekly.longWindow!.utilization, 50); // 6048/12096 = 50%
+test('fraction 0.5 → 50%', () => {
+  // [remaining, utilFraction, periodType, reset]
+  const inner = [1, [[300, 0.5, 1, [[1780373288, 0]]]], false];
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 50);
 });
 
-// ── mapToSnapshot — defensiveness ────────────────────────────────
+test('fraction 1.0 → 100%', () => {
+  const inner = [1, [[0, 1, 1, [[1780373288, 0]]]], false];
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 100);
+});
 
-test('completely null/empty inner → safe defaults, no throw', () => {
+test('fraction > 1 clamps to 100', () => {
+  const inner = [1, [[0, 1.5, 1, [[1780373288, 0]]]], false];
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 100);
+});
+
+test('negative fraction clamps to 0', () => {
+  const inner = [1, [[600, -0.1, 1, [[1780373288, 0]]]], false];
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 0);
+});
+
+test('5h and weekly carry independent fractions', () => {
+  const inner = [1, [[480, 0.2, 1, [[1780373288, 0]]], [6048, 0.5, 2, [[1780960088, 0]]]], false];
+  const snap = mapToSnapshot(inner, NOW);
+  assert.equal(snap.shortWindow.utilization, 20);
+  assert.equal(snap.longWindow!.utilization, 50);
+});
+
+// ── defensiveness ─────────────────────────────────────────────────
+
+test('null inner → safe defaults, no throw', () => {
   const snap = mapToSnapshot(null, NOW);
   assert.equal(snap.provider, 'geminiConsumer');
   assert.equal(snap.shortWindow.utilization, 0);
@@ -157,26 +141,20 @@ test('empty array inner → safe defaults', () => {
   assert.equal(snap.longWindow, null);
 });
 
-test('windows array present but all entries missing reset → resetsAt is empty string', () => {
+test('missing reset → resetsAt is empty string', () => {
   const inner = [1, [[600, 0, 1, []]], false];
-  const snap = mapToSnapshot(inner, NOW);
-  assert.equal(snap.shortWindow.resetsAt, '');
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.resetsAt, '');
 });
 
-test('window entry with string values does not crash (type drift scenario)', () => {
-  // Simulate a schema change where values come back as strings.
-  // Our num() helper should return 0 for non-finite/non-number values.
-  const inner = [1, [['600' as unknown as number, '0' as unknown as number, 1 as unknown, [[1780373288, 0]]]], false];
-  const snap = mapToSnapshot(inner, NOW);
-  // cap coerces to 0 → utilization = 0 (avoids NaN)
-  assert.equal(snap.shortWindow.utilization, 0);
+test('string values coerce safely to 0 (schema drift)', () => {
+  const inner = [1, [[373 as unknown, '0.38' as unknown as number, 1 as unknown, [[1780432870, 0]]]], false];
+  // a string fraction coerces to 0 rather than NaN
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 0);
 });
 
-test('unknown periodType lands in shortWindow (not silently dropped)', () => {
-  // periodType 99 is unknown — falls to the else branch (shortWindow).
-  const inner = [1, [[600, 300, 99, [[1780373288, 0]]]], false];
+test('unknown periodType lands in shortWindow (not dropped)', () => {
+  const inner = [1, [[480, 0.5, 99, [[1780373288, 0]]]], false];
   const snap = mapToSnapshot(inner, NOW);
-  // Utilization should still be calculated correctly.
   assert.equal(snap.shortWindow.utilization, 50);
   assert.match(snap.shortWindow.label, /Window 99/);
 });

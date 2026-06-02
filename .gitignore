@@ -43,3 +43,6 @@ tokenomics-extension-key.pem
 
 # Local Gemini /usage capture fixtures (personal session data)
 .gem-capture/
+
+# Gemini reader spec — private (matches other web-companion strategy docs)
+docs/gemini-reader-spec.md

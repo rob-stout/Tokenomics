@@ -8,10 +8,16 @@
  * with the page's own credentials, then relays the parsed snapshot to the SW.
  *
  * Payload shape (jSf9Qc inner payload, schema version 1):
- *   [schemaVer, [ [cap, used, periodType, [[resetEpochSec, resetNanos]]], … ], boolFlag]
+ *   [schemaVer, [ [remaining, utilFraction, periodType, [[resetEpochSec, resetNanos]]], … ], boolFlag]
  *
  * periodType 1 = 5-Hour rolling window, periodType 2 = Weekly window.
- * utilization% = used / cap * 100  (both are compute units, same denominator).
+ *   - index0 = remaining compute units (counts DOWN as you use Gemini)
+ *   - index1 = utilization as a 0–1 fraction (i.e. used / cap)
+ * So utilization% = index1 * 100. (Confirmed 2026-06-02 via a before/after
+ * capture: a task that burned 227 units took 5h index0 600→373 and index1
+ * 0→0.38 = 227/600; weekly index0 12096→11869, index1 0→0.0187 = 227/12096.
+ * At 0% the two fields are indistinguishable, which is why the initial
+ * `[cap, used]` reading looked plausible — it wasn't.)
  */
 
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
@@ -81,17 +87,18 @@ export function mapToSnapshot(
   let longWindow: WindowUsage | null = null;
 
   for (const w of windows) {
-    const cap = num((w as unknown[])?.[0]);
-    const used = num((w as unknown[])?.[1]);
+    // index0 is *remaining* units (not cap) — unused for the bar; index1 is the
+    // utilization fraction (used / cap, 0–1). See the header note.
+    const utilFraction = num((w as unknown[])?.[1]);
     const periodType = num((w as unknown[])?.[2]);
     // Reset is in [[epochSec, nanos]] — we only need epochSec for the ISO timestamp.
     const resetSec = num(((w as unknown[])?.[3] as unknown[][])?.[0]?.[0]);
 
     const win: WindowUsage = {
       label: PERIOD_LABEL[periodType] ?? `Window ${periodType}`,
-      // cap > 0 guard prevents NaN/Infinity; clamp to [0, 100] for display safety.
-      utilization:
-        cap > 0 ? Math.min(100, Math.max(0, Math.round((used / cap) * 100))) : 0,
+      // index1 is already used/cap as a 0–1 fraction — scale to the 0–100 the
+      // Mac model expects. Clamp for display safety.
+      utilization: Math.min(100, Math.max(0, Math.round(utilFraction * 100))),
       // resetSec === 0 means we couldn't parse it — leave resetsAt empty; callers
       // will render "–" or skip the countdown rather than showing epoch start.
       resetsAt: resetSec > 0 ? new Date(resetSec * 1000).toISOString() : '',
