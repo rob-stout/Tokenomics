@@ -18,6 +18,9 @@ const KEYS = {
   midjourneyAuth: 'midjourneyAuth',
   midjourneyBackoff: 'midjourneyBackoff',
   geminiConsumerSnapshot: 'geminiConsumerSnapshot',
+  elevenLabsSnapshot: 'elevenLabsSnapshot',
+  elevenLabsAuth: 'elevenLabsAuth',
+  elevenLabsBackoff: 'elevenLabsBackoff',
 } as const;
 
 const ORG_ID_TTL_MS = 24 * 60 * 60 * 1000;
@@ -163,7 +166,7 @@ function isChatGPTPlan(value: unknown): value is ChatGPTPlan {
 
 // ── Rate-limit backoff (generalised per-provider) ──────────
 
-type BackoffKey = typeof KEYS.claudeBackoff | typeof KEYS.midjourneyBackoff;
+type BackoffKey = typeof KEYS.claudeBackoff | typeof KEYS.midjourneyBackoff | typeof KEYS.elevenLabsBackoff;
 
 async function getBackoffForKey(key: BackoffKey): Promise<BackoffState | null> {
   const result = await browser.storage.local.get(key);
@@ -242,4 +245,40 @@ export async function getGeminiConsumerSnapshot(): Promise<ProviderUsageSnapshot
 
 export async function setGeminiConsumerSnapshot(snapshot: ProviderUsageSnapshot): Promise<void> {
   await browser.storage.local.set({ [KEYS.geminiConsumerSnapshot]: snapshot });
+}
+
+// ── ElevenLabs snapshot ─────────────────────────────────────
+
+export async function getElevenLabsSnapshot(): Promise<ProviderUsageSnapshot | null> {
+  const result = await browser.storage.local.get(KEYS.elevenLabsSnapshot);
+  const raw = result[KEYS.elevenLabsSnapshot];
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as ProviderUsageSnapshot;
+}
+
+export async function setElevenLabsSnapshot(snapshot: ProviderUsageSnapshot): Promise<void> {
+  await browser.storage.local.set({ [KEYS.elevenLabsSnapshot]: snapshot });
+}
+
+// ── ElevenLabs auth state ───────────────────────────────────
+
+export async function getElevenLabsAuth(): Promise<AuthState> {
+  const result = await browser.storage.local.get(KEYS.elevenLabsAuth);
+  const raw = result[KEYS.elevenLabsAuth];
+  if (raw === 'authenticated' || raw === 'unauthenticated') return raw;
+  return 'unknown';
+}
+
+export async function setElevenLabsAuth(state: AuthState): Promise<void> {
+  await browser.storage.local.set({ [KEYS.elevenLabsAuth]: state });
+}
+
+// ── ElevenLabs rate-limit backoff ───────────────────────────
+
+export async function getElevenLabsBackoff(): Promise<BackoffState | null> {
+  return getBackoffForKey(KEYS.elevenLabsBackoff);
+}
+
+export async function setElevenLabsBackoff(state: BackoffState | null): Promise<void> {
+  return setBackoffForKey(KEYS.elevenLabsBackoff, state);
 }

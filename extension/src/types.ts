@@ -6,6 +6,7 @@ export const PROVIDERS = [
   'copilot',
   'cursor',
   'midjourney',
+  'elevenlabs',
 ] as const;
 
 export type ProviderId = (typeof PROVIDERS)[number];
@@ -26,6 +27,12 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   copilot: { tabLabel: 'Copilot', displayName: 'GitHub Copilot', iconBase: 'Copilot' },
   cursor: { tabLabel: 'Cursor', displayName: 'Cursor', iconBase: 'Cursor' },
   midjourney: { tabLabel: 'Midjourney', displayName: 'Midjourney', iconBase: 'midjourney' },
+  // NOTE: No ElevenLabs icon asset exists in extension/src/icons/providers/ yet.
+  // iconBase 'elevenlabs' is the agreed name — add elevenlabs-d.blue.svg and
+  // elevenlabs-white.svg to that directory to match the other provider icons.
+  // Until then the popup icon will fall back to whatever the PopupIcon component
+  // shows for an unknown iconBase (typically a generic placeholder).
+  elevenlabs: { tabLabel: 'ElevenLabs', displayName: 'ElevenLabs', iconBase: 'elevenlabs' },
 };
 
 export function isProviderId(value: unknown): value is ProviderId {

@@ -7,6 +7,7 @@ import {
 } from './chatgpt';
 import { AuthError, fetchClaudeUsage, RateLimitError } from './claude';
 import { AuthError as MJAuthError, fetchMidjourneyUsage, RateLimitError as MJRateLimitError } from './midjourney';
+import { AuthError as ELAuthError, fetchElevenLabsUsage, RateLimitError as ELRateLimitError } from './elevenlabs';
 import type { ExtensionMessage, ExtensionResponse } from './messages';
 import type { ProviderUsageSnapshot } from './snapshot';
 import { sendBridgeBatch, scheduleBridgeSend, registerRefreshWebProvidersHandler } from './bridge';
@@ -31,15 +32,22 @@ import {
   setMidjourneyAuth,
   setMidjourneyBackoff,
   setMidjourneySnapshot,
+  getElevenLabsBackoff,
+  getElevenLabsSnapshot,
+  setElevenLabsAuth,
+  setElevenLabsBackoff,
+  setElevenLabsSnapshot,
 } from './storage';
 import type { ProviderId } from './types';
 
 const CLAUDE_ALARM = 'claude-poll';
 const MIDJOURNEY_ALARM = 'midjourney-poll';
+const ELEVENLABS_ALARM = 'elevenlabs-poll';
 const PLAN_REDETECT_ALARM = 'chatgpt-plan-redetect';
 const BRIDGE_HEARTBEAT_ALARM = 'bridgeHeartbeat';
 const POLL_PERIOD_MIN = 5;
 const MIDJOURNEY_POLL_PERIOD_MIN = 10; // less frequent — billing data changes slowly
+const ELEVENLABS_POLL_PERIOD_MIN = 10; // monthly billing window, no need to poll rapidly
 const PLAN_REDETECT_PERIOD_MIN = 60 * 24; // re-check plan once a day
 
 // Exponential backoff: 5m → 10m → 20m → 40m → 60m (cap)
@@ -53,6 +61,7 @@ console.log('[tokenomics] service worker booted');
 registerRefreshWebProvidersHandler(() => {
   void pollClaude('manual');
   void pollMidjourney('manual');
+  void pollElevenLabs('manual');
   void recomputeChatGPTSnapshot();
 });
 
@@ -62,6 +71,7 @@ browser.runtime.onInstalled.addListener(async () => {
   await scheduleAlarms();
   void pollClaude('install');
   void pollMidjourney('install');
+  void pollElevenLabs('install');
   void redetectChatGPTPlan('install');
 });
 
@@ -72,6 +82,7 @@ browser.runtime.onStartup.addListener(async () => {
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === CLAUDE_ALARM) void pollClaude('alarm');
   else if (alarm.name === MIDJOURNEY_ALARM) void pollMidjourney('alarm');
+  else if (alarm.name === ELEVENLABS_ALARM) void pollElevenLabs('alarm');
   else if (alarm.name === PLAN_REDETECT_ALARM) void redetectChatGPTPlan('alarm');
   else if (alarm.name === BRIDGE_HEARTBEAT_ALARM) void sendBridgeBatch('heartbeat').catch(() => undefined);
 });
@@ -117,14 +128,27 @@ browser.runtime.onMessage.addListener(
     }
 
     if (msg.kind === 'REFRESH_REQUESTED') {
-      const [claudeBackoff, mjBackoff] = await Promise.all([getBackoff(), getMidjourneyBackoff()]);
+      const [claudeBackoff, mjBackoff, elBackoff] = await Promise.all([
+        getBackoff(),
+        getMidjourneyBackoff(),
+        getElevenLabsBackoff(),
+      ]);
       // Report the earliest active backoff expiry to the caller.
       const now = Date.now();
-      if (claudeBackoff && now < claudeBackoff.until && mjBackoff && now < mjBackoff.until) {
-        return { kind: 'REFRESH_BACKOFF', until: Math.min(claudeBackoff.until, mjBackoff.until) };
+      const activeBackoffs = [claudeBackoff, mjBackoff, elBackoff]
+        .filter((b): b is NonNullable<typeof b> => b !== null && now < b.until)
+        .map((b) => b.until);
+      if (activeBackoffs.length === 3) {
+        // All three providers are backed off — surface the soonest expiry.
+        return { kind: 'REFRESH_BACKOFF', until: Math.min(...activeBackoffs) };
       }
       try {
-        await Promise.all([pollClaude('manual'), pollMidjourney('manual'), redetectChatGPTPlan('manual')]);
+        await Promise.all([
+          pollClaude('manual'),
+          pollMidjourney('manual'),
+          pollElevenLabs('manual'),
+          redetectChatGPTPlan('manual'),
+        ]);
         await recomputeChatGPTSnapshot();
         // geminiConsumer is content-script-driven — no manual re-fetch available here;
         // the existing snapshot is already the freshest data we have.
@@ -142,6 +166,7 @@ async function scheduleAlarms(): Promise<void> {
   await Promise.all([
     browser.alarms.create(CLAUDE_ALARM, { periodInMinutes: POLL_PERIOD_MIN }),
     browser.alarms.create(MIDJOURNEY_ALARM, { periodInMinutes: MIDJOURNEY_POLL_PERIOD_MIN }),
+    browser.alarms.create(ELEVENLABS_ALARM, { periodInMinutes: ELEVENLABS_POLL_PERIOD_MIN }),
     browser.alarms.create(PLAN_REDETECT_ALARM, { periodInMinutes: PLAN_REDETECT_PERIOD_MIN }),
     browser.alarms.create(BRIDGE_HEARTBEAT_ALARM, { periodInMinutes: 1 }),
   ]);
@@ -223,6 +248,45 @@ export async function pollMidjourney(trigger: 'install' | 'alarm' | 'manual'): P
   }
 }
 
+// ── ElevenLabs poll ─────────────────────────────────────────
+
+/**
+ * Poll ElevenLabs subscription usage via cookie-auth (hypothesis — UNVERIFIED).
+ * Mirrors the Midjourney poll structure: exponential backoff on 429,
+ * auth-state tracking, bridge notification on success.
+ */
+export async function pollElevenLabs(trigger: 'install' | 'alarm' | 'manual'): Promise<void> {
+  const existing = await getElevenLabsBackoff();
+  if (existing && Date.now() < existing.until && trigger !== 'manual') {
+    console.log(`[tokenomics] skipping elevenlabs ${trigger} poll, backoff until`, new Date(existing.until));
+    return;
+  }
+
+  try {
+    const snapshot = await fetchElevenLabsUsage();
+    await setElevenLabsSnapshot(snapshot);
+    scheduleBridgeSend('snapshot');
+    await setElevenLabsAuth('authenticated');
+    await setElevenLabsBackoff(null);
+    await updateBadge();
+    console.log(`[tokenomics] elevenlabs poll ok (${trigger})`, snapshot);
+  } catch (err) {
+    if (err instanceof ELAuthError) {
+      await setElevenLabsAuth('unauthenticated');
+      await updateBadge();
+      console.log('[tokenomics] elevenlabs not signed in');
+    } else if (err instanceof ELRateLimitError) {
+      const next = nextBackoff(existing);
+      await setElevenLabsBackoff(next);
+      console.warn('[tokenomics] elevenlabs rate limited until', new Date(next.until));
+      throw err;
+    } else {
+      console.error('[tokenomics] elevenlabs poll failed', err);
+      throw err;
+    }
+  }
+}
+
 // ── ChatGPT counter ─────────────────────────────────────────
 
 async function recordChatGPTMessage(model: string | null, ts: number): Promise<void> {
@@ -260,18 +324,20 @@ async function redetectChatGPTPlan(trigger: 'install' | 'alarm' | 'manual'): Pro
 // ── Toolbar badge ───────────────────────────────────────────
 
 async function updateBadge(): Promise<void> {
-  const [pinned, claude, chatgpt, midjourney, geminiConsumer] = await Promise.all([
+  const [pinned, claude, chatgpt, midjourney, geminiConsumer, elevenlabs] = await Promise.all([
     getPinnedProvider(),
     getClaudeSnapshot(),
     getChatGPTSnapshot(),
     getMidjourneySnapshot(),
     getGeminiConsumerSnapshot(),
+    getElevenLabsSnapshot(),
   ]);
   const live: Partial<Record<ProviderId, ProviderUsageSnapshot>> = {};
   if (claude) live.claude = claude;
   if (chatgpt) live.codex = chatgpt;
   if (midjourney) live.midjourney = midjourney;
   if (geminiConsumer) live.geminiConsumer = geminiConsumer;
+  if (elevenlabs) live.elevenlabs = elevenlabs;
 
   let value: number | null = null;
   if (pinned && live[pinned]) {
