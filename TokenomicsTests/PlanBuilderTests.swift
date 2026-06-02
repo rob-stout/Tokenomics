@@ -274,20 +274,27 @@ final class PlanBuilderTests: XCTestCase {
     // MARK: - Detected vs Not-Detected copy difference
 
     func testBuild_geminiDetected_confirmCopy() {
+        // Phase 4: .google now has 2 pools — geminiConsumer (extension batch, step 1)
+        // and gemini CLI (step 2). The Gemini CLI confirm copy is in steps[1].
         let plan = PlanBuilder.build(
             selection: [.google],
             detection: detected(.google)
         )
-        XCTAssertTrue(plan.steps[0].title.contains("Confirm Gemini CLI"))
-        XCTAssertTrue(plan.steps[0].description.contains("Already installed"))
+        XCTAssertEqual(plan.steps.count, 2, "Google brand should produce 2 steps: extension + CLI")
+        let cliStep = plan.steps[1]
+        XCTAssertTrue(cliStep.title.contains("Confirm Gemini CLI"))
+        XCTAssertTrue(cliStep.description.contains("Already installed"))
     }
 
     func testBuild_geminiNotDetected_setupCopy() {
+        // Phase 4: .google now has 2 pools — step[0] is extension batch, step[1] is CLI.
         let plan = PlanBuilder.build(
             selection: [.google],
             detection: noDetection
         )
-        XCTAssertTrue(plan.steps[0].title.contains("Set up Gemini CLI"))
+        XCTAssertEqual(plan.steps.count, 2, "Google brand should produce 2 steps: extension + CLI")
+        let cliStep = plan.steps[1]
+        XCTAssertTrue(cliStep.title.contains("Set up Gemini CLI"))
     }
 
     func testBuild_copilotDetected_confirmCopy() {

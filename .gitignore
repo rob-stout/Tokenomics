@@ -40,3 +40,6 @@ Tokenomics/Resources/embedded-node/
 
 # Tokenomics web extension private signing key (NEVER commit)
 tokenomics-extension-key.pem
+
+# Local Gemini /usage capture fixtures (personal session data)
+.gem-capture/

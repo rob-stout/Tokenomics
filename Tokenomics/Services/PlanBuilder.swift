@@ -255,9 +255,13 @@ struct PlanBuilder {
 
     /// True when a ProviderId is only accessible via the browser extension —
     /// it has no CLI tool and no local credentials path.
+    ///
+    /// `.geminiConsumer` is extension-only (data comes from gemini.google.com
+    /// via the content script). `.gemini` (CLI) is NOT in this set — it has a
+    /// local credentials path and routes through the CLI lane.
     private static func isWebCompanionOnly(_ provider: ProviderId) -> Bool {
         switch provider {
-        case .chatgpt, .midjourney, .suno, .udio:
+        case .chatgpt, .geminiConsumer, .midjourney, .suno, .udio:
             return true
         default:
             return false
@@ -268,11 +272,23 @@ struct PlanBuilder {
     /// extension batch's "covers" list.
     private static func coverLabelForWebProvider(_ provider: ProviderId) -> String {
         switch provider {
-        case .chatgpt:    return "ChatGPT (via chat.openai.com)"
-        case .midjourney: return "Midjourney (via midjourney.com)"
-        case .suno:       return "Suno (via suno.com)"
-        case .udio:       return "Udio (via udio.com)"
-        default:          return provider.displayName
+        case .chatgpt:        return "ChatGPT (via chat.openai.com)"
+        case .geminiConsumer: return "Gemini (via gemini.google.com)"
+        case .midjourney:     return "Midjourney (via midjourney.com)"
+        case .suno:           return "Suno (via suno.com)"
+        case .udio:           return "Udio (via udio.com)"
+        default:              return provider.displayName
         }
     }
+
+    // MARK: - Testing surface
+
+    /// Exposes `isWebCompanionOnly` for unit testing without making the private
+    /// function internal or weakening access control in production.
+    /// Only compiled into Debug builds (test targets require Debug).
+    #if DEBUG
+    static func isWebCompanionOnlyForTesting(_ provider: ProviderId) -> Bool {
+        isWebCompanionOnly(provider)
+    }
+    #endif
 }

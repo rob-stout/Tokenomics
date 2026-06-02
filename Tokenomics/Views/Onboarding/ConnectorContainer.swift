@@ -277,7 +277,7 @@ struct ConnectorContainer: View {
     /// in PlanBuilder (kept local to avoid exposing PlanBuilder internals).
     private func isWebCompanionOnly(_ provider: ProviderId) -> Bool {
         switch provider {
-        case .chatgpt, .midjourney, .suno, .udio:
+        case .chatgpt, .geminiConsumer, .midjourney, .suno, .udio:
             return true
         default:
             return false
@@ -354,6 +354,11 @@ struct ConnectorContainer: View {
             // In the synthesis flow .chatgpt is the BrowserExtensionConnector's id.
             // In the chooser path this case was previously a defensive fallback —
             // now it correctly routes to the extension install step.
+            return BrowserExtensionConnector(webCompanion: webCompanion)
+        case .geminiConsumer:
+            // Extension-fed pool — data arrives via the gemini-watch content script
+            // over the NMH bridge. No standalone connector; route through the
+            // BrowserExtensionConnector just like ChatGPT/Midjourney.
             return BrowserExtensionConnector(webCompanion: webCompanion)
         case .midjourney, .suno, .udio:
             // These are web-companion-only with no standalone connector yet.

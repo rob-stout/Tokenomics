@@ -13,6 +13,7 @@ import {
 import {
   getChatGPTSnapshot,
   getClaudeSnapshot,
+  getGeminiConsumerSnapshot,
   getMidjourneySnapshot,
   getPinnedProvider,
   getSelectedTab,
@@ -150,11 +151,13 @@ function App() {
       getClaudeSnapshot(),
       getChatGPTSnapshot(),
       getMidjourneySnapshot(),
-    ]).then(([claude, chatgpt, midjourney]) => {
+      getGeminiConsumerSnapshot(),
+    ]).then(([claude, chatgpt, midjourney, geminiConsumer]) => {
       setWebSnapshots({
         ...(claude ? { claude } : {}),
         ...(chatgpt ? { codex: chatgpt } : {}),
         ...(midjourney ? { midjourney } : {}),
+        ...(geminiConsumer ? { geminiConsumer } : {}),
       });
     });
     void loadNativeSnapshots().then(setNativeSnapshots);
@@ -181,6 +184,10 @@ function App() {
       if ('midjourneySnapshot' in changes) {
         const next = changes['midjourneySnapshot']?.newValue as ProviderUsageSnapshot | undefined;
         setWebSnapshots((prev) => ({ ...prev, midjourney: next ?? undefined }));
+      }
+      if ('geminiConsumerSnapshot' in changes) {
+        const next = changes['geminiConsumerSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, geminiConsumer: next ?? undefined }));
       }
       if ('nativeSnapshots' in changes) {
         const next = changes['nativeSnapshots']?.newValue as Record<string, BridgeSnapshot> | undefined;

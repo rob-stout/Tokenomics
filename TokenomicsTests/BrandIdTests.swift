@@ -13,10 +13,10 @@ final class BrandIdTests: XCTestCase {
         XCTAssertEqual(BrandId.openai.pools, [.chatgpt, .codex])
     }
 
-    func testGoogle_currentlyCoversGeminiCLIOnly() {
-        // When Phase 4 ships a consumer Gemini reader, this becomes a 2-pool
-        // brand and the test updates accordingly.
-        XCTAssertEqual(BrandId.google.pools, [.gemini])
+    func testGoogle_coversBothCLIAndConsumerPool() {
+        // Phase 4 shipped the geminiConsumer reader — Google is now a 2-pool
+        // brand: .gemini (CLI) + .geminiConsumer (web app via browser extension).
+        XCTAssertEqual(BrandId.google.pools, [.gemini, .geminiConsumer])
     }
 
     func testSingleProviderBrands_haveOneElementPoolSet() {
@@ -57,6 +57,30 @@ final class BrandIdTests: XCTestCase {
         let allProviders = Set(ProviderId.allCases)
         let missing = allProviders.subtracting(coveredProviders)
         XCTAssertTrue(missing.isEmpty, "ProviderIds not covered by any brand: \(missing)")
+    }
+
+    // MARK: - Phase 4 geminiConsumer assertions
+
+    func testGeminiConsumer_brandIsGoogle() {
+        XCTAssertEqual(ProviderId.geminiConsumer.brand, .google,
+            "geminiConsumer must map to the google brand — same account, separate usage meter")
+    }
+
+    func testGooglePools_containsBothCLIAndConsumer() {
+        XCTAssertTrue(BrandId.google.pools.contains(.gemini),        "google brand must include CLI pool")
+        XCTAssertTrue(BrandId.google.pools.contains(.geminiConsumer), "google brand must include consumer pool")
+    }
+
+    func testIsWebCompanionOnly_geminiConsumer_isTrue() {
+        // geminiConsumer is extension-fed — no CLI tool, no local credentials.
+        XCTAssertTrue(PlanBuilder.isWebCompanionOnlyForTesting(.geminiConsumer),
+            "geminiConsumer must be classified as web-companion-only so PlanBuilder routes it through the extension batch")
+    }
+
+    func testIsWebCompanionOnly_geminiCLI_isFalse() {
+        // The CLI pool has its own local credentials path — must NOT be in the extension batch.
+        XCTAssertFalse(PlanBuilder.isWebCompanionOnlyForTesting(.gemini),
+            "gemini CLI must not be web-companion-only — it has a local credentials path")
     }
 
     // MARK: - Display strings

@@ -194,7 +194,11 @@ actor DetectionService {
             signals.append(.cliCredentials(path: geminiDir, displayName: "Gemini CLI"))
         }
 
-        // Bridge web detection deferred to Phase 4 per spec.
+        // Bridge freshness: gemini.google.com web session via extension (Phase 4).
+        // Mirrors the same pattern as claude.ai and chatgpt.com detection above.
+        if let heartbeat = bridgeHeartbeat(for: .geminiConsumer) {
+            signals.append(.bridgeConnected(lastHeartbeat: heartbeat))
+        }
 
         return BrandDetection(brand: .google, signals: signals)
     }

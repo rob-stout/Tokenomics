@@ -17,6 +17,7 @@ const KEYS = {
   midjourneySnapshot: 'midjourneySnapshot',
   midjourneyAuth: 'midjourneyAuth',
   midjourneyBackoff: 'midjourneyBackoff',
+  geminiConsumerSnapshot: 'geminiConsumerSnapshot',
 } as const;
 
 const ORG_ID_TTL_MS = 24 * 60 * 60 * 1000;
@@ -228,4 +229,17 @@ export async function getMidjourneyAuth(): Promise<AuthState> {
 
 export async function setMidjourneyAuth(state: AuthState): Promise<void> {
   await browser.storage.local.set({ [KEYS.midjourneyAuth]: state });
+}
+
+// ── Gemini consumer snapshot (web app, via content script) ──
+
+export async function getGeminiConsumerSnapshot(): Promise<ProviderUsageSnapshot | null> {
+  const result = await browser.storage.local.get(KEYS.geminiConsumerSnapshot);
+  const raw = result[KEYS.geminiConsumerSnapshot];
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as ProviderUsageSnapshot;
+}
+
+export async function setGeminiConsumerSnapshot(snapshot: ProviderUsageSnapshot): Promise<void> {
+  await browser.storage.local.set({ [KEYS.geminiConsumerSnapshot]: snapshot });
 }

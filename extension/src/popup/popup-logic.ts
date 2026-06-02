@@ -11,7 +11,10 @@ import { PROVIDERS, type ProviderId } from '../types';
 
 // Web-fetchable providers — rendered from extension-local snapshots.
 // Order here drives the display order for web providers.
-export const WEB_PROVIDERS: readonly ProviderId[] = ['claude', 'codex', 'midjourney'];
+// geminiConsumer is content-script-driven (not a SW poll), but its snapshot
+// is stored locally and bridged the same way as claude/midjourney — it belongs
+// in WEB_PROVIDERS so the popup shows it with an empty state when no data yet.
+export const WEB_PROVIDERS: readonly ProviderId[] = ['claude', 'codex', 'midjourney', 'geminiConsumer'];
 
 // Native-only providers — rendered from Mac-bridge snapshots only.
 // Order here drives the display order for native providers (appended after web).

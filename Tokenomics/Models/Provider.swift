@@ -13,6 +13,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
     case gemini
     // Consumer web-companion sources (browser-session data via NMH bridge)
     case chatgpt
+    case geminiConsumer
     // Coding Tools
     case copilot
     case cursor
@@ -32,6 +33,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .claude: return "Anthropic"
         case .chatgpt: return "ChatGPT"
+        case .geminiConsumer: return "Gemini"
         case .copilot: return "GitHub Copilot"
         case .cursor: return "Cursor"
         case .codex: return "OpenAI"
@@ -50,6 +52,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .claude: return "Claude"
         case .chatgpt: return "ChatGPT"
+        case .geminiConsumer: return "Gemini"
         case .copilot: return "Copilot"
         case .cursor: return "Cursor"
         case .codex: return "OpenAI"
@@ -70,6 +73,10 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .claude: return "C"
         case .chatgpt: return "ChatGPT"
+        // geminiConsumer uses "Gw" (Gemini web) to distinguish from the CLI "G".
+        // Both pools are separately-pinnable in the menu bar; distinct labels
+        // keep the rings identifiable when both are pinned simultaneously.
+        case .geminiConsumer: return "Gw"
         case .copilot: return "P"
         case .cursor: return "U"
         case .codex: return "X"
@@ -92,7 +99,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .codex: return "codex login"
         case .gemini: return "gemini login"
         // Browser-session and API-key providers have no CLI auth
-        case .chatgpt, .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
+        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
         }
     }
 
@@ -101,8 +108,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .claude, .copilot, .cursor, .codex, .gemini: return true
         case .elevenlabs, .runway, .stableDiffusion: return true
-        // chatgpt data arrives via the NMH bridge (browser-session), not a local API
-        case .chatgpt: return true
+        // chatgpt and geminiConsumer data arrives via the NMH bridge (browser-session)
+        case .chatgpt, .geminiConsumer: return true
         // When flipping any of these to `true`, update docs/PRIVACY.md —
         // the placeholder note currently tells users Tokenomics makes no
         // network calls or credential reads for these three.
@@ -133,7 +140,7 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .codex: return "npm install -g @openai/codex"
         case .gemini: return "npm install -g @google/gemini-cli"
         // Browser-session and API-key providers don't need installation
-        case .chatgpt, .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
+        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .runway, .elevenlabs, .suno, .udio: return ""
         }
     }
 
@@ -155,7 +162,7 @@ extension ProviderId {
 
     var category: ProviderCategory {
         switch self {
-        case .claude, .chatgpt, .stableDiffusion: return .platforms
+        case .claude, .chatgpt, .geminiConsumer, .stableDiffusion: return .platforms
         case .copilot, .cursor, .codex, .gemini: return .codingTools
         case .midjourney: return .imageGeneration
         case .runway: return .videoGeneration
@@ -166,6 +173,8 @@ extension ProviderId {
     /// Whether this provider has a working data integration (false = "Coming Soon").
     /// chatgpt data arrives via the NMH bridge, not a direct API, so it counts as true.
     var hasAPI: Bool {
+        // geminiConsumer data comes via the NMH bridge — counts as "has API"
+        // for the purposes of showing the setup CTA in the chooser.
         switch self {
         case .midjourney, .suno, .udio: return false
         default: return true
@@ -180,6 +189,7 @@ extension ProviderId {
         switch self {
         case .claude: return "Claude Chat · Cowork · Code"
         case .chatgpt: return "ChatGPT · via browser session"
+        case .geminiConsumer: return "Gemini · via browser session"
         case .codex: return "Codex CLI"
         case .gemini: return "Gemini CLI"
         case .stableDiffusion: return "Stable Diffusion · Stable Image · Stable Video"
@@ -192,6 +202,7 @@ extension ProviderId {
         switch self {
         case .claude: return "#anthropic"
         case .chatgpt: return "#chatgpt"
+        case .geminiConsumer: return "#google"
         case .codex: return "#openai"
         case .gemini: return "#google"
         case .copilot: return "#copilot"
@@ -216,6 +227,7 @@ extension ProviderId {
         switch self {
         case .claude:          return "Anthropic"
         case .chatgpt:         return "ChatGPT"
+        case .geminiConsumer:  return "Gemini (app)"
         case .codex:           return "Codex CLI"
         case .gemini:          return "Gemini CLI"
         case .copilot:         return "GitHub Copilot"
@@ -235,6 +247,8 @@ extension ProviderId {
         switch self {
         case .claude: return "Claude"
         case .chatgpt: return "chatgpt"
+        // geminiConsumer reuses the same Gemini icon assets — same brand, separate pool.
+        case .geminiConsumer: return "Gemini"
         case .codex: return "Codex"
         case .copilot: return "Copilot"
         case .cursor: return "Cursor"
@@ -320,7 +334,8 @@ enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .anthropic:  return [.claude]
         case .openai:     return [.chatgpt, .codex]
-        case .google:     return [.gemini]
+        // Google brand: CLI pool (.gemini) + consumer web-app pool (.geminiConsumer)
+        case .google:     return [.gemini, .geminiConsumer]
         case .copilot:    return [.copilot]
         case .cursor:     return [.cursor]
         case .stability:  return [.stableDiffusion]
@@ -339,17 +354,17 @@ extension ProviderId {
     /// appears in two brands), so this is well-defined.
     var brand: BrandId {
         switch self {
-        case .claude:           return .anthropic
-        case .chatgpt, .codex:  return .openai
-        case .gemini:           return .google
-        case .copilot:          return .copilot
-        case .cursor:           return .cursor
-        case .stableDiffusion:  return .stability
-        case .midjourney:       return .midjourney
-        case .runway:           return .runway
-        case .elevenlabs:       return .elevenlabs
-        case .suno:             return .suno
-        case .udio:             return .udio
+        case .claude:                        return .anthropic
+        case .chatgpt, .codex:               return .openai
+        case .gemini, .geminiConsumer:       return .google
+        case .copilot:                       return .copilot
+        case .cursor:                        return .cursor
+        case .stableDiffusion:               return .stability
+        case .midjourney:                    return .midjourney
+        case .runway:                        return .runway
+        case .elevenlabs:                    return .elevenlabs
+        case .suno:                          return .suno
+        case .udio:                          return .udio
         }
     }
 }

@@ -16,6 +16,7 @@ import {
   getChatGPTPlanEffective,
   getChatGPTSnapshot,
   getClaudeSnapshot,
+  getGeminiConsumerSnapshot,
   getMidjourneyBackoff,
   getMidjourneySnapshot,
   getPinnedProvider,
@@ -26,6 +27,7 @@ import {
   setChatGPTSnapshot,
   setClaudeAuth,
   setClaudeSnapshot,
+  setGeminiConsumerSnapshot,
   setMidjourneyAuth,
   setMidjourneyBackoff,
   setMidjourneySnapshot,
@@ -87,6 +89,17 @@ browser.runtime.onMessage.addListener(
     const msg = message as ExtensionMessage | undefined;
     if (!msg) return undefined;
 
+    if (msg.kind === 'GEMINI_USAGE') {
+      // Snapshot was parsed in the content script and relayed here.
+      // Store it and bridge it to the Mac app immediately — no backoff
+      // needed because the content script self-throttles at 5 min intervals.
+      await setGeminiConsumerSnapshot(msg.snapshot);
+      scheduleBridgeSend('snapshot');
+      await updateBadge();
+      console.log('[tokenomics] gemini consumer snapshot received', msg.snapshot);
+      return { kind: 'ACK' };
+    }
+
     if (msg.kind === 'CHATGPT_MESSAGE') {
       await recordChatGPTMessage(msg.model, msg.ts);
       return { kind: 'ACK' };
@@ -113,6 +126,8 @@ browser.runtime.onMessage.addListener(
       try {
         await Promise.all([pollClaude('manual'), pollMidjourney('manual'), redetectChatGPTPlan('manual')]);
         await recomputeChatGPTSnapshot();
+        // geminiConsumer is content-script-driven — no manual re-fetch available here;
+        // the existing snapshot is already the freshest data we have.
         return { kind: 'REFRESH_COMPLETE' };
       } catch (err) {
         return { kind: 'REFRESH_FAILED', error: String(err) };
@@ -245,16 +260,18 @@ async function redetectChatGPTPlan(trigger: 'install' | 'alarm' | 'manual'): Pro
 // ── Toolbar badge ───────────────────────────────────────────
 
 async function updateBadge(): Promise<void> {
-  const [pinned, claude, chatgpt, midjourney] = await Promise.all([
+  const [pinned, claude, chatgpt, midjourney, geminiConsumer] = await Promise.all([
     getPinnedProvider(),
     getClaudeSnapshot(),
     getChatGPTSnapshot(),
     getMidjourneySnapshot(),
+    getGeminiConsumerSnapshot(),
   ]);
   const live: Partial<Record<ProviderId, ProviderUsageSnapshot>> = {};
   if (claude) live.claude = claude;
   if (chatgpt) live.codex = chatgpt;
   if (midjourney) live.midjourney = midjourney;
+  if (geminiConsumer) live.geminiConsumer = geminiConsumer;
 
   let value: number | null = null;
   if (pinned && live[pinned]) {
