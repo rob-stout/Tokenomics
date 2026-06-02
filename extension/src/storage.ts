@@ -21,6 +21,23 @@ const KEYS = {
   elevenLabsSnapshot: 'elevenLabsSnapshot',
   elevenLabsAuth: 'elevenLabsAuth',
   elevenLabsBackoff: 'elevenLabsBackoff',
+  // ElevenLabs Firebase token (from elevenlabs-grab content script)
+  elevenLabsFirebaseToken: 'elevenLabsFirebaseToken',
+  // Grok
+  grokSnapshot: 'grokSnapshot',
+  grokAuth: 'grokAuth',
+  grokBackoff: 'grokBackoff',
+  // Perplexity
+  perplexitySnapshot: 'perplexitySnapshot',
+  perplexityAuth: 'perplexityAuth',
+  perplexityBackoff: 'perplexityBackoff',
+  // Leonardo
+  leonardoSnapshot: 'leonardoSnapshot',
+  leonardoAuth: 'leonardoAuth',
+  leonardoBackoff: 'leonardoBackoff',
+  // Leonardo Cognito credentials (from leonardo-grab content script)
+  leonardoIdToken: 'leonardoIdToken',
+  leonardoUserSub: 'leonardoUserSub',
 } as const;
 
 const ORG_ID_TTL_MS = 24 * 60 * 60 * 1000;
@@ -164,9 +181,123 @@ function isChatGPTPlan(value: unknown): value is ChatGPTPlan {
   return value === 'free' || value === 'plus' || value === 'pro' || value === 'team' || value === 'unknown';
 }
 
+// ── ElevenLabs Firebase token (from content script) ─────────
+
+export async function getElevenLabsFirebaseToken(): Promise<string | null> {
+  const result = await browser.storage.local.get(KEYS.elevenLabsFirebaseToken);
+  const raw = result[KEYS.elevenLabsFirebaseToken];
+  return typeof raw === 'string' && raw.length > 0 ? raw : null;
+}
+
+export async function setElevenLabsFirebaseToken(token: string): Promise<void> {
+  await browser.storage.local.set({ [KEYS.elevenLabsFirebaseToken]: token });
+}
+
+// ── Grok snapshot ───────────────────────────────────────────
+
+export async function getGrokSnapshot(): Promise<ProviderUsageSnapshot | null> {
+  const result = await browser.storage.local.get(KEYS.grokSnapshot);
+  const raw = result[KEYS.grokSnapshot];
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as ProviderUsageSnapshot;
+}
+
+export async function setGrokSnapshot(snapshot: ProviderUsageSnapshot): Promise<void> {
+  await browser.storage.local.set({ [KEYS.grokSnapshot]: snapshot });
+}
+
+// ── Grok auth state ─────────────────────────────────────────
+
+export async function getGrokAuth(): Promise<AuthState> {
+  const result = await browser.storage.local.get(KEYS.grokAuth);
+  const raw = result[KEYS.grokAuth];
+  if (raw === 'authenticated' || raw === 'unauthenticated') return raw;
+  return 'unknown';
+}
+
+export async function setGrokAuth(state: AuthState): Promise<void> {
+  await browser.storage.local.set({ [KEYS.grokAuth]: state });
+}
+
+// ── Perplexity snapshot ─────────────────────────────────────
+
+export async function getPerplexitySnapshot(): Promise<ProviderUsageSnapshot | null> {
+  const result = await browser.storage.local.get(KEYS.perplexitySnapshot);
+  const raw = result[KEYS.perplexitySnapshot];
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as ProviderUsageSnapshot;
+}
+
+export async function setPerplexitySnapshot(snapshot: ProviderUsageSnapshot): Promise<void> {
+  await browser.storage.local.set({ [KEYS.perplexitySnapshot]: snapshot });
+}
+
+// ── Perplexity auth state ───────────────────────────────────
+
+export async function getPerplexityAuth(): Promise<AuthState> {
+  const result = await browser.storage.local.get(KEYS.perplexityAuth);
+  const raw = result[KEYS.perplexityAuth];
+  if (raw === 'authenticated' || raw === 'unauthenticated') return raw;
+  return 'unknown';
+}
+
+export async function setPerplexityAuth(state: AuthState): Promise<void> {
+  await browser.storage.local.set({ [KEYS.perplexityAuth]: state });
+}
+
+// ── Leonardo snapshot ───────────────────────────────────────
+
+export async function getLeonardoSnapshot(): Promise<ProviderUsageSnapshot | null> {
+  const result = await browser.storage.local.get(KEYS.leonardoSnapshot);
+  const raw = result[KEYS.leonardoSnapshot];
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as ProviderUsageSnapshot;
+}
+
+export async function setLeonardoSnapshot(snapshot: ProviderUsageSnapshot): Promise<void> {
+  await browser.storage.local.set({ [KEYS.leonardoSnapshot]: snapshot });
+}
+
+// ── Leonardo auth state ─────────────────────────────────────
+
+export async function getLeonardoAuth(): Promise<AuthState> {
+  const result = await browser.storage.local.get(KEYS.leonardoAuth);
+  const raw = result[KEYS.leonardoAuth];
+  if (raw === 'authenticated' || raw === 'unauthenticated') return raw;
+  return 'unknown';
+}
+
+export async function setLeonardoAuth(state: AuthState): Promise<void> {
+  await browser.storage.local.set({ [KEYS.leonardoAuth]: state });
+}
+
+// ── Leonardo Cognito credentials (from content script) ──────
+
+export async function getLeonardoCredentials(): Promise<{ idToken: string; userSub: string } | null> {
+  const result = await browser.storage.local.get([KEYS.leonardoIdToken, KEYS.leonardoUserSub]);
+  const idToken = result[KEYS.leonardoIdToken];
+  const userSub = result[KEYS.leonardoUserSub];
+  if (typeof idToken !== 'string' || typeof userSub !== 'string') return null;
+  if (idToken.length === 0 || userSub.length === 0) return null;
+  return { idToken, userSub };
+}
+
+export async function setLeonardoCredentials(idToken: string, userSub: string): Promise<void> {
+  await browser.storage.local.set({
+    [KEYS.leonardoIdToken]: idToken,
+    [KEYS.leonardoUserSub]: userSub,
+  });
+}
+
 // ── Rate-limit backoff (generalised per-provider) ──────────
 
-type BackoffKey = typeof KEYS.claudeBackoff | typeof KEYS.midjourneyBackoff | typeof KEYS.elevenLabsBackoff;
+type BackoffKey =
+  | typeof KEYS.claudeBackoff
+  | typeof KEYS.midjourneyBackoff
+  | typeof KEYS.elevenLabsBackoff
+  | typeof KEYS.grokBackoff
+  | typeof KEYS.perplexityBackoff
+  | typeof KEYS.leonardoBackoff;
 
 async function getBackoffForKey(key: BackoffKey): Promise<BackoffState | null> {
   const result = await browser.storage.local.get(key);
@@ -281,4 +412,34 @@ export async function getElevenLabsBackoff(): Promise<BackoffState | null> {
 
 export async function setElevenLabsBackoff(state: BackoffState | null): Promise<void> {
   return setBackoffForKey(KEYS.elevenLabsBackoff, state);
+}
+
+// ── Grok rate-limit backoff ─────────────────────────────────
+
+export async function getGrokBackoff(): Promise<BackoffState | null> {
+  return getBackoffForKey(KEYS.grokBackoff);
+}
+
+export async function setGrokBackoff(state: BackoffState | null): Promise<void> {
+  return setBackoffForKey(KEYS.grokBackoff, state);
+}
+
+// ── Perplexity rate-limit backoff ───────────────────────────
+
+export async function getPerplexityBackoff(): Promise<BackoffState | null> {
+  return getBackoffForKey(KEYS.perplexityBackoff);
+}
+
+export async function setPerplexityBackoff(state: BackoffState | null): Promise<void> {
+  return setBackoffForKey(KEYS.perplexityBackoff, state);
+}
+
+// ── Leonardo rate-limit backoff ─────────────────────────────
+
+export async function getLeonardoBackoff(): Promise<BackoffState | null> {
+  return getBackoffForKey(KEYS.leonardoBackoff);
+}
+
+export async function setLeonardoBackoff(state: BackoffState | null): Promise<void> {
+  return setBackoffForKey(KEYS.leonardoBackoff, state);
 }

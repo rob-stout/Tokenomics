@@ -15,6 +15,10 @@ import {
   getClaudeSnapshot,
   getGeminiConsumerSnapshot,
   getMidjourneySnapshot,
+  getElevenLabsSnapshot,
+  getGrokSnapshot,
+  getPerplexitySnapshot,
+  getLeonardoSnapshot,
   getPinnedProvider,
   getSelectedTab,
   setPinnedProvider,
@@ -152,12 +156,20 @@ function App() {
       getChatGPTSnapshot(),
       getMidjourneySnapshot(),
       getGeminiConsumerSnapshot(),
-    ]).then(([claude, chatgpt, midjourney, geminiConsumer]) => {
+      getElevenLabsSnapshot(),
+      getGrokSnapshot(),
+      getPerplexitySnapshot(),
+      getLeonardoSnapshot(),
+    ]).then(([claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo]) => {
       setWebSnapshots({
         ...(claude ? { claude } : {}),
         ...(chatgpt ? { codex: chatgpt } : {}),
         ...(midjourney ? { midjourney } : {}),
         ...(geminiConsumer ? { geminiConsumer } : {}),
+        ...(elevenlabs ? { elevenlabs } : {}),
+        ...(grok ? { grok } : {}),
+        ...(perplexity ? { perplexity } : {}),
+        ...(leonardo ? { leonardo } : {}),
       });
     });
     void loadNativeSnapshots().then(setNativeSnapshots);
@@ -188,6 +200,22 @@ function App() {
       if ('geminiConsumerSnapshot' in changes) {
         const next = changes['geminiConsumerSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
         setWebSnapshots((prev) => ({ ...prev, geminiConsumer: next ?? undefined }));
+      }
+      if ('elevenLabsSnapshot' in changes) {
+        const next = changes['elevenLabsSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, elevenlabs: next ?? undefined }));
+      }
+      if ('grokSnapshot' in changes) {
+        const next = changes['grokSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, grok: next ?? undefined }));
+      }
+      if ('perplexitySnapshot' in changes) {
+        const next = changes['perplexitySnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, perplexity: next ?? undefined }));
+      }
+      if ('leonardoSnapshot' in changes) {
+        const next = changes['leonardoSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, leonardo: next ?? undefined }));
       }
       if ('nativeSnapshots' in changes) {
         const next = changes['nativeSnapshots']?.newValue as Record<string, BridgeSnapshot> | undefined;

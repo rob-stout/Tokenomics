@@ -7,6 +7,9 @@ export const PROVIDERS = [
   'cursor',
   'midjourney',
   'elevenlabs',
+  'grok',
+  'perplexity',
+  'leonardo',
 ] as const;
 
 export type ProviderId = (typeof PROVIDERS)[number];
@@ -33,6 +36,12 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   // Until then the popup icon will fall back to whatever the PopupIcon component
   // shows for an unknown iconBase (typically a generic placeholder).
   elevenlabs: { tabLabel: 'ElevenLabs', displayName: 'ElevenLabs', iconBase: 'elevenlabs' },
+  // NOTE: No icon assets exist for grok/perplexity/leonardo yet.
+  // Add <name>-d.blue.svg and <name>-white.svg to extension/src/icons/providers/
+  // to match the other provider icons. Popup will fall back gracefully until then.
+  grok: { tabLabel: 'Grok', displayName: 'Grok', iconBase: 'grok' },
+  perplexity: { tabLabel: 'Perplexity', displayName: 'Perplexity', iconBase: 'perplexity' },
+  leonardo: { tabLabel: 'Leonardo', displayName: 'Leonardo', iconBase: 'leonardo' },
 };
 
 export function isProviderId(value: unknown): value is ProviderId {

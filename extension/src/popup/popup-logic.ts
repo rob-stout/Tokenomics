@@ -14,7 +14,17 @@ import { PROVIDERS, type ProviderId } from '../types';
 // geminiConsumer is content-script-driven (not a SW poll), but its snapshot
 // is stored locally and bridged the same way as claude/midjourney — it belongs
 // in WEB_PROVIDERS so the popup shows it with an empty state when no data yet.
-export const WEB_PROVIDERS: readonly ProviderId[] = ['claude', 'codex', 'midjourney', 'geminiConsumer', 'elevenlabs'];
+// leonardo is also content-script-driven (Cognito token grab) — same pattern.
+export const WEB_PROVIDERS: readonly ProviderId[] = [
+  'claude',
+  'codex',
+  'midjourney',
+  'geminiConsumer',
+  'elevenlabs',
+  'grok',
+  'perplexity',
+  'leonardo',
+];
 
 // Native-only providers — rendered from Mac-bridge snapshots only.
 // Order here drives the display order for native providers (appended after web).

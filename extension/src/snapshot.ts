@@ -17,7 +17,7 @@ export interface ProviderUsageSnapshot {
   provider: ProviderId;
   shortWindow: WindowUsage;
   longWindow: WindowUsage | null;
-  extras: { opusSevenDay?: WindowUsage };
+  extras: { opusSevenDay?: WindowUsage; labsRemaining?: WindowUsage };
   planLabel: string;
   capturedAt: number;
   /** True when the numbers come from a local counter rather than a

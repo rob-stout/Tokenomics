@@ -5,7 +5,18 @@
   "description": "Track your AI usage at a glance.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA51XofP/uHtnTys3SJpo+VzcX3fU9WfglBD7Q9mJV6+zUcCflayhd0HwXAAbXkPJd6X+HPoZ4vvDoML4EK1rbx9UHb8/uZAxvcAKHOF06RSPtljATMsR5fn4Vg/L/a1Wo4dxegQEuP8Vju4aFnLIPsuUY3hNB1W2HX/SKIOw06lWwEaE/0zbmG6sEatEEjE/R+Yx5Y14ErxF+LBJ3AKyj9xMHenyDk/eRwTdfgaiX3IgcyH6eHlBi13xY9FaWfSKDX50zUvTjj6fNNKmgdEHIPHZ6KE9owBR43kW0QDrxiYX8SSlH/X5xwVPCdzwE40S5Gs1cY4+eVIVs7MG6dWwzgwIDAQAB",
   "permissions": ["storage", "alarms", "nativeMessaging"],
-  "host_permissions": ["https://claude.ai/*", "https://chatgpt.com/*", "https://www.midjourney.com/*", "https://gemini.google.com/*", "https://api.elevenlabs.io/*", "https://elevenlabs.io/*"],
+  "host_permissions": [
+    "https://claude.ai/*",
+    "https://chatgpt.com/*",
+    "https://www.midjourney.com/*",
+    "https://gemini.google.com/*",
+    "https://api.us.elevenlabs.io/*",
+    "https://elevenlabs.io/*",
+    "https://grok.com/*",
+    "https://www.perplexity.ai/*",
+    "https://app.leonardo.ai/*",
+    "https://api.leonardo.ai/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -26,6 +37,16 @@
       "matches": ["https://gemini.google.com/*"],
       "js": ["content/gemini-watch.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://elevenlabs.io/*"],
+      "js": ["content/elevenlabs-grab.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://app.leonardo.ai/*"],
+      "js": ["content/leonardo-grab.js"],
+      "run_at": "document_idle"
     }
   ],
   "options_ui": {
