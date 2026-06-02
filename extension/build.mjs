@@ -35,6 +35,7 @@ const contentCtx = await esbuild.context({
   ...shared,
   entryPoints: {
     'content/chatgpt-watch': 'src/content/chatgpt-watch.ts',
+    'content/gemini-watch': 'src/content/gemini-watch.ts',
   },
   format: 'iife',
 });
