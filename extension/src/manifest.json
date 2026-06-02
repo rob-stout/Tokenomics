@@ -18,6 +18,12 @@
     },
     {
       "matches": ["https://gemini.google.com/*"],
+      "js": ["content/gemini-main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
       "js": ["content/gemini-watch.js"],
       "run_at": "document_start"
     }
