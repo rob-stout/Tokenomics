@@ -87,14 +87,15 @@ function mainWorldPatch(tag: string, pollIntervalMs: number): void {
     let longWindow: unknown | null = null;
 
     for (const w of windows) {
-      const cap = num((w as unknown[])?.[0]);
-      const used = num((w as unknown[])?.[1]);
+      // index0 = remaining units (unused); index1 = utilization fraction (0–1).
+      // Mirrors gemini.ts mapToSnapshot — keep the two in sync (see note below).
+      const utilFraction = num((w as unknown[])?.[1]);
       const periodType = num((w as unknown[])?.[2]);
       const resetSec = num(((w as unknown[])?.[3] as unknown[][])?.[0]?.[0]);
 
       const win = {
         label: PERIOD_LABEL[periodType] ?? `Window ${periodType}`,
-        utilization: cap > 0 ? Math.min(100, Math.max(0, Math.round((used / cap) * 100))) : 0,
+        utilization: Math.min(100, Math.max(0, Math.round(utilFraction * 100))),
         resetsAt: resetSec > 0 ? new Date(resetSec * 1000).toISOString() : '',
         windowDurationSec: periodType === 2 ? WEEK_SEC : FIVE_HOUR_SEC,
       };
@@ -167,8 +168,16 @@ function mainWorldPatch(tag: string, pollIntervalMs: number): void {
     }
   }
 
-  // Run once on load, then on a recurring timer while the tab stays open.
-  void fetchAndPost();
+  // WIZ_global_data isn't populated at document_start — the page's bootstrap
+  // sets the session tokens slightly later. Poll briefly for readiness before
+  // the first real fetch, otherwise the initial call bails token-less and the
+  // first successful read wouldn't land until a full pollIntervalMs later.
+  function startWhenReady(attempt: number): void {
+    const w = (window as unknown as Record<string, unknown>).WIZ_global_data as Record<string, string> | undefined;
+    if (w && w.SNlM0e) { void fetchAndPost(); return; }
+    if (attempt < 40) window.setTimeout(() => startWhenReady(attempt + 1), 500); // wait up to ~20s
+  }
+  startWhenReady(0);
   const timerId = window.setInterval(() => void fetchAndPost(), pollIntervalMs);
 
   // Clean up when the page unloads to avoid ghost timers on SPA navigations.
