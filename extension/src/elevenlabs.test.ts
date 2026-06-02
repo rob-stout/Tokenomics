@@ -2,11 +2,16 @@
  * Unit tests for the ElevenLabs subscription parser.
  *
  * All tests exercise `mapToSnapshot` directly — the pure mapper is the only
- * logic worth testing; the fetch layer is a thin wrapper around the auth
- * hypothesis and is tested end-to-end by a human capture.
+ * logic worth testing; the fetch layer is tested end-to-end by a human capture.
  *
- * Fixtures are inline; field names match the documented
- * GET /v1/user/subscription response shape.
+ * Auth has been corrected to Firebase Bearer token (api.us.elevenlabs.io).
+ * The mapper is unchanged — character_count/character_limit → utilization%,
+ * next_character_count_reset_unix → resetsAt. A past reset timestamp now falls
+ * back to now + 30d instead of showing a negative countdown.
+ *
+ * Real response (confirmed 2026-06-01):
+ *   { "tier": "free", "character_count": 0, "character_limit": 10000,
+ *     "next_character_count_reset_unix": 1777606325, "status": "free" }
  */
 
 import { test } from 'node:test';
@@ -161,4 +166,36 @@ test('capturedAt matches the `now` parameter', () => {
 test('shortWindow.windowDurationSec is 30 days', () => {
   const snap = mapToSnapshot({}, NOW);
   assert.equal(snap.shortWindow.windowDurationSec, THIRTY_DAY_SEC);
+});
+
+// ── Past reset timestamp ─────────────────────────────────────
+
+test('past next_character_count_reset_unix → falls back to now + 30d', () => {
+  // Epoch 1 is 1970-01-01 — well in the past.
+  const snap = mapToSnapshot(
+    { character_count: 1000, character_limit: 10_000, next_character_count_reset_unix: 1 },
+    NOW,
+  );
+  // A past timestamp is treated as now + 30d (not a negative countdown).
+  const expectedResetsAt = new Date(NOW + THIRTY_DAY_SEC * 1000).toISOString();
+  assert.equal(snap.shortWindow.resetsAt, expectedResetsAt);
+});
+
+// ── Confirmed real response fields ───────────────────────────
+
+test('real fixture: free plan, 0/10000 characters, future reset', () => {
+  // next_character_count_reset_unix: 1777606325 (far future — 2026+)
+  const resetSec = 1_777_606_325;
+  const snap = mapToSnapshot(
+    {
+      tier: 'free',
+      character_count: 0,
+      character_limit: 10_000,
+      next_character_count_reset_unix: resetSec,
+    },
+    NOW,
+  );
+  assert.equal(snap.planLabel, 'Free');
+  assert.equal(snap.shortWindow.utilization, 0);
+  assert.equal(snap.shortWindow.resetsAt, new Date(resetSec * 1000).toISOString());
 });
