@@ -25,17 +25,16 @@ struct AIConnectionsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(ProviderId.ProviderCategory.allCases, id: \.self) { category in
-                        let providersInCategory = ProviderId.allCases.filter { $0.category == category }
-                        sectionHeader(category.rawValue)
-                        VStack(spacing: 0) {
-                            ForEach(providersInCategory, id: \.self) { provider in
-                                connectionRow(
-                                    for: provider,
-                                    isLast: provider == providersInCategory.last
-                                )
+                        let brandsInCategory = BrandId.allCases.filter { $0.category == category }
+                        if !brandsInCategory.isEmpty {
+                            sectionHeader(category.rawValue)
+                            VStack(spacing: 0) {
+                                ForEach(brandsInCategory, id: \.self) { brand in
+                                    brandGroup(for: brand, isLast: brand == brandsInCategory.last)
+                                }
                             }
+                            .padding(.bottom, 12)
                         }
-                        .padding(.bottom, 12)
                     }
 
                     // Hint text
@@ -142,10 +141,65 @@ struct AIConnectionsView: View {
             .padding(.bottom, 4)
     }
 
+    // MARK: - Brand Group
+
+    /// Renders one brand. Single-pool brands (Claude, Cursor, …) are a flat
+    /// connection row. Multi-pool brands (OpenAI, Google) get a non-interactive
+    /// brand header followed by one indented sub-row per pool — each pool keeps
+    /// its own status, meter, and visibility toggle, because the pools are
+    /// separate meters (OpenAI: chat vs agentic/Codex; Google: web vs CLI).
+    @ViewBuilder
+    private func brandGroup(for brand: BrandId, isLast: Bool) -> some View {
+        if brand.isMultiPool {
+            brandHeader(for: brand)
+            let orderedPools = brand.orderedPools
+            ForEach(Array(orderedPools.enumerated()), id: \.element) { index, pool in
+                connectionRow(
+                    for: pool,
+                    isLast: isLast && index == orderedPools.count - 1,
+                    labelOverride: pool.pinTrackerLabel,
+                    indented: true
+                )
+            }
+        } else {
+            connectionRow(for: brand.primaryPool, isLast: isLast)
+        }
+    }
+
+    /// Non-interactive header introducing a multi-pool brand (the company as
+    /// the platform). Visibility/connection live on the sub-rows below it.
+    private func brandHeader(for brand: BrandId) -> some View {
+        HStack(spacing: 8) {
+            providerIcon(for: brand.primaryPool)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
+                .frame(width: 26 * textSize.iconScale, height: 26 * textSize.iconScale)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            Text(brand.companyAttribution ?? brand.displayName)
+                .scaledFont(.caption)
+                .fontWeight(.semibold)
+
+            Spacer()
+        }
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+    }
+
     // MARK: - Connection Row
 
     @ViewBuilder
-    private func connectionRow(for provider: ProviderId, isLast: Bool = false) -> some View {
+    private func connectionRow(
+        for provider: ProviderId,
+        isLast: Bool = false,
+        labelOverride: String? = nil,
+        indented: Bool = false
+    ) -> some View {
         let state = viewModel.providerStates[provider]
         let connection = state?.connection ?? .notInstalled
         let isConnected = connection.isConnected
@@ -170,7 +224,7 @@ struct AIConnectionsView: View {
             .opacity(isHidden ? 0.4 : (isConnected ? 1.0 : 0.3))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(provider.displayName)
+                Text(labelOverride ?? provider.displayName)
                     .scaledFont(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(isConnected && !isHidden ? .primary : .secondary)
@@ -185,7 +239,7 @@ struct AIConnectionsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let scope = provider.scopeDescription {
+                if let scope = provider.scopeDescription, scope != labelOverride {
                     Text(scope)
                         .scaledFont(.caption2)
                         .foregroundStyle(.tertiary)
@@ -244,6 +298,7 @@ struct AIConnectionsView: View {
             }
         }
         .padding(.vertical, 10)
+        .padding(.leading, indented ? 22 : 0)
         .overlay(alignment: .bottom) {
             if !isLast {
                 Rectangle()

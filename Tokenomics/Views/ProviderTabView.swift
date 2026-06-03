@@ -17,25 +17,57 @@ struct ProviderTabView: View {
     /// Icon-only mode kicks in at 4+ providers to keep the popover compact.
     private var useIconOnly: Bool { providers.count >= 4 }
 
+    /// Past 6 providers the row can't fit the popover width even icon-collapsed,
+    /// so it becomes horizontally scrollable instead of clipping off-screen.
+    private var scrolls: Bool { providers.count > 6 }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
 
-            HStack(spacing: 2) {
-                ForEach(providers) { provider in
-                    tabItem(for: provider)
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: providers)
-            .animation(.easeInOut(duration: 0.2), value: selection)
-            .padding(2)
+            tabStrip
         }
         .coordinateSpace(name: "tabBar")
         .onPreferenceChange(TabFramePreference.self) { tabFrames = $0 }
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 16)
         .padding(.top, 12)
+    }
+
+    /// The horizontal row of tabs. Below the scroll threshold the tabs fill the
+    /// width evenly (unchanged). Above it, the row scrolls horizontally and
+    /// auto-scrolls to keep the selected tab in view.
+    @ViewBuilder
+    private var tabStrip: some View {
+        let row = HStack(spacing: 2) {
+            ForEach(providers) { provider in
+                tabItem(for: provider)
+                    .id(provider)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: providers)
+        .animation(.easeInOut(duration: 0.2), value: selection)
+        .padding(2)
+
+        if scrolls {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    row
+                }
+                .onAppear {
+                    if let selection { proxy.scrollTo(selection, anchor: .center) }
+                }
+                .onChange(of: selection) { _, newValue in
+                    guard let newValue else { return }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        proxy.scrollTo(newValue, anchor: .center)
+                    }
+                }
+            }
+        } else {
+            row
+        }
     }
 
     @ViewBuilder

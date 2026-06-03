@@ -277,7 +277,9 @@ extension ProviderId {
     var iconBaseName: String {
         switch self {
         case .claude: return "Claude"
-        case .chatgpt: return "chatgpt"
+        // ChatGPT has no dedicated asset; the "Codex" set IS the OpenAI mark,
+        // which is the correct logo for both OpenAI pools (ChatGPT + Codex).
+        case .chatgpt: return "Codex"
         // geminiConsumer reuses the same Gemini icon assets — same brand, separate pool.
         case .geminiConsumer: return "Gemini"
         case .codex: return "Codex"
@@ -393,6 +395,36 @@ enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .udio:       return [.udio]
         case .grok:       return [.grok]
         case .perplexity: return [.perplexity]
+        }
+    }
+}
+
+extension BrandId {
+    /// Whether this brand owns more than one usage pool (meter). Multi-pool
+    /// brands render a brand header with nested sub-rows; single-pool brands
+    /// render as one flat row.
+    var isMultiPool: Bool { pools.count > 1 }
+
+    /// Pools in display order — consumer/web surface first, CLI/secondary after.
+    /// `pools` is an unordered Set, so multi-pool brands pin their order here.
+    var orderedPools: [ProviderId] {
+        switch self {
+        case .openai: return [.chatgpt, .codex]
+        case .google: return [.geminiConsumer, .gemini]
+        default:      return ProviderId.allCases.filter { pools.contains($0) }
+        }
+    }
+
+    /// The pool whose icon represents the brand in headers.
+    var primaryPool: ProviderId { orderedPools.first ?? .claude }
+
+    /// Display category for grouping on the Connections page. Multi-pool brands
+    /// (OpenAI, Google) are platforms — the company is the platform, its web +
+    /// CLI surfaces are sub-pools. Single-pool brands inherit their pool's category.
+    var category: ProviderId.ProviderCategory {
+        switch self {
+        case .openai, .google: return .platforms
+        default:               return primaryPool.category
         }
     }
 }

@@ -627,9 +627,6 @@ struct PopoverView: View {
                     viewModel.showTextSize = true
                 }
 
-                // ── Providers ──
-                providerVisibilitySection
-
                 // ── Learn ──
                 sectionLabel("Learn")
 
@@ -823,121 +820,6 @@ struct PopoverView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 28)
         .frame(maxWidth: .infinity)
-    }
-
-    // MARK: - Provider Visibility Section
-
-    /// Provider toggle rows under the "Providers" settings header.
-    ///
-    /// Flag on: one toggle per brand — toggling affects ALL of that brand's pools.
-    ///   Storage stays at ProviderId granularity (hiddenProviders: Set<ProviderId>)
-    ///   so the per-pool source of truth is never lost and a rollback to flag-off
-    ///   preserves individual pool visibility states.
-    ///
-    /// Flag off: one toggle per ProviderId — today's exact behavior.
-    @ViewBuilder
-    private var providerVisibilitySection: some View {
-        sectionLabel("Providers")
-
-        if FeatureFlags.brandAggregation {
-            brandVisibilityRows
-        } else {
-            legacyVisibilityRows
-        }
-    }
-
-    /// Brand-level visibility rows (flag on). One toggle per brand; toggling
-    /// on/off writes to all of that brand's pools simultaneously.
-    @ViewBuilder
-    private var brandVisibilityRows: some View {
-        ForEach(BrandId.allCases) { brand in
-            brandVisibilityRow(for: brand)
-            if brand != BrandId.allCases.last {
-                Divider().padding(.horizontal, 16)
-            }
-        }
-    }
-
-    private func brandVisibilityRow(for brand: BrandId) -> some View {
-        // Brand is "enabled" when ALL of its pools are visible (none hidden).
-        let allEnabled = brand.pools.allSatisfy {
-            SettingsService.visibility(for: $0)?.enabled ?? true
-        }
-        // Use the primary pool's icon to represent the brand
-        let primaryProvider = ProviderId.allCases.first { brand.pools.contains($0) } ?? .claude
-
-        return HStack(spacing: 8) {
-            ProviderIcon(provider: primaryProvider)
-                .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(brand.displayName)
-                    .scaledFont(.caption)
-                if !allEnabled {
-                    Text("Hidden in menu bar and popup")
-                        .scaledFont(.footnote)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-
-            Spacer()
-
-            Toggle("", isOn: Binding(
-                get: { brand.pools.allSatisfy { SettingsService.visibility(for: $0)?.enabled ?? true } },
-                set: { newValue in
-                    // Write the new state to every pool in the brand
-                    for pool in brand.pools {
-                        SettingsService.setVisibility(newValue, for: pool)
-                    }
-                }
-            ))
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .labelsHidden()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 9)
-    }
-
-    /// Per-ProviderId visibility rows (flag off). Kept exactly as-is for rollback safety.
-    @ViewBuilder
-    private var legacyVisibilityRows: some View {
-        ForEach(ProviderId.allCases) { providerId in
-            providerVisibilityRow(for: providerId)
-            if providerId != ProviderId.allCases.last {
-                Divider().padding(.horizontal, 16)
-            }
-        }
-    }
-
-    private func providerVisibilityRow(for providerId: ProviderId) -> some View {
-        let isEnabled = SettingsService.visibility(for: providerId)?.enabled ?? true
-        return HStack(spacing: 8) {
-            ProviderIcon(provider: providerId)
-                .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(providerId.displayName)
-                    .scaledFont(.caption)
-                if !isEnabled {
-                    Text("Hidden in menu bar and popup")
-                        .scaledFont(.footnote)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-
-            Spacer()
-
-            Toggle("", isOn: Binding(
-                get: { SettingsService.visibility(for: providerId)?.enabled ?? true },
-                set: { newValue in SettingsService.setVisibility(newValue, for: providerId) }
-            ))
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .labelsHidden()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 9)
     }
 
     // MARK: - Settings Helpers
