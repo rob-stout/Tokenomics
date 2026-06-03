@@ -143,7 +143,9 @@ enum DemoData {
                 resetsAt: futureDate(hours: 8),
                 windowDuration: 24 * 3600
             ),
-            planLabel: "1.5 Flash",
+            // Plan tier (Free/Standard/Enterprise), NOT a model name — mirrors the
+            // real GeminiProvider, which uses the selected plan's displayLabel.
+            planLabel: (SettingsService.geminiPlan ?? .free).displayLabel,
             extraUsage: nil,
             creditsBalance: nil
         )

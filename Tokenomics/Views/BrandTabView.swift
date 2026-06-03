@@ -16,23 +16,56 @@ struct BrandTabView: View {
     /// Icon-only mode kicks in at 4+ brands to keep the popover compact.
     private var useIconOnly: Bool { brands.count >= 4 }
 
+    /// Past 6 brands the row can't fit the popover width even icon-collapsed,
+    /// so it scrolls horizontally instead of cramming the tabs together. The
+    /// rounded container stays full-width (fixed) so window padding is unaffected.
+    private var scrolls: Bool { brands.count > 6 }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
 
-            HStack(spacing: 2) {
-                ForEach(brands) { brand in
-                    tabItem(for: brand)
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: brands.map(\.id))
-            .animation(.easeInOut(duration: 0.2), value: selection?.id)
-            .padding(2)
+            tabStrip
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 16)
         .padding(.top, 12)
+    }
+
+    /// The row of brand tabs. Below the scroll threshold tabs fill the width
+    /// evenly (unchanged). Above it, the row scrolls horizontally inside the
+    /// fixed container and auto-scrolls to keep the selected tab in view.
+    @ViewBuilder
+    private var tabStrip: some View {
+        let row = HStack(spacing: 2) {
+            ForEach(brands) { brand in
+                tabItem(for: brand)
+                    .id(brand)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: brands.map(\.id))
+        .animation(.easeInOut(duration: 0.2), value: selection?.id)
+        .padding(2)
+
+        if scrolls {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    row
+                }
+                .onAppear {
+                    if let selection { proxy.scrollTo(selection, anchor: .center) }
+                }
+                .onChange(of: selection) { _, newValue in
+                    guard let newValue else { return }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        proxy.scrollTo(newValue, anchor: .center)
+                    }
+                }
+            }
+        } else {
+            row
+        }
     }
 
     @ViewBuilder
@@ -71,7 +104,9 @@ struct BrandTabView: View {
         .padding(.vertical, 6)
         .padding(.horizontal, showLabel ? 12 : 10)
 
-        if useIconOnly && isSelected {
+        if scrolls {
+            inner
+        } else if useIconOnly && isSelected {
             inner.frame(width: 160)
         } else {
             inner.frame(maxWidth: .infinity)
