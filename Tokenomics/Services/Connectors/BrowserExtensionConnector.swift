@@ -91,10 +91,10 @@ actor BrowserExtensionConnector: ProviderConnector {
     /// path put it on segment 3 "Connect", which was wrong for an install.)
     /// No shell command, so the command card is hidden (`commandPreview: nil`).
     private static let installStep: ConnectorStep = .confirmingInstall(
-        title: "Install the Tokenomics browser extension",
+        title: "Install the browser extension",
         body: "Tokenomics reads your web usage — ChatGPT, Gemini, and more — through a lightweight browser extension. Install it and come back; we'll detect it automatically.",
         commandPreview: nil,
-        footnote: nil,
+        footnote: "The extension reads only your usage counts — never your prompts, messages, or files. It runs locally and talks only to Tokenomics on your Mac.",
         skipLabel: "Skip for now"
     )
 

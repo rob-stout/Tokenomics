@@ -51,10 +51,13 @@ struct ConfirmInstallStep: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, Tokens.Spacing.s2)
 
-            // Surface card — bg surface, 1px border, r-md, padding 16×18
-            // mockup .surface lines 374–379 + per-frame margin-top: 18px
-            surfaceCard
-                .padding(.top, 18)
+            // Surface card — only when there's a command and/or footnote to show.
+            // An empty card (e.g. an install step with no shell command) reads as a
+            // broken/missing element, so suppress it entirely.
+            if commandPreview != nil || footnote != nil {
+                surfaceCard
+                    .padding(.top, 18)
+            }
 
             // Helper — mockup .helper line 1035: 12.5px textMuted, margin-top 16px, center-aligned
             skipHelper
