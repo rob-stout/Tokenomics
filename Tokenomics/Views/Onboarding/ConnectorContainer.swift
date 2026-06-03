@@ -47,10 +47,19 @@ struct ConnectorContainer: View {
     /// by MultiSelectStep to show "already detected" sub-labels under each row.
     @State private var detectionAnnotations: [ProviderId: String] = [:]
 
-    /// Ordered queue of providers to execute in the synthesis path. Built from
-    /// the plan just before execution starts; `.chatgpt` represents the
-    /// BrowserExtensionConnector step (covers all web-companion providers).
-    @State private var synthesisQueue: [ProviderId] = []
+    // MARK: Hub-and-spoke execution state
+    //
+    // "Your shortest path" (setupPlan) is the hub the user returns to between
+    // steps; each step launches its connector (the spoke) and checks off on return.
+
+    /// Step numbers completed so far — drives the SetupPlanStep checkboxes.
+    @State private var completedStepNumbers: Set<Int> = []
+    /// The plan step number whose connector is currently open (so its outcome
+    /// checks the right box). nil when sitting on the hub.
+    @State private var activeStepNumber: Int?
+    /// True once "Start setup" has been tapped — flips the hub's primary button
+    /// from "Start setup" to "Continue" / "Show my usage".
+    @State private var hasStartedSetup = false
 
     @Environment(\.colorScheme) private var scheme
 
@@ -99,7 +108,9 @@ struct ConnectorContainer: View {
             case .setupPlan:
                 SetupPlanStep(
                     plan: buildPlan(),
-                    onStart: startSynthesisExecution,
+                    completedSteps: completedStepNumbers,
+                    hasStarted: hasStartedSetup,
+                    onStart: launchNextStep,
                     onBack: { goBack() }
                 )
                 .padding(.top, Tokens.Spacing.s6)
@@ -207,42 +218,31 @@ struct ConnectorContainer: View {
         return PlanBuilder.build(selection: brandSelection, detection: detectionResults)
     }
 
-    // MARK: - Synthesis Execution
+    // MARK: - Synthesis Execution (hub-and-spoke)
 
-    /// Called by SetupPlanStep's "Start setup" button. Converts the current
-    /// selection into an ordered execution queue and kicks off the first step.
+    /// Called by the SetupPlanStep primary button. Launches the next not-yet-done
+    /// step's connector, or finishes onboarding once every step is checked.
     ///
-    /// Queue ordering mirrors PlanBuilder's step ordering:
-    ///   1. BrowserExtensionConnector (covers all web-companion providers in one step)
-    ///   2. CLI/desktop providers, brand-alphabetical
-    ///   3. API-key providers, brand-alphabetical
-    ///
-    /// `.chatgpt` is used as the queue entry for the extension step because
-    /// BrowserExtensionConnector declares that as its `id`.
+    /// The plan screen is the hub: each step launches its connector (the spoke),
+    /// which returns here on completion with that step checked. Steps are NOT
+    /// auto-chained — the user advances from the hub via "Continue".
     @MainActor
-    private func startSynthesisExecution() {
-        // Record the plan screen so Back from a synthesis connector returns to it
-        // (not to the chooser, which this path never passed through).
-        history.append(screen)
-        let brandSelection = Set(draftSelection.map(\.brand))
-        synthesisQueue = buildExecutionQueue(from: brandSelection)
-        advanceSynthesisQueue()
-    }
-
-    /// Pops the next provider from `synthesisQueue` and opens it, or finishes
-    /// onboarding if the queue is empty.
-    @MainActor
-    private func advanceSynthesisQueue() {
-        guard !synthesisQueue.isEmpty else {
+    private func launchNextStep() {
+        hasStartedSetup = true
+        let plan = buildPlan()
+        guard let next = plan.steps.first(where: { !completedStepNumbers.contains($0.number) }) else {
             completeOnboarding()
             return
         }
-        let next = synthesisQueue.removeFirst()
-        openSynthesis(provider: next)
+        activeStepNumber = next.number
+        // Record the hub so Back from the connector returns here (un-checked).
+        history.append(.setupPlan)
+        openSynthesis(provider: next.launchTarget)
     }
 
-    /// Opens a connector in synthesis mode. Outcomes advance the queue rather
-    /// than routing to the chooser — the queue owns the sequencing here.
+    /// Opens a step's connector. On completion it returns to the hub (the plan
+    /// checklist) with that step checked — it does NOT auto-chain to the next
+    /// connector; the user advances from the hub.
     private func openSynthesis(provider: ProviderId) {
         let connector = makeConnector(for: provider)
         activeConnector = ConnectorViewModel(
@@ -250,59 +250,19 @@ struct ConnectorContainer: View {
             onOutcome: { [self] outcome in
                 switch outcome {
                 case .addAnother, .skipped:
-                    // In synthesis mode both "add another" and "skip" advance
-                    // to the next queued provider rather than dropping to chooser.
-                    screen = .connector  // keep showing ConnectorView chrome while VM swaps
+                    // Mark this step handled and return to the hub checklist.
+                    if let n = activeStepNumber { completedStepNumbers.insert(n) }
+                    activeStepNumber = nil
                     activeConnector = nil
                     viewModel.redetectProviders()
-                    advanceSynthesisQueue()
+                    _ = history.popLast()  // remove the .setupPlan pushed on launch
+                    screen = .setupPlan
                 case .allSet:
                     completeOnboarding()
                 }
             }
         )
         screen = .connector
-    }
-
-    /// Builds an ordered list of ProviderIds to execute for the given brand set.
-    ///
-    /// Extension-only providers collapse into a single `.chatgpt` entry
-    /// (BrowserExtensionConnector's id) because the extension covers all of
-    /// them in one install step. CLI and API-key providers each get one entry.
-    private func buildExecutionQueue(from brandSelection: Set<BrandId>) -> [ProviderId] {
-        var queue: [ProviderId] = []
-
-        // Extension step: one BrowserExtensionConnector run if any selected brand
-        // has a web-companion-only pool member (ChatGPT, Midjourney, etc.).
-        let hasWebCompanionProviders = brandSelection.contains { brand in
-            brand.pools.contains(where: isWebCompanionOnly)
-        }
-        if hasWebCompanionProviders {
-            queue.append(.chatgpt)
-        }
-
-        // CLI/desktop and API-key providers — one per provider ID, brand-alphabetical.
-        let sortedBrands = brandSelection.sorted { $0.rawValue < $1.rawValue }
-        for brand in sortedBrands {
-            let cliProviders = brand.pools
-                .filter { !isWebCompanionOnly($0) }
-                .sorted { $0.rawValue < $1.rawValue }
-            queue.append(contentsOf: cliProviders)
-        }
-
-        return queue
-    }
-
-    /// True when a ProviderId is only reachable via the browser extension — no
-    /// CLI tool and no local credentials path. Mirrors the same classification
-    /// in PlanBuilder (kept local to avoid exposing PlanBuilder internals).
-    private func isWebCompanionOnly(_ provider: ProviderId) -> Bool {
-        switch provider {
-        case .chatgpt, .geminiConsumer, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
-            return true
-        default:
-            return false
-        }
     }
 
     // MARK: - Navigation
@@ -361,7 +321,9 @@ struct ConnectorContainer: View {
     private func startOver() {
         history = []
         draftSelection = []
-        synthesisQueue = []
+        completedStepNumbers = []
+        activeStepNumber = nil
+        hasStartedSetup = false
         screen = .welcome
     }
 
@@ -369,7 +331,9 @@ struct ConnectorContainer: View {
         viewModel.completeOnboarding()
         activeConnector = nil
         isPreTargeted = false
-        synthesisQueue = []
+        completedStepNumbers = []
+        activeStepNumber = nil
+        hasStartedSetup = false
         onComplete()
     }
 

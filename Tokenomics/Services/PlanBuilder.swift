@@ -80,7 +80,8 @@ struct PlanBuilder {
                 title: "Install the Tokenomics browser extension",
                 description: "Covers \(brandWord):",
                 timeEstimate: "~1 min",
-                covers: coversList
+                covers: coversList,
+                launchTarget: .chatgpt  // BrowserExtensionConnector's id
             ))
             stepNumber += 1
         }
@@ -190,8 +191,21 @@ struct PlanBuilder {
             title: title,
             description: description,
             timeEstimate: timeEstimate,
-            covers: nil
+            covers: nil,
+            launchTarget: cliProvider(for: brand)
         )
+    }
+
+    /// The CLI/desktop provider a brand's CLI step launches.
+    private static func cliProvider(for brand: BrandId) -> ProviderId {
+        switch brand {
+        case .anthropic: return .claude
+        case .openai:    return .codex
+        case .google:    return .gemini
+        case .copilot:   return .copilot
+        case .cursor:    return .cursor
+        default:         return .claude
+        }
     }
 
     private static func apiKeyStep(brand: BrandId, number: Int) -> SetupPlan.Step {
@@ -208,8 +222,19 @@ struct PlanBuilder {
             title: "Paste your \(brand.displayName) API key",
             description: "We'll open \(siteName) so you can grab a key, then come back to paste it here.",
             timeEstimate: "~30 sec",
-            covers: nil
+            covers: nil,
+            launchTarget: apiKeyProvider(for: brand)
         )
+    }
+
+    /// The API-key provider a brand's API-key step launches.
+    private static func apiKeyProvider(for brand: BrandId) -> ProviderId {
+        switch brand {
+        case .stability:  return .stableDiffusion
+        case .runway:     return .runway
+        case .elevenlabs: return .elevenlabs
+        default:          return .stableDiffusion
+        }
     }
 
     // MARK: - Duration Estimation

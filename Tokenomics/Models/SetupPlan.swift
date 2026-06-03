@@ -32,6 +32,11 @@ struct SetupPlan {
         /// Optional bullet list shown below the description. Used for the
         /// extension-batch step to enumerate which providers it covers.
         let covers: [String]?
+        /// The connector this step launches during hub-and-spoke execution.
+        /// `.chatgpt` is the BrowserExtensionConnector's id (the extension batch);
+        /// CLI/API-key steps carry their backing provider. Keeps the plan steps
+        /// and execution targets aligned 1:1 — no separate ordered queue to drift.
+        let launchTarget: ProviderId
 
         var id: Int { number }
     }

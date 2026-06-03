@@ -14,10 +14,26 @@ import SwiftUI
 struct SetupPlanStep: View {
     let plan: SetupPlan
 
+    /// Step numbers already completed — drives the checkboxes. Empty during the
+    /// initial preview; fills in as the user returns from each connector.
+    var completedSteps: Set<Int> = []
+    /// True once "Start setup" has been tapped (execution underway). Switches the
+    /// primary button from "Start setup" to "Continue" / "Show my usage".
+    var hasStarted: Bool = false
+
     var onStart: () -> Void
     var onBack: () -> Void
 
     @Environment(\.colorScheme) private var scheme
+
+    private var allDone: Bool {
+        !plan.steps.isEmpty && plan.steps.allSatisfy { completedSteps.contains($0.number) }
+    }
+
+    private var primaryTitle: String {
+        if allDone { return "Show my usage" }
+        return hasStarted ? "Continue" : "Start setup"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -53,7 +69,7 @@ struct SetupPlanStep: View {
             } trailing: {
                 Button(action: onStart) {
                     HStack(spacing: 4) {
-                        Text("Start setup")
+                        Text(primaryTitle)
                         Image(systemName: "arrow.right")
                             .font(.system(size: 12, weight: .medium))
                     }
@@ -74,7 +90,7 @@ struct SetupPlanStep: View {
 
     private func stepCard(_ step: SetupPlan.Step) -> some View {
         HStack(alignment: .top, spacing: Tokens.Spacing.s4) {
-            stepNumberBadge(step.number)
+            stepCheckbox(done: completedSteps.contains(step.number))
 
             VStack(alignment: .leading, spacing: Tokens.Spacing.s2) {
                 HStack(alignment: .firstTextBaseline) {
@@ -119,13 +135,25 @@ struct SetupPlanStep: View {
         .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.sm))
     }
 
-    private func stepNumberBadge(_ number: Int) -> some View {
+    /// Empty circle while pending; accent fill + checkmark once the step is done.
+    /// (No "active" state — the live work happens on the connector screen; this
+    /// screen is just the path tracker.)
+    private func stepCheckbox(done: Bool) -> some View {
         ZStack {
             Circle()
-                .fill(Tokens.Color.accent(scheme))
-            Text("\(number)")
-                .font(Tokens.Typography.Onboarding.stepperNumber)
-                .foregroundStyle(Tokens.Color.accentInk(scheme))
+                .fill(done ? Tokens.Color.accent(scheme) : Color.clear)
+            Circle()
+                .strokeBorder(
+                    done ? Tokens.Color.accent(scheme) : Tokens.Color.borderStrong(scheme),
+                    lineWidth: 1.5
+                )
+            if done {
+                // On-accent foreground (ink900/white) — accentInk is the same cyan
+                // as the fill in dark mode and would be invisible.
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(scheme == .dark ? Tokens.Color.ink900 : Color.white)
+            }
         }
         .frame(width: 24, height: 24)
     }
@@ -156,21 +184,24 @@ private let typicalPlan = SetupPlan(
             title: "Install the Tokenomics browser extension",
             description: "Covers 2 of the tools you picked at once:",
             timeEstimate: "~1 min",
-            covers: ["Claude (via claude.ai)", "ChatGPT (via chat.openai.com)"]
+            covers: ["Claude (via claude.ai)", "ChatGPT (via chat.openai.com)"],
+            launchTarget: .chatgpt
         ),
         .init(
             number: 2,
             title: "Confirm Claude Code is connected",
             description: "Already installed on your Mac — we just need to read your credentials.",
             timeEstimate: "~5 sec",
-            covers: nil
+            covers: nil,
+            launchTarget: .claude
         ),
         .init(
             number: 3,
             title: "Confirm Cursor is connected",
             description: "Already installed on your Mac — we just need to read your local data.",
             timeEstimate: "~5 sec",
-            covers: nil
+            covers: nil,
+            launchTarget: .cursor
         ),
     ]
 )
@@ -185,7 +216,8 @@ private let singlePlan = SetupPlan(
             title: "Paste your Stability AI API key",
             description: "We'll open stability.ai so you can grab a key, then come back to paste it here.",
             timeEstimate: "~30 sec",
-            covers: nil
+            covers: nil,
+            launchTarget: .stableDiffusion
         )
     ]
 )
