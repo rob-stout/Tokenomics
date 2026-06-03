@@ -155,12 +155,24 @@ struct ConnectorView: View {
                 onBack: onBack
             )
         case .awaitingExternalAuth(let headline, let body):
-            AwaitExternalAuthView(
-                headline: headline,
-                instructionText: body,
-                onCheckNow: { viewModel.tappedRecheck() },
-                onBack: onBack
-            )
+            // The browser-extension connector (id == .chatgpt) reuses this step for
+            // its "connecting" phase, but needs the provider-agnostic view — not the
+            // Claude-specific terminal illustration.
+            if viewModel.providerId == .chatgpt {
+                AwaitExtensionView(
+                    headline: headline,
+                    instructionText: body,
+                    onCheckNow: { viewModel.tappedRecheck() },
+                    onBack: onBack
+                )
+            } else {
+                AwaitExternalAuthView(
+                    headline: headline,
+                    instructionText: body,
+                    onCheckNow: { viewModel.tappedRecheck() },
+                    onBack: onBack
+                )
+            }
         case .openProviderSite(let headline, let body, let ctaLabel):
             // Pattern E step 1 — reuses the confirm-screen chrome with provider-site framing.
             ConfirmInstallStep(

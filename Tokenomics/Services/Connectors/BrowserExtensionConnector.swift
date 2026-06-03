@@ -148,8 +148,13 @@ actor BrowserExtensionConnector: ProviderConnector {
                 activePhase = .none
                 return .connected(plan: "")
             }
-            // Still waiting for the heartbeat — keep showing the install step.
-            return Self.installStep
+            // Installed; now waiting for the extension to connect to Tokenomics.
+            // This is stepper step 3 ("Connect") — a real "connecting" screen,
+            // not the install step.
+            return .awaitingExternalAuth(
+                headline: "Connecting the extension",
+                body: "Once the extension is installed, it connects to Tokenomics automatically — usually within a few seconds."
+            )
 
         case .none:
             break
