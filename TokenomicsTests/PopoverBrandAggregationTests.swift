@@ -178,24 +178,24 @@ final class PopoverBrandAggregationTests: XCTestCase {
 
     // ── Pin Tracker flat list ───────────────────────────────────────────────
 
-    /// Flag on: Pin Tracker uses `pinTrackerLabel` which shows pool-specific names.
-    func testDuring_pinTrackerLabel_showsPoolSpecificNames() {
-        XCTAssertEqual(ProviderId.claude.pinTrackerLabel,          "Anthropic")
-        XCTAssertEqual(ProviderId.chatgpt.pinTrackerLabel,         "ChatGPT")
-        XCTAssertEqual(ProviderId.codex.pinTrackerLabel,           "Codex CLI")
-        XCTAssertEqual(ProviderId.gemini.pinTrackerLabel,          "Gemini CLI")
-        XCTAssertEqual(ProviderId.copilot.pinTrackerLabel,         "GitHub Copilot")
-        XCTAssertEqual(ProviderId.cursor.pinTrackerLabel,          "Cursor")
-        XCTAssertEqual(ProviderId.stableDiffusion.pinTrackerLabel, "Stability AI")
+    /// Flag on: Pin Tracker uses `poolLabel` which shows pool-specific names.
+    func testDuring_poolLabel_showsPoolSpecificNames() {
+        XCTAssertEqual(ProviderId.claude.poolLabel,          "Anthropic")
+        XCTAssertEqual(ProviderId.chatgpt.poolLabel,         "ChatGPT")
+        XCTAssertEqual(ProviderId.codex.poolLabel,           "Codex CLI")
+        XCTAssertEqual(ProviderId.gemini.poolLabel,          "Gemini CLI")
+        XCTAssertEqual(ProviderId.copilot.poolLabel,         "GitHub Copilot")
+        XCTAssertEqual(ProviderId.cursor.poolLabel,          "Cursor")
+        XCTAssertEqual(ProviderId.stableDiffusion.poolLabel, "Stability AI")
     }
 
-    /// `pinTrackerLabel` differs from `displayName` for multi-pool providers.
+    /// `poolLabel` differs from `displayName` for multi-pool providers.
     /// This is the key contract: Codex shows "Codex CLI" (not "OpenAI") and
     /// Gemini shows "Gemini CLI" (not "Google AI").
-    func testDuring_pinTrackerLabel_differsFromDisplayNameForMultiPoolProviders() {
-        XCTAssertNotEqual(ProviderId.codex.pinTrackerLabel,  ProviderId.codex.displayName,
+    func testDuring_poolLabel_differsFromDisplayNameForMultiPoolProviders() {
+        XCTAssertNotEqual(ProviderId.codex.poolLabel,  ProviderId.codex.displayName,
                           "Codex pin label should be pool-specific, not brand-level")
-        XCTAssertNotEqual(ProviderId.gemini.pinTrackerLabel, ProviderId.gemini.displayName,
+        XCTAssertNotEqual(ProviderId.gemini.poolLabel, ProviderId.gemini.displayName,
                           "Gemini pin label should be pool-specific, not brand-level")
     }
 

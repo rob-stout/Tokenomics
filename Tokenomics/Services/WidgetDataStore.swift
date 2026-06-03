@@ -60,8 +60,22 @@ enum WidgetDataStore {
             /// is on; the flag-off code path never touches this field.
             let brandId: String?
 
+            /// Icon asset base name, baked from `ProviderId.iconBaseName`. The
+            /// widget is a separate process and used to keep its own id→asset map,
+            /// which drifted (ChatGPT/Gemini-app rendered "?"). Baking it here keeps
+            /// the icon aligned with the app. Nil in legacy snapshots → widget
+            /// falls back to its local map.
+            let iconBaseName: String?
+
+            /// SF Symbol for the pool's tracking surface (puzzlepiece.extension /
+            /// terminal), baked from `ProviderId.surfaceSymbol`. Drives the corner
+            /// badge that disambiguates same-brand pools (both OpenAI pools share
+            /// the OpenAI mark; both Google pools share the Gemini mark). Nil for
+            /// API-key pools and legacy snapshots.
+            let surfaceSymbol: String?
+
             // Backward-compatible memberwise init so all existing call sites that
-            // omit brandId keep compiling without changes.
+            // omit the newer fields keep compiling without changes.
             init(
                 id: String,
                 displayName: String,
@@ -69,7 +83,9 @@ enum WidgetDataStore {
                 shortWindow: WindowEntry,
                 longWindow: WindowEntry?,
                 planLabel: String,
-                brandId: String? = nil
+                brandId: String? = nil,
+                iconBaseName: String? = nil,
+                surfaceSymbol: String? = nil
             ) {
                 self.id = id
                 self.displayName = displayName
@@ -78,6 +94,8 @@ enum WidgetDataStore {
                 self.longWindow = longWindow
                 self.planLabel = planLabel
                 self.brandId = brandId
+                self.iconBaseName = iconBaseName
+                self.surfaceSymbol = surfaceSymbol
             }
         }
 
@@ -131,11 +149,19 @@ enum WidgetDataStore {
     /// This method uses main app types (ProviderId, ProviderUsageSnapshot) and is
     /// not compiled in the widget extension target.
     #if !WIDGET_EXTENSION
-    static func write(providers: [(ProviderId, ProviderUsageSnapshot)]) {
-        let entries = providers.map { id, snapshot in
+    /// Builds the snapshot entries from provider states. Pure (no I/O) so the
+    /// label bake is unit-testable — see `PoolLabelAlignmentTests`.
+    static func makeEntries(
+        providers: [(ProviderId, ProviderUsageSnapshot)]
+    ) -> [WidgetSnapshot.ProviderEntry] {
+        providers.map { id, snapshot in
             WidgetSnapshot.ProviderEntry(
                 id: id.rawValue,
-                displayName: id.displayName,
+                // The widget is a separate process and can't call ProviderId, so
+                // the app bakes the source-of-truth pool label into the snapshot
+                // here. Per-pool rows in the widget render this; brand headers use
+                // the brandId→brand name map. Must be `poolLabel`, not displayName.
+                displayName: id.poolLabel,
                 shortLabel: id.shortLabel,
                 shortWindow: .init(
                     label: widgetLabel(snapshot.shortWindow.label),
@@ -155,9 +181,17 @@ enum WidgetDataStore {
                 // Stamp the brand key on every entry so the medium/large
                 // brand-aggregation renderer can group sub-rows by parent.
                 // The flag-off code path ignores this field entirely.
-                brandId: id.brand.rawValue
+                brandId: id.brand.rawValue,
+                // Bake the icon + surface so the widget renders them from the SoT
+                // instead of its own drift-prone copies.
+                iconBaseName: id.iconBaseName,
+                surfaceSymbol: id.surfaceSymbol
             )
         }
+    }
+
+    static func write(providers: [(ProviderId, ProviderUsageSnapshot)]) {
+        let entries = makeEntries(providers: providers)
 
         let widgetSnapshot = WidgetSnapshot(
             providers: entries,

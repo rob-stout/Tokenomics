@@ -12,6 +12,8 @@ struct PopoverView: View {
     @State private var showingGeminiConsumerPlanSetup = false
     /// Reveals the debug menu in beta/debug builds (gated on `BuildInfo.showsDebugTools`).
     @State private var showDebugMenu = false
+    /// Presents the "Uninstall Tokenomics" confirmation alert.
+    @State private var showingUninstallConfirm = false
     /// Reveals the hidden "Beta features" section in Settings. Set to `true`
     /// only when the user holds Option while opening Settings (checked in
     /// `settingsView.onAppear`). Resets when Settings closes.
@@ -20,6 +22,10 @@ struct PopoverView: View {
     /// Initialized from UserDefaults each time Settings appears so flips from
     /// the `defaults write` command path stay in sync.
     @State private var brandAggregationFlag = FeatureFlags.brandAggregation
+    /// Dismisses the "detected but not added" nudge banner for this popover
+    /// session (resets when the popover closes via `resetNavigation`-adjacent
+    /// state). Not persisted — a freshly detected tool should nudge again.
+    @State private var dismissedDetectionNudge = false
     /// Selected brand when `FeatureFlags.brandAggregation` is on.
     /// Independent of `viewModel.selectedTab` (ProviderId) which drives the flag-off path.
     /// Initialized lazily to `enabledBrands.first` when the flag-on tab bar renders.
@@ -49,10 +55,12 @@ struct PopoverView: View {
                 DebugMenuView(viewModel: viewModel, onDismiss: { showDebugMenu = false })
             } else if viewModel.showSettings {
                 settingsView
-            } else if !viewModel.hasCompletedOnboarding {
-                // First-launch users: show a lightweight card that opens the
-                // real onboarding window. The window persists across app-switches
-                // (unlike this popover, which dismisses on focus loss).
+            } else if viewModel.connectedProviders.isEmpty && !viewModel.hasCompletedOnboarding {
+                // True empty state only: nothing connected yet. Show a lightweight
+                // card that opens the real onboarding window (it persists across
+                // app-switches, unlike this popover). Once anything is connected we
+                // fall through to mainContent — newly-detected-but-unadded tools are
+                // surfaced there as a non-blocking banner instead of a takeover.
                 onboardingLauncherCard
             } else {
                 mainContent
@@ -91,17 +99,35 @@ struct PopoverView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
             viewModel.resetNavigation()
             showDebugMenu = false
+            dismissedDetectionNudge = false
         }
     }
 
     // MARK: - Main Content (Tabs + Usage)
 
+    /// True when there are tools detected on the machine the user hasn't added,
+    /// at least one provider is already connected (so we're not in the takeover
+    /// empty state), and the nudge hasn't been dismissed this session.
+    private var showsDetectionNudge: Bool {
+        UsageViewModel.showsDetectionNudge(
+            dismissed: dismissedDetectionNudge,
+            connectedCount: viewModel.connectedProviders.count,
+            detectedCount: viewModel.detectedNotConnected.count
+        )
+    }
+
     @ViewBuilder
     private var mainContent: some View {
+        if showsDetectionNudge {
+            detectionNudgeBanner
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+        }
+
         // Header
         header
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, showsDetectionNudge ? 8 : 12)
             .padding(.bottom, 8)
 
         if FeatureFlags.brandAggregation {
@@ -142,7 +168,10 @@ struct PopoverView: View {
         if brands.count > 1 {
             BrandTabView(
                 brands: brands,
-                selection: $selectedBrand
+                selection: $selectedBrand,
+                onMove: { brand, toIndex in
+                    viewModel.moveBrand(brand, toIndex: toIndex)
+                }
             )
             Spacer().frame(height: 4)
         } else {
@@ -207,7 +236,7 @@ struct PopoverView: View {
     /// (e.g. "ChatGPT", "OpenAI" for codex).
     private func poolSectionHeader(for providerId: ProviderId, planLabel: String?) -> some View {
         HStack {
-            Text(providerId.pinTrackerLabel)
+            Text(providerId.poolLabel)
                 .font(.system(size: 10, weight: .semibold))
                 .tracking(0.5)
                 .foregroundStyle(.tertiary)
@@ -542,7 +571,7 @@ struct PopoverView: View {
 
     private var loadingView: some View {
         VStack(spacing: 8) {
-            ProgressView()
+            CircularSpinner(size: 24, lineWidth: 3)
             Text("Loading usage data...")
                 .scaledFont(.caption)
                 .foregroundStyle(.secondary)
@@ -736,6 +765,31 @@ struct PopoverView: View {
 
                 Divider().padding(.horizontal, 16)
 
+                // Full uninstall for non-Terminal users: cleans up the login item,
+                // browser manifests, app-group container, caches, prefs, and our
+                // Keychain items, then moves the app to the Trash and quits.
+                // Styled like every other row (no red) so it doesn't draw the eye;
+                // sits above Quit so the bottom-most tap target stays harmless.
+                Button {
+                    showingUninstallConfirm = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trash")
+                            .scaledFont(.caption)
+                            .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
+                            .foregroundStyle(.secondary)
+                        Text("Uninstall Tokenomics…")
+                            .scaledFont(.caption)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 9)
+
+                Divider().padding(.horizontal, 16)
+
                 // ── Beta Features (hidden — hold Option while opening Settings) ──
                 if betaFeaturesVisible {
                     betaFeaturesSection
@@ -759,6 +813,14 @@ struct PopoverView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 9)
             }
+        }
+        .alert("Uninstall Tokenomics?", isPresented: $showingUninstallConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Uninstall", role: .destructive) {
+                UninstallService.uninstallAndQuit()
+            }
+        } message: {
+            Text("This removes Tokenomics and all its settings from your Mac, then moves the app to the Trash. Your AI tools (Claude Code, Cursor, etc.) are not affected. This can't be undone.")
         }
         .onAppear {
             // Reveal the Beta features section only if Option is held when
@@ -799,6 +861,56 @@ struct PopoverView: View {
             .padding(.bottom, 9)
 
         Divider().padding(.horizontal, 16)
+    }
+
+    // MARK: - Detection Nudge Banner
+
+    /// Slim, dismissible banner shown atop the usage view when we detect AI tools
+    /// on the machine the user hasn't added yet. Non-blocking by design — the user
+    /// already has providers connected, so we never cover their usage. Tapping
+    /// "Add" opens the persistent guided-setup window.
+    private var detectionNudgeBanner: some View {
+        let names = viewModel.detectedNotConnected.map { $0.displayName }
+        let message: String
+        switch names.count {
+        case 1:  message = "Found \(names[0]) — not tracked yet."
+        case 2:  message = "Found \(names[0]) and \(names[1]) — not tracked yet."
+        default: message = "Found \(names[0]) and \(names.count - 1) more — not tracked yet."
+        }
+
+        return HStack(spacing: 8) {
+            Image(systemName: "sparkle.magnifyingglass")
+                .font(.system(size: 13))
+                .foregroundStyle(Tokens.Color.brand600)
+
+            Text(message)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(Tokens.DynamicColor.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 8)
+
+            Button("Add →") {
+                openWindow(id: "onboarding")
+            }
+            .font(.system(size: 12.5, weight: .semibold))
+            .foregroundStyle(Tokens.Color.brand600)
+            .buttonStyle(.plain)
+
+            Button {
+                dismissedDetectionNudge = true
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Tokens.DynamicColor.textSubtle)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(Tokens.Color.brand600.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.sm))
     }
 
     // MARK: - Onboarding Launcher Card

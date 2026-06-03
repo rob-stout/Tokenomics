@@ -306,10 +306,9 @@ final class BrandGroupingTests: XCTestCase {
     }
 
     func testSmallWidgetEnum_addedCases_rawValues() {
-        // Phase 5.6.C additions — raw values are the new stable identity.
-        XCTAssertEqual(WidgetProviderSelection.chatgpt.rawValue,   "chatgpt")
-        XCTAssertEqual(WidgetProviderSelection.codexCLI.rawValue,  "codexCLI")
-        XCTAssertEqual(WidgetProviderSelection.geminiCLI.rawValue, "geminiCLI")
+        // Consumer pools — raw values are the stable identity.
+        XCTAssertEqual(WidgetProviderSelection.chatgpt.rawValue,        "chatgpt")
+        XCTAssertEqual(WidgetProviderSelection.geminiConsumer.rawValue, "geminiConsumer")
     }
 
     func testSmallWidgetEnum_existingCodexCase_decodesFromRawValue() {
@@ -328,14 +327,16 @@ final class BrandGroupingTests: XCTestCase {
         XCTAssertEqual(decoded, .chatgpt)
     }
 
-    func testSmallWidgetEnum_newCodexCLICase_decodesFromRawValue() {
-        let decoded = WidgetProviderSelection(rawValue: "codexCLI")
-        XCTAssertEqual(decoded, .codexCLI)
+    func testSmallWidgetEnum_geminiConsumerCase_decodesFromRawValue() {
+        let decoded = WidgetProviderSelection(rawValue: "geminiConsumer")
+        XCTAssertEqual(decoded, .geminiConsumer)
     }
 
-    func testSmallWidgetEnum_newGeminiCLICase_decodesFromRawValue() {
-        let decoded = WidgetProviderSelection(rawValue: "geminiCLI")
-        XCTAssertEqual(decoded, .geminiCLI)
+    func testSmallWidgetEnum_removedAliases_decodeToNil() {
+        // The legacy .codexCLI / .geminiCLI duplicates were removed. Saved configs
+        // referencing them resolve to nil → App Intents falls back to the default.
+        XCTAssertNil(WidgetProviderSelection(rawValue: "codexCLI"))
+        XCTAssertNil(WidgetProviderSelection(rawValue: "geminiCLI"))
     }
 
     func testSmallWidgetEnum_allCasesHaveRawValues() {
@@ -346,7 +347,7 @@ final class BrandGroupingTests: XCTestCase {
         let expectedRawValues = [
             "smart", "claude", "copilot", "cursor", "codex", "gemini",
             "elevenlabs", "runway", "stableDiffusion",
-            "chatgpt", "codexCLI", "geminiCLI"
+            "chatgpt", "geminiConsumer"
         ]
         for rawValue in expectedRawValues {
             XCTAssertNotNil(

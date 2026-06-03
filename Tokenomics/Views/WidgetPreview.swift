@@ -192,7 +192,80 @@ private let eightProviders = WidgetDataStore.WidgetSnapshot(
     updatedAt: Date()
 )
 
+// MARK: - Brand-aggregation sample data
+//
+// Built through the REAL `WidgetDataStore.makeEntries` bake so the previews show
+// exactly what ships: poolLabel labels ("Codex CLI", "Gemini (app)") + brandId
+// grouping. This is the layout that struggled before — multi-pool brands render a
+// brand header with indented per-pool sub-rows.
+
+private func sampleUsage(_ short: Double, long: Double? = nil) -> ProviderUsageSnapshot {
+    ProviderUsageSnapshot(
+        shortWindow: WindowUsage(label: "5-Hour Window", utilization: short,
+                                 resetsAt: Date().addingTimeInterval(7200), windowDuration: 18000),
+        longWindow: long.map {
+            WindowUsage(label: "Weekly", utilization: $0,
+                        resetsAt: Date().addingTimeInterval(259200), windowDuration: 604800)
+        },
+        planLabel: "Pro",
+        extraUsage: nil,
+        creditsBalance: nil
+    )
+}
+
+/// Brand-aggregated snapshot for the given pools, baked via the production path.
+private func brandSnapshot(_ ids: [ProviderId]) -> WidgetDataStore.WidgetSnapshot {
+    let pairs = ids.map { ($0, sampleUsage(Double(($0.rawValue.count * 13) % 100),
+                                            long: Double(($0.rawValue.count * 7) % 100))) }
+    return WidgetDataStore.WidgetSnapshot(
+        providers: WidgetDataStore.makeEntries(providers: pairs),
+        updatedAt: Date(),
+        brandAggregationEnabled: true
+    )
+}
+
+// Two multi-pool brands: OpenAI (ChatGPT + Codex CLI), Google (Gemini app + CLI).
+private let brandsMultiPool = brandSnapshot([.chatgpt, .codex, .geminiConsumer, .gemini])
+// Mixed: single-pool Anthropic + both multi-pool brands + single-pool Cursor.
+private let brandsMixed = brandSnapshot([.claude, .chatgpt, .codex, .geminiConsumer, .gemini, .cursor])
+
 // MARK: - Previews
+
+// ── Brand aggregation (the new multi-pool layout) ──
+
+#Preview("Brand — Medium — multi-pool") {
+    WidgetPreviewContainer(family: .systemMedium, colorScheme: .dark) {
+        MediumWidgetView(entry: UsageEntry(date: .now, snapshot: brandsMultiPool, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+#Preview("Brand — Large — multi-pool") {
+    WidgetPreviewContainer(family: .systemLarge, colorScheme: .dark) {
+        LargeWidgetView(entry: UsageEntry(date: .now, snapshot: brandsMultiPool, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+#Preview("Brand — Large — mixed") {
+    WidgetPreviewContainer(family: .systemLarge, colorScheme: .dark) {
+        LargeWidgetView(entry: UsageEntry(date: .now, snapshot: brandsMixed, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+#Preview("Brand — Large — mixed — light") {
+    WidgetPreviewContainer(family: .systemLarge, colorScheme: .light) {
+        LargeWidgetView(entry: UsageEntry(date: .now, snapshot: brandsMixed, selectedProvider: .smart))
+    }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+}
+
+// ── Per-provider (flag-off) layout ──
 
 #Preview("Small — Dark") {
     WidgetPreviewContainer(family: .systemSmall, colorScheme: .dark) {

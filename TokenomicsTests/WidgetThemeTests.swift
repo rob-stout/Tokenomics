@@ -264,41 +264,24 @@ final class WidgetThemeTests: XCTestCase {
 
     // MARK: - Fill Color Boundary Tests (dark preset)
 
-    func testFillColor_zeroUtilization_notLong_returnsShortColor() {
-        // fillColor(for:) always returns shortColor or longColor regardless of utilization value
-        let fill = WidgetTheme.dark.fillColor(for: 0.0, isLong: false)
+    func testFillColor_notLong_returnsShortColor() {
+        // fillColor is fixed per window type — color depends only on `isLong`,
+        // never on utilization (the `for:` param was removed June 2, 8bfbb3c).
+        let fill = WidgetTheme.dark.fillColor(isLong: false)
         assertColor(fill, r: 117, g: 203, b: 245, a: 1.0,
-                    label: "dark.fillColor(0%, isLong:false)")
+                    label: "dark.fillColor(isLong:false)")
     }
 
-    func testFillColor_hundredUtilization_notLong_returnsShortColor() {
-        let fill = WidgetTheme.dark.fillColor(for: 100.0, isLong: false)
-        assertColor(fill, r: 117, g: 203, b: 245, a: 1.0,
-                    label: "dark.fillColor(100%, isLong:false)")
-    }
-
-    func testFillColor_overHundred_notLong_returnsShortColor() {
-        let fill = WidgetTheme.dark.fillColor(for: 150.0, isLong: false)
-        assertColor(fill, r: 117, g: 203, b: 245, a: 1.0,
-                    label: "dark.fillColor(150%, isLong:false)")
-    }
-
-    func testFillColor_zeroUtilization_isLong_returnsLongColor() {
-        let fill = WidgetTheme.dark.fillColor(for: 0.0, isLong: true)
+    func testFillColor_isLong_returnsLongColor() {
+        let fill = WidgetTheme.dark.fillColor(isLong: true)
         assertColor(fill, r: 51, g: 137, b: 199, a: 1.0,
-                    label: "dark.fillColor(0%, isLong:true)")
-    }
-
-    func testFillColor_hundredUtilization_isLong_returnsLongColor() {
-        let fill = WidgetTheme.dark.fillColor(for: 100.0, isLong: true)
-        assertColor(fill, r: 51, g: 137, b: 199, a: 1.0,
-                    label: "dark.fillColor(100%, isLong:true)")
+                    label: "dark.fillColor(isLong:true)")
     }
 
     func testFillColor_defaultIsLong_isFalse() {
-        // fillColor(for:) default is isLong: false — should return shortColor
-        let fillDefault = WidgetTheme.dark.fillColor(for: 50.0)
-        let fillExplicit = WidgetTheme.dark.fillColor(for: 50.0, isLong: false)
+        // fillColor() default is isLong: false — should return shortColor
+        let fillDefault = WidgetTheme.dark.fillColor()
+        let fillExplicit = WidgetTheme.dark.fillColor(isLong: false)
         // Both resolve to the same sRGB values
         guard let def = sRGB(fillDefault), let exp = sRGB(fillExplicit) else {
             XCTFail("Could not resolve colors")

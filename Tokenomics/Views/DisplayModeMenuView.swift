@@ -25,7 +25,7 @@ struct DisplayModeMenuView: View {
 
             // Pin a specific provider (pool).
             //
-            // Flag on: flat list of per-pool entries using pinTrackerLabel —
+            // Flag on: flat list of per-pool entries using poolLabel —
             //   e.g. "Anthropic / ChatGPT / Codex CLI / GitHub Copilot / Cursor / Gemini CLI"
             //   Pin storage stays at ProviderId granularity so old pins survive the upgrade.
             //
@@ -42,7 +42,7 @@ struct DisplayModeMenuView: View {
                             if viewModel.isPinned(provider) {
                                 Image(systemName: "pin.fill")
                             }
-                            Text(provider.pinTrackerLabel)
+                            Text(provider.poolLabel)
                         }
                     }
                 }

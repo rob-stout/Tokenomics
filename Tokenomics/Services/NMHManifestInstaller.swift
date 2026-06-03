@@ -121,6 +121,29 @@ struct NMHManifestInstaller {
         return result
     }
 
+    // MARK: - Uninstall
+
+    /// Removes the NMH manifest from every supported browser's NativeMessagingHosts
+    /// directory. Best-effort: missing files are ignored. Used by the in-app
+    /// uninstaller so non-Homebrew users don't leave orphaned manifests (which
+    /// would point at a now-deleted bridge binary) behind in each browser.
+    static func removeAll() {
+        guard let appSupportURL = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else { return }
+
+        for (browserName, manifestURL) in browserManifestURLs(appSupportURL: appSupportURL) {
+            guard FileManager.default.fileExists(atPath: manifestURL.path) else { continue }
+            do {
+                try FileManager.default.removeItem(at: manifestURL)
+                log.info("Removed NMH manifest for \(browserName)")
+            } catch {
+                log.error("Failed to remove NMH manifest for \(browserName): \(error)")
+            }
+        }
+    }
+
     // MARK: - Private Helpers
 
     private static func installManifest(

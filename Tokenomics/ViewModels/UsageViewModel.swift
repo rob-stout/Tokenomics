@@ -45,6 +45,11 @@ final class UsageViewModel: ObservableObject {
     /// Whether onboarding has been completed
     @Published private(set) var hasCompletedOnboarding: Bool
 
+    /// Two-way bound to the MenuBarExtra popover's presentation (via
+    /// MenuBarExtraAccess). Set true to open the popover programmatically — e.g.
+    /// at the end of onboarding so the user lands on their usage.
+    @Published var isPopoverPresented = false
+
     /// Navigation state
     @Published var showSettings = false
     @Published var showAIConnections = false
@@ -128,6 +133,41 @@ final class UsageViewModel: ObservableObject {
             guard let state = providerStates[id] else { return false }
             return state.connection != .notInstalled
         }
+    }
+
+    /// Providers detected on the machine but not yet added to Tokenomics
+    /// (installed, no auth). Drives the non-blocking "we found X" nudge banner
+    /// shown atop the usage view once at least one provider is connected.
+    var detectedNotConnected: [ProviderId] {
+        Self.detectedNotConnectedProviders(
+            connections: providerStates.mapValues { $0.connection },
+            order: orderedProviders
+        )
+    }
+
+    /// Pure helper for `detectedNotConnected`: providers in the `.installedNoAuth`
+    /// state, in the given order. Detected on disk but never connected to us.
+    /// Static so it can be unit-tested without a live view model.
+    static func detectedNotConnectedProviders(
+        connections: [ProviderId: ProviderConnectionState],
+        order: [ProviderId]
+    ) -> [ProviderId] {
+        order.filter { id in
+            if case .installedNoAuth = connections[id] { return true }
+            return false
+        }
+    }
+
+    /// Pure helper: whether the non-blocking detection nudge should show. It's a
+    /// nudge, not a wall — only once something is already connected (so we never
+    /// cover the empty-state takeover), only when there's something to add, and
+    /// not after the user dismissed it this session.
+    static func showsDetectionNudge(
+        dismissed: Bool,
+        connectedCount: Int,
+        detectedCount: Int
+    ) -> Bool {
+        !dismissed && connectedCount > 0 && detectedCount > 0
     }
 
     /// All providers in display order (custom order with fallback to enum order)
@@ -545,6 +585,60 @@ final class UsageViewModel: ObservableObject {
         let item = order.remove(at: fromIndex)
         order.insert(item, at: toIndex)
         providerOrder = order
+    }
+
+    /// Reorders brand tabs (brand-aggregation popover) by moving a brand's whole
+    /// pool block to a new position among the visible brand tabs.
+    ///
+    /// Brand order is *derived* from `providerOrder` (via `enabledBrands`), so
+    /// there's no separate brand-order store: we rebuild `providerOrder` with the
+    /// brand's providers relocated as a contiguous block. Hidden providers keep
+    /// their relative order at the tail.
+    func moveBrand(_ brand: BrandId, toIndex: Int) {
+        guard let newOrder = Self.reorderedProviderOrder(
+            movingBrand: brand,
+            toVisibleIndex: toIndex,
+            visibleBrands: enabledBrands,
+            order: orderedProviders
+        ) else { return }
+        providerOrder = newOrder
+    }
+
+    /// Pure helper for `moveBrand`: produces a new provider order with `brand`
+    /// moved to `toIndex` within the visible brand sequence, rebuilt as
+    /// brand-contiguous blocks. Returns nil for no-ops / invalid indices.
+    ///
+    /// Separated as a static so it can be unit-tested without a live view model.
+    static func reorderedProviderOrder(
+        movingBrand brand: BrandId,
+        toVisibleIndex toIndex: Int,
+        visibleBrands: [BrandId],
+        order: [ProviderId]
+    ) -> [ProviderId]? {
+        var seq = visibleBrands
+        guard let fromIndex = seq.firstIndex(of: brand),
+              fromIndex != toIndex,
+              seq.indices.contains(toIndex) else { return nil }
+        let moved = seq.remove(at: fromIndex)
+        seq.insert(moved, at: toIndex)
+
+        // Full brand order: reordered visible brands first, then any brands not
+        // visible (hidden) in their existing relative order.
+        let existingBrandOrder = brandList(from: order)
+        let tail = existingBrandOrder.filter { !seq.contains($0) }
+        let fullBrandOrder = seq + tail
+
+        // Rebuild provider order as brand-contiguous blocks, preserving each
+        // brand's internal provider order.
+        var newOrder: [ProviderId] = []
+        for b in fullBrandOrder {
+            newOrder.append(contentsOf: order.filter { $0.brand == b })
+        }
+        // Safety net: append any provider somehow not yet emitted.
+        for id in order where !newOrder.contains(id) {
+            newOrder.append(id)
+        }
+        return newOrder
     }
 
     // MARK: - Popover Lifecycle

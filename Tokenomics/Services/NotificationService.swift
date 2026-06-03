@@ -155,6 +155,14 @@ final class NotificationService: ObservableObject {
         }
     }
 
+    /// Usage-alert title. Uses the pool's source-of-truth label (`poolLabel`) so
+    /// the notification reads the same as the toggle / popover / widget — e.g.
+    /// "Codex CLI at 90%", never the brand-ish "OpenAI at 90%". Pure + static for
+    /// unit testing (see `PoolLabelAlignmentTests`).
+    nonisolated static func usageAlertTitle(for providerId: ProviderId, utilization: Double) -> String {
+        "\(providerId.poolLabel) at \(Int(utilization))%"
+    }
+
     private func fireNotification(
         providerId: ProviderId,
         window: WindowUsage,
@@ -169,7 +177,7 @@ final class NotificationService: ObservableObject {
             }
 
             let content = UNMutableNotificationContent()
-            content.title = "\(providerId.displayName) at \(Int(utilization))%"
+            content.title = Self.usageAlertTitle(for: providerId, utilization: utilization)
             content.subtitle = window.label
             content.body = "\(window.timeUntilReset). You may hit your limit soon."
             content.categoryIdentifier = "USAGE_ALERT"

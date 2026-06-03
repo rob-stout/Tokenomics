@@ -19,11 +19,16 @@ cask "tokenomics" do
 
   app "Tokenomics.app"
 
-  uninstall quit: "com.robstout.tokenomics"
+  uninstall quit:       "com.robstout.tokenomics",
+            login_item: "Tokenomics"
 
   zap trash: [
     "~/Library/Application Support/Tokenomics",
     "~/Library/Caches/com.robstout.tokenomics",
+    "~/Library/Containers/com.robstout.tokenomics",
+    "~/Library/Containers/com.robstout.tokenomics.widgets",
+    "~/Library/Group Containers/group.com.robstout.tokenomics",
+    "~/Library/HTTPStorages/com.robstout.tokenomics",
     "~/Library/Preferences/com.robstout.tokenomics.plist",
     "~/Library/Logs/Tokenomics",
     "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.tokenomics.bridge.json",

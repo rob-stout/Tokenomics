@@ -157,7 +157,7 @@ struct AIConnectionsView: View {
                 connectionRow(
                     for: pool,
                     isLast: isLast && index == orderedPools.count - 1,
-                    labelOverride: pool.pinTrackerLabel,
+                    labelOverride: pool.poolLabel,
                     indented: true
                 )
             }
@@ -212,8 +212,10 @@ struct AIConnectionsView: View {
             // the group header above, so the glyph is what distinguishes the pools.
             ZStack {
                 if indented, let symbol = provider.surfaceSymbol {
+                    // Glyph sized to 90% of the brand-mark footprint so it reads as
+                    // a sub-pool badge, not a competing logo. Box stays 26pt.
                     Image(systemName: symbol)
-                        .font(.system(size: 14 * textSize.iconScale, weight: .regular))
+                        .font(.system(size: 13 * textSize.iconScale, weight: .regular))
                         .foregroundStyle(.primary)
                 } else {
                     providerIcon(for: provider)
@@ -232,7 +234,7 @@ struct AIConnectionsView: View {
             .opacity(isHidden ? 0.4 : (isConnected ? 1.0 : 0.3))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(labelOverride ?? provider.displayName)
+                Text(labelOverride ?? provider.poolLabel)
                     .scaledFont(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(isConnected && !isHidden ? .primary : .secondary)

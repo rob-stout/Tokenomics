@@ -248,10 +248,17 @@ extension ProviderId {
         }
     }
 
-    /// Label used by the Pin Tracker dropdown when `FeatureFlags.brandAggregation` is on.
-    /// Each pool gets its own entry with the tool-specific name so users can pin
-    /// "Codex CLI" independently of "ChatGPT" even though they share the OpenAI brand.
-    var pinTrackerLabel: String {
+    /// THE per-pool label — the single source of truth for how a pool is named
+    /// to the user. Every surface that shows a pool must use this and only this:
+    /// the Connections toggles, usage notifications, the popover pool section
+    /// headers, the widget (baked into the snapshot by `WidgetDataStore.write`),
+    /// the Pin Tracker, and the display-mode menu.
+    ///
+    /// It is tool-specific so multi-pool brands disambiguate: "Codex CLI" vs
+    /// "ChatGPT" (both OpenAI), "Gemini CLI" vs "Gemini (app)" (both Google).
+    /// Do NOT use `displayName` for pool labels — that is brand-ish ("OpenAI",
+    /// "Google AI") and collides across a brand's pools. See `PoolLabelAlignmentTests`.
+    var poolLabel: String {
         switch self {
         case .claude:          return "Anthropic"
         case .chatgpt:         return "ChatGPT"

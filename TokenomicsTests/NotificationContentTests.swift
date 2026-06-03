@@ -5,43 +5,64 @@ import XCTest
 
 /// Tests the string content that would appear in a notification.
 ///
-/// NotificationService builds notification content from:
-///   title = "\(providerId.displayName) at \(Int(utilization))%"
+/// NotificationService builds the title via `usageAlertTitle(for:utilization:)`,
+/// which uses the pool's source-of-truth label (`poolLabel`):
+///   title = "\(providerId.poolLabel) at \(Int(utilization))%"
 ///   body  = "\(window.timeUntilReset). You may hit your limit soon."
 ///
-/// These tests pin the content construction logic by asserting the same
-/// string-building rules, without actually firing a UNNotificationRequest
-/// (which requires permission we won't have in CI).
+/// These call the REAL builder (not a re-implemented format string) so the test
+/// can't silently drift from production again.
 final class NotificationContentTests: XCTestCase {
 
     // MARK: - Title construction
 
-    func testNotificationTitle_claude_containsDisplayName() {
-        let title = "\(ProviderId.claude.displayName) at \(Int(85))%"
-        XCTAssertEqual(title, "Claude Code at 85%")
+    func testNotificationTitle_usesPoolLabel() {
+        XCTAssertEqual(
+            NotificationService.usageAlertTitle(for: .claude, utilization: 85),
+            "Anthropic at 85%"
+        )
     }
 
-    func testNotificationTitle_copilot_containsDisplayName() {
-        let title = "\(ProviderId.copilot.displayName) at \(Int(75))%"
-        XCTAssertEqual(title, "GitHub Copilot at 75%")
+    func testNotificationTitle_copilot() {
+        XCTAssertEqual(
+            NotificationService.usageAlertTitle(for: .copilot, utilization: 75),
+            "GitHub Copilot at 75%"
+        )
     }
 
-    func testNotificationTitle_cursor_containsDisplayName() {
-        let title = "\(ProviderId.cursor.displayName) at \(Int(92))%"
-        XCTAssertEqual(title, "Cursor at 92%")
+    func testNotificationTitle_cursor() {
+        XCTAssertEqual(
+            NotificationService.usageAlertTitle(for: .cursor, utilization: 92),
+            "Cursor at 92%"
+        )
+    }
+
+    /// The bug this whole alignment effort fixed: multi-pool brands must name the
+    /// POOL, not the brand. Before, these read "OpenAI"/"Google AI"/"Gemini".
+    func testNotificationTitle_multiPoolPoolsAreDisambiguated() {
+        XCTAssertEqual(NotificationService.usageAlertTitle(for: .codex, utilization: 90),
+                       "Codex CLI at 90%")
+        XCTAssertEqual(NotificationService.usageAlertTitle(for: .gemini, utilization: 90),
+                       "Gemini CLI at 90%")
+        XCTAssertEqual(NotificationService.usageAlertTitle(for: .geminiConsumer, utilization: 90),
+                       "Gemini (app) at 90%")
+        XCTAssertEqual(NotificationService.usageAlertTitle(for: .chatgpt, utilization: 90),
+                       "ChatGPT at 90%")
     }
 
     func testNotificationTitle_atExactly100_shows100Percent() {
-        // 100% — exactly at limit
-        let title = "\(ProviderId.claude.displayName) at \(Int(100.0))%"
-        XCTAssertEqual(title, "Claude Code at 100%")
+        XCTAssertEqual(
+            NotificationService.usageAlertTitle(for: .claude, utilization: 100.0),
+            "Anthropic at 100%"
+        )
     }
 
     func testNotificationTitle_over100_showsIntegerTruncation() {
         // 120% usage — Int() truncates, title shows 120%
-        let utilization = 120.0
-        let title = "\(ProviderId.claude.displayName) at \(Int(utilization))%"
-        XCTAssertEqual(title, "Claude Code at 120%")
+        XCTAssertEqual(
+            NotificationService.usageAlertTitle(for: .claude, utilization: 120.0),
+            "Anthropic at 120%"
+        )
     }
 
     // MARK: - Body construction (timeUntilReset)

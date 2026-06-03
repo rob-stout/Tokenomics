@@ -6,57 +6,46 @@ import WidgetKit
 /// Raw values are the stable on-disk identity — never rename an existing case's
 /// raw value or users' saved widget configurations will silently resolve to nil.
 ///
-/// Downgrade-safety contract:
-///   .codex   raw "codex"   → OpenAI / Codex CLI data   (was always Codex CLI)
-///   .gemini  raw "gemini"  → Google AI / Gemini CLI data (was always Gemini CLI)
+/// Labels mirror `ProviderId.poolLabel` — the source of truth the Connections
+/// toggles, popover, notifications, and widget all use — so the picker reads the
+/// same as everywhere else. One entry per pool (no brand-vs-pool duplicates).
+/// Case-declaration order is the picker order: grouped by brand to match the
+/// Connections list. Enforced by `PoolLabelAlignmentTests`.
 ///
-/// Phase 5.6.C additive cases (new raw values, no existing value touched):
-///   .chatgpt    → resolves to ProviderId .chatgpt (consumer ChatGPT data via NMH)
-///   .codexCLI   → resolves to ProviderId .codex   (same data as existing .codex)
-///   .geminiCLI  → resolves to ProviderId .gemini  (same data as existing .gemini)
-///
-/// Users who already have "OpenAI" or "Google AI" selected keep those choices
-/// working unchanged — the new per-pool entries are presented alongside them
-/// so users can switch if they want explicit labeling.
+/// Removed in this pass: the legacy `.codexCLI` / `.geminiCLI` aliases (they
+/// duplicated `.codex` / `.gemini`). Any saved config referencing those raw
+/// values resolves to the default (Smart) — same data was reachable via the
+/// relabeled `.codex` / `.gemini` entries.
 enum WidgetProviderSelection: String, AppEnum {
-    // MARK: Existing cases — raw values are frozen; do not rename
+    // Raw values are frozen — do not rename.
     case smart           = "smart"
     case claude          = "claude"
+    case chatgpt         = "chatgpt"
+    case codex           = "codex"            // Codex CLI data
+    case geminiConsumer  = "geminiConsumer"   // Gemini (app) data
+    case gemini          = "gemini"           // Gemini CLI data
     case copilot         = "copilot"
     case cursor          = "cursor"
-    case codex           = "codex"
-    case gemini          = "gemini"
     case elevenlabs      = "elevenlabs"
     case runway          = "runway"
     case stableDiffusion = "stableDiffusion"
 
-    // MARK: Phase 5.6.C additions — new raw values only, no existing value touched
-    /// Consumer ChatGPT usage (chat sessions via NMH bridge).
-    case chatgpt    = "chatgpt"
-    /// Codex CLI usage — same data source as the existing .codex case,
-    /// surfaced as an explicit per-pool entry for clarity.
-    case codexCLI   = "codexCLI"
-    /// Gemini CLI usage — same data source as the existing .gemini case,
-    /// surfaced as an explicit per-pool entry for clarity.
-    case geminiCLI  = "geminiCLI"
-
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
+    // These strings MUST equal the matching ProviderId.poolLabel (asserted in
+    // PoolLabelAlignmentTests). "Best of All (Smart)" is the only non-pool entry.
     static var caseDisplayRepresentations: [WidgetProviderSelection: DisplayRepresentation] = [
-        // Existing entries — display strings intentionally unchanged
         .smart:           "Best of All (Smart)",
-        .claude:          "Claude Code",
+        .claude:          "Anthropic",
+        .chatgpt:         "ChatGPT",
+        .codex:           "Codex CLI",
+        .geminiConsumer:  "Gemini (app)",
+        .gemini:          "Gemini CLI",
         .copilot:         "GitHub Copilot",
         .cursor:          "Cursor",
-        .codex:           "OpenAI",
-        .gemini:          "Google AI",
         .elevenlabs:      "ElevenLabs",
         .runway:          "Runway",
-        .stableDiffusion: "Stable Diffusion",
-        // Phase 5.6.C additions
-        .chatgpt:         "ChatGPT",
-        .codexCLI:        "Codex CLI",
-        .geminiCLI:       "Gemini CLI"
+        .stableDiffusion: "Stability AI"
     ]
 }
 

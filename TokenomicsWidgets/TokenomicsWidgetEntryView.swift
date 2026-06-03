@@ -164,12 +164,13 @@ struct SmallWidgetView: View {
         case .cursor:
             return providers.first(where: { $0.id == "cursor" })
         case .codex:
-            // Existing "OpenAI" selection — resolves to Codex CLI data.
-            // Raw value "codex" is the on-disk identity; this must always
-            // resolve to the codex provider so saved configs downgrade safely.
+            // "Codex CLI" — raw value "codex" is the frozen on-disk identity.
             return providers.first(where: { $0.id == "codex" })
+        case .geminiConsumer:
+            // "Gemini (app)" — consumer Gemini pool via NMH bridge.
+            return providers.first(where: { $0.id == "geminiConsumer" })
         case .gemini:
-            // Existing "Google AI" selection — resolves to Gemini CLI data.
+            // "Gemini CLI" — raw value "gemini" is the frozen on-disk identity.
             return providers.first(where: { $0.id == "gemini" })
         case .elevenlabs:
             return providers.first(where: { $0.id == "elevenlabs" })
@@ -177,18 +178,9 @@ struct SmallWidgetView: View {
             return providers.first(where: { $0.id == "runway" })
         case .stableDiffusion:
             return providers.first(where: { $0.id == "stableDiffusion" })
-        // MARK: Phase 5.6.C additions
         case .chatgpt:
             // Consumer ChatGPT pool — NMH bridge data.
             return providers.first(where: { $0.id == "chatgpt" })
-        case .codexCLI:
-            // Explicit Codex CLI selection — same data source as .codex.
-            // Presented as a distinct picker entry so users who understand
-            // the pool split can label their widget accurately.
-            return providers.first(where: { $0.id == "codex" })
-        case .geminiCLI:
-            // Explicit Gemini CLI selection — same data source as .gemini.
-            return providers.first(where: { $0.id == "gemini" })
         }
     }
 
@@ -274,7 +266,7 @@ struct SmallWidgetView: View {
             .overlay(alignment: .topLeading) {
                 GeometryReader { geo in
                     let s = min(geo.size.width, geo.size.height)
-                    providerIcon(provider.id, theme: theme)
+                    providerIcon(for: provider, theme: theme)
                         .resizable()
                         .scaledToFit()
                         .frame(width: s * 0.112, height: s * 0.112)
@@ -696,9 +688,6 @@ private struct BrandGroupRow: View {
 
     @Environment(\.widgetTheme) private var theme
 
-    // Sub-row indent distinguishes pool rows from the brand header visually.
-    private let subRowIndent: CGFloat = 22
-
     var body: some View {
         if group.isMultiPool {
             multiPoolLayout
@@ -713,29 +702,13 @@ private struct BrandGroupRow: View {
 
     @ViewBuilder
     private var multiPoolLayout: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Brand header: icon + brand name (no usage data — structural row)
-            HStack(spacing: 8) {
-                providerIcon(group.brandIconId, theme: theme)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 13, height: 13)
-
-                Text(group.brandDisplayName)
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(theme.shortColor.opacity(0.7))
-
-                Spacer()
-            }
-
-            // Per-pool sub-rows, indented to visually nest under the brand header
-            ForEach(Array(group.pools.enumerated()), id: \.element.id) { index, pool in
-                Spacer(minLength: 5).frame(maxHeight: 8)
-                HStack(spacing: 0) {
-                    // Indent spacer — creates the visual nesting
-                    Spacer().frame(width: subRowIndent)
-                    CompactProviderRow(provider: pool)
-                }
+        // Flat pool rows — no brand header, no indentation. The shared brand mark
+        // groups them visually and the surface badge (puzzle / terminal) on each
+        // icon disambiguates the pools, so the indent isn't needed. This is more
+        // compact, which matters most on the medium widget.
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(group.pools, id: \.id) { pool in
+                CompactProviderRow(provider: pool, showSurfaceBadge: true)
             }
         }
     }
@@ -747,16 +720,32 @@ private struct BrandGroupRow: View {
 /// Used by MediumWidgetView and LargeWidgetView at higher provider counts.
 private struct CompactProviderRow: View {
     let provider: WidgetDataStore.WidgetSnapshot.ProviderEntry
+    /// When true, overlays a surface badge (puzzle = extension, terminal = CLI)
+    /// on the icon's corner. Used for multi-pool brands so pools that share a
+    /// brand mark (both OpenAI / both Google) stay distinguishable without
+    /// indentation.
+    var showSurfaceBadge: Bool = false
 
     @Environment(\.widgetTheme) private var theme
 
     var body: some View {
         HStack(spacing: 10) {
-            // Provider icon
-            providerIcon(provider.id, theme: theme)
+            // Provider icon (+ surface badge for multi-pool disambiguation)
+            providerIcon(for: provider, theme: theme)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 17, height: 17)
+                .overlay(alignment: .bottomTrailing) {
+                    if showSurfaceBadge, let symbol = provider.surfaceSymbol {
+                        Image(systemName: symbol)
+                            .font(.system(size: 6.5, weight: .semibold))
+                            .foregroundStyle(theme.shortColor)
+                            .frame(width: 11, height: 11)
+                            .background(theme.gradient, in: Circle())
+                            .overlay(Circle().strokeBorder(theme.shortColor.opacity(0.4), lineWidth: 0.5))
+                            .offset(x: 3, y: 3)
+                    }
+                }
 
             // Short window bar
             VStack(alignment: .leading, spacing: 2) {
@@ -816,7 +805,7 @@ private struct LargeProviderRow: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header: icon + name + plan
             HStack(spacing: 10) {
-                providerIcon(provider.id, theme: theme)
+                providerIcon(for: provider, theme: theme)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 17, height: 17)
@@ -965,9 +954,16 @@ struct WidgetProgressBar: View {
 // MARK: - Shared Functions
 
 /// Maps provider IDs to their icon asset base names.
+/// Fallback id→asset map for LEGACY snapshots (written before `iconBaseName` was
+/// baked in). Live snapshots carry `ProviderEntry.iconBaseName` from the app's
+/// source of truth and don't use this. Includes the multi-pool web pools
+/// (chatgpt/geminiConsumer) that the old map omitted — that omission rendered
+/// them as "?".
 private let iconBaseNames: [String: String] = [
     "claude": "Claude",
+    "chatgpt": "Codex",          // OpenAI mark (shared by both OpenAI pools)
     "codex": "Codex",
+    "geminiConsumer": "Gemini",  // Gemini mark (shared by both Google pools)
     "copilot": "Copilot",
     "cursor": "Cursor",
     "gemini": "Gemini",
@@ -979,15 +975,25 @@ private let iconBaseNames: [String: String] = [
     "udio": "udio"
 ]
 
-/// Loads a provider icon PNG from the widget extension bundle.
-/// Selects the correct variant via the theme's iconSuffix.
-func providerIcon(_ id: String, theme: WidgetTheme) -> Image {
-    let baseName = iconBaseNames[id] ?? id
+/// Loads a provider icon PNG by asset base name, picking the themed variant.
+func providerIcon(baseName: String, theme: WidgetTheme) -> Image {
     let name = "\(baseName)\(theme.iconSuffix)"
     if let nsImage = Bundle.main.image(forResource: name) {
         return Image(nsImage: nsImage)
     }
     return Image(systemName: "questionmark.square")
+}
+
+/// Loads a provider icon from the widget extension bundle, keyed by id.
+/// Selects the correct variant via the theme's iconSuffix.
+func providerIcon(_ id: String, theme: WidgetTheme) -> Image {
+    providerIcon(baseName: iconBaseNames[id] ?? id, theme: theme)
+}
+
+/// Resolves an entry's icon from the baked source-of-truth base name, falling
+/// back to the legacy id map for older snapshots.
+func providerIcon(for entry: WidgetDataStore.WidgetSnapshot.ProviderEntry, theme: WidgetTheme) -> Image {
+    providerIcon(baseName: entry.iconBaseName ?? iconBaseNames[entry.id] ?? entry.id, theme: theme)
 }
 
 // MARK: - Previews (widget target only — use WidgetPreview.swift for main app canvas previews)
