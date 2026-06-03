@@ -110,7 +110,11 @@ struct ConnectorContainer: View {
                     viewModel: viewModel,
                     onPick: open(provider:),
                     onAllSet: completeOnboarding,
-                    onBack: { goBack() }
+                    // Back only when there's a real previous step (reached via
+                    // "set them up one at a time"). As the entry root — opened from
+                    // Settings with providers already connected — there's nothing to
+                    // go back to, so hide it ("I'm all set" is the exit).
+                    onBack: history.isEmpty ? nil : { goBack() }
                 )
                 // Chooser winbody inset — matches mockup .winbody padding: 32px 40px 28px
                 .padding(.top, Tokens.Spacing.s6)        // 32pt
@@ -145,11 +149,14 @@ struct ConnectorContainer: View {
                 history = []
                 screen = .chooser
             }
-            // If the user previously finished onboarding but re-opened via Settings,
-            // land on the chooser instead of welcome/permissions/synthesis so they
-            // can add more providers without re-running the first-launch chrome.
+            // Returning users with at least one provider connected land on the
+            // chooser hub (add more / I'm all set). But if nothing is connected
+            // yet, keep them at the start of the guided flow (Welcome) rather than
+            // dropping them on an empty hub.
             let firstLaunchScreens: [Screen] = [.welcome, .permissions, .multiSelect, .setupPlan]
-            if viewModel.hasCompletedOnboarding && firstLaunchScreens.contains(screen) {
+            if viewModel.hasCompletedOnboarding
+                && !viewModel.connectedProviders.isEmpty
+                && firstLaunchScreens.contains(screen) {
                 history = []
                 screen = .chooser
             }
