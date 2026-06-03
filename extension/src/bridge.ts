@@ -28,10 +28,21 @@ import {
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
 
 // Storage keys for provider snapshots — must stay in sync with storage.ts KEYS.
+// Every web reader's storage key. Keep in sync with storage.ts KEYS. The bridge
+// gather iterates ALL of these so a new reader is transmitted automatically — the
+// old hard-coded 3-key list silently dropped geminiConsumer/grok/perplexity/
+// leonardo (computed + badged but never sent to the Mac).
+//
+// elevenlabs is intentionally omitted: the Mac reads it via API key, so we don't
+// override that with the web reading (yet).
 const SNAPSHOT_KEYS = {
   claude: 'claudeSnapshot',
-  midjourney: 'midjourneySnapshot',
   chatgpt: 'chatgptSnapshot',
+  geminiConsumer: 'geminiConsumerSnapshot',
+  midjourney: 'midjourneySnapshot',
+  grok: 'grokSnapshot',
+  perplexity: 'perplexitySnapshot',
+  leonardo: 'leonardoSnapshot',
 } as const;
 
 // ── Command handler registry ─────────────────────────────────────
@@ -188,25 +199,21 @@ async function doSend(_reason: BridgeSendReason): Promise<BridgeResponse | null>
   // 1. Gather provider snapshots directly from chrome.storage.local (avoids
   //    pulling in webextension-polyfill — storage.ts owns those reads in prod,
   //    but bridge.ts must stay polyfill-free for test compatibility).
-  const snapshotResult = await storageGet([
-    SNAPSHOT_KEYS.claude,
-    SNAPSHOT_KEYS.midjourney,
-    SNAPSHOT_KEYS.chatgpt,
-  ]);
+  const allSnapshotKeys = Object.values(SNAPSHOT_KEYS);
+  const snapshotResult = await storageGet(allSnapshotKeys);
 
   function parseSnap(raw: unknown): ProviderUsageSnapshot | null {
     if (!raw || typeof raw !== 'object') return null;
     return raw as ProviderUsageSnapshot;
   }
 
-  const claudeSnap = parseSnap(snapshotResult[SNAPSHOT_KEYS.claude]);
-  const midjourneySnap = parseSnap(snapshotResult[SNAPSHOT_KEYS.midjourney]);
-  const chatgptSnap = parseSnap(snapshotResult[SNAPSHOT_KEYS.chatgpt]);
-
+  // Transmit every present web-reader snapshot. Iterating the key set (rather
+  // than naming each) means a newly-added reader ships without a code change here.
   const snapshots: BridgeSnapshot[] = [];
-  if (claudeSnap) snapshots.push(toBridgeSnapshot(claudeSnap));
-  if (midjourneySnap) snapshots.push(toBridgeSnapshot(midjourneySnap));
-  if (chatgptSnap) snapshots.push(toBridgeSnapshot(chatgptSnap));
+  for (const key of allSnapshotKeys) {
+    const snap = parseSnap(snapshotResult[key]);
+    if (snap) snapshots.push(toBridgeSnapshot(snap));
+  }
 
   // 2. Gather settings and pending actions from storage
   const stored = await storageGet(['providerVisibility', 'pendingRequestedActions', 'nativeSnapshots']);

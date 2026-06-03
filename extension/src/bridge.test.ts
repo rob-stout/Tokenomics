@@ -132,6 +132,51 @@ test('wire serializer: request JSON has ISO capturedAt and 0-1 utilization', asy
   assert.ok(Math.abs(snap.shortWindow.utilization - 0.42) < 0.001, 'utilization should be ~0.42');
 });
 
+// ── Regression: every web reader is transmitted (no silent drops) ──
+// The bridge used to hard-code claude/midjourney/chatgpt and silently drop the
+// extension-only readers (geminiConsumer/grok/perplexity/leonardo) — they were
+// computed + badged but never reached the Mac. Now the gather iterates all keys.
+test('gather: extension-only readers reach the Mac', async () => {
+  let capturedRequest: unknown = null;
+  mock = installMockChrome({ nativeMessageResponse: makeNativeResponse() });
+  const origSend = mock.runtime.sendNativeMessage.bind(mock.runtime);
+  mock.runtime.sendNativeMessage = (_host, message, callback) => {
+    capturedRequest = message;
+    origSend(_host, message, callback);
+  };
+  (globalThis as any).chrome = mock;
+
+  const mkSnap = (provider: string) => ({
+    provider,
+    shortWindow: { label: 'w', utilization: 10, resetsAt: '2026-05-14T23:00:00.000Z', windowDurationSec: 3600 },
+    longWindow: null,
+    extras: {},
+    planLabel: '',
+    capturedAt: 1_747_248_000_000,
+    estimated: false,
+  });
+
+  await new Promise<void>((resolve) => {
+    chrome.storage.local.set(
+      {
+        geminiConsumerSnapshot: mkSnap('geminiConsumer'),
+        grokSnapshot: mkSnap('grok'),
+        perplexitySnapshot: mkSnap('perplexity'),
+        leonardoSnapshot: mkSnap('leonardo'),
+      },
+      resolve,
+    );
+  });
+
+  await sendBridgeBatch('snapshot');
+
+  const req = capturedRequest as Record<string, unknown>;
+  const ids = (req['snapshots'] as BridgeSnapshot[]).map((s) => s.provider);
+  for (const id of ['geminiConsumer', 'grok', 'perplexity', 'leonardo']) {
+    assert.ok(ids.includes(id), `bridge must transmit ${id} (was being silently dropped)`);
+  }
+});
+
 // ── Test 2: Debounce ─────────────────────────────────────────────
 
 test('debounce: 5 scheduleBridgeSend calls within 100ms produce exactly 1 sendNativeMessage', async () => {

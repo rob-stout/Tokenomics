@@ -172,12 +172,13 @@ test('buildVisibleProviders: web providers appear before native-only providers',
   });
 
   const ids = result.map((e) => e.providerId);
-  const webIds = (WEB_PROVIDERS as readonly string[]).filter((id) => ids.includes(id));
-  const nativeIds = (NATIVE_ONLY_PROVIDERS as readonly string[]).filter((id) => ids.includes(id));
+  const idStrings = ids as readonly string[];
+  const webIds = (WEB_PROVIDERS as readonly string[]).filter((id) => idStrings.includes(id));
+  const nativeIds = (NATIVE_ONLY_PROVIDERS as readonly string[]).filter((id) => idStrings.includes(id));
 
   // All web providers must appear before any native-only provider.
-  const lastWebIndex = Math.max(...webIds.map((id) => ids.indexOf(id)));
-  const firstNativeIndex = Math.min(...nativeIds.map((id) => ids.indexOf(id)));
+  const lastWebIndex = Math.max(...webIds.map((id) => idStrings.indexOf(id)));
+  const firstNativeIndex = Math.min(...nativeIds.map((id) => idStrings.indexOf(id)));
 
   assert.ok(
     lastWebIndex < firstNativeIndex,

@@ -2,6 +2,7 @@ import browser from 'webextension-polyfill';
 import {
   deriveSnapshot,
   detectChatGPTPlan,
+  fetchExactChatGPTSnapshot,
   pruneEvents,
   type ChatGPTMessageEvent,
 } from './chatgpt';
@@ -478,6 +479,16 @@ async function recordChatGPTMessage(model: string | null, ts: number): Promise<v
 }
 
 export async function recomputeChatGPTSnapshot(): Promise<void> {
+  // Exact first: real usage from /wham/usage via the web session token.
+  const exact = await fetchExactChatGPTSnapshot();
+  if (exact) {
+    await setChatGPTSnapshot(exact);
+    scheduleBridgeSend('snapshot');
+    await updateBadge();
+    return;
+  }
+
+  // Fallback: local-counter estimate (token/endpoint unavailable).
   const [events, plan] = await Promise.all([getChatGPTEvents(), getChatGPTPlanEffective()]);
   if (events.length === 0 && plan === 'unknown') {
     // Nothing observed yet and no plan known — leave the empty state alone.
@@ -517,7 +528,7 @@ async function updateBadge(): Promise<void> {
     ]);
   const live: Partial<Record<ProviderId, ProviderUsageSnapshot>> = {};
   if (claude) live.claude = claude;
-  if (chatgpt) live.codex = chatgpt;
+  if (chatgpt) live.chatgpt = chatgpt;
   if (midjourney) live.midjourney = midjourney;
   if (geminiConsumer) live.geminiConsumer = geminiConsumer;
   if (elevenlabs) live.elevenlabs = elevenlabs;

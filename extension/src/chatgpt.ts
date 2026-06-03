@@ -1,11 +1,18 @@
 /**
- * ChatGPT path is a local counter, not a polled endpoint. OpenAI doesn't
- * expose a server-side usage endpoint to the web client (the Codex CLI's
- * /wham/usage is bearer-token-only). Every shipping ChatGPT tracker
- * intercepts /backend-api/conversation calls and counts locally.
+ * ChatGPT usage — EXACT first, local-counter fallback.
  *
- * This module: plan detection (/backend-api/me), the quota table, and
- * snapshot derivation from a counter log.
+ * The exact path reads /backend-api/wham/usage with an OAuth Bearer token. That
+ * endpoint is NOT Codex-only: it just needs an access token, which the ChatGPT
+ * web session exposes at /api/auth/session. Called that way it returns the real
+ * rate-limit windows (used_percent + reset), so ChatGPT can be exact like every
+ * other reader. (Every other tracker missed this — they hit the cookie 401 and
+ * settled for local counting.)
+ *
+ * The local counter (observe /backend-api/conversation, count against the quota
+ * table) remains as a fallback for when the token/endpoint isn't available.
+ *
+ * This module: the exact reader + mapper, plan detection (/backend-api/me), the
+ * fallback quota table, and snapshot derivation from a counter log.
  */
 
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
@@ -57,6 +64,111 @@ function canonicalPlan(raw: string | undefined): ChatGPTPlan {
   if (s === 'pro' || s === 'chatgpt_pro') return 'pro';
   if (s === 'team' || s === 'chatgpt_team') return 'team';
   return 'unknown';
+}
+
+// ── Exact path: /backend-api/wham/usage via the web session's Bearer token ──
+
+interface WhamWindow {
+  used_percent?: number;
+  limit_window_seconds?: number;
+  reset_after_seconds?: number;
+  reset_at?: number; // unix SECONDS
+}
+
+export interface WhamUsageResponse {
+  plan_type?: string;
+  rate_limit?: {
+    primary_window?: WhamWindow | null;
+    secondary_window?: WhamWindow | null;
+  } | null;
+}
+
+/** The web session's OAuth access token (same one the ChatGPT app uses). */
+async function fetchSessionAccessToken(): Promise<string | null> {
+  try {
+    const res = await fetch('https://chatgpt.com/api/auth/session', { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { accessToken?: string };
+    return data.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Exact ChatGPT usage from /wham/usage. Returns null on ANY failure (no token,
+ * non-200, unexpected shape) so the caller falls back to the local counter.
+ */
+export async function fetchExactChatGPTSnapshot(
+  now: number = Date.now(),
+): Promise<ProviderUsageSnapshot | null> {
+  const token = await fetchSessionAccessToken();
+  if (!token) return null;
+  try {
+    const res = await fetch('https://chatgpt.com/backend-api/wham/usage', {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as WhamUsageResponse;
+    return mapWhamUsageToSnapshot(data, now);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pure mapper (unit-tested): /wham/usage response → snapshot, `estimated: false`.
+ * Returns null if the primary window is missing/malformed so the caller can fall
+ * back. `primary_window` is the dominant cap; `secondary_window` (when present,
+ * e.g. Plus weekly) becomes the long window.
+ */
+export function mapWhamUsageToSnapshot(
+  data: WhamUsageResponse,
+  now: number = Date.now(),
+): ProviderUsageSnapshot | null {
+  const primary = data.rate_limit?.primary_window;
+  if (!primary || typeof primary.used_percent !== 'number') return null;
+
+  const plan = canonicalPlan(data.plan_type);
+  const secondary = data.rate_limit?.secondary_window;
+  const longWindow =
+    secondary && typeof secondary.used_percent === 'number' ? whamWindow(secondary, now) : null;
+
+  return {
+    provider: 'chatgpt',
+    shortWindow: whamWindow(primary, now),
+    longWindow,
+    extras: {},
+    planLabel: planDisplay(plan),
+    capturedAt: now,
+    estimated: false,
+  };
+}
+
+function whamWindow(w: WhamWindow, now: number): WindowUsage {
+  const durationSec = w.limit_window_seconds ?? 0;
+  const resetMs = w.reset_at
+    ? w.reset_at * 1000
+    : w.reset_after_seconds
+      ? now + w.reset_after_seconds * 1000
+      : now + durationSec * 1000;
+  return {
+    label: whamWindowLabel(durationSec),
+    utilization: Math.min(100, Math.max(0, Math.round(w.used_percent ?? 0))),
+    resetsAt: new Date(resetMs).toISOString(),
+    windowDurationSec: durationSec,
+  };
+}
+
+/** Human label derived from the window length OpenAI reports. */
+function whamWindowLabel(durationSec: number): string {
+  const hours = durationSec / 3600;
+  if (hours <= 1.5) return 'Hourly';
+  if (hours <= 5.5) return `${Math.round(hours)}-Hour Window`;
+  if (durationSec >= 6 * 86400 && durationSec <= 8 * 86400) return 'Weekly';
+  if (durationSec >= 28 * 86400) return 'Monthly';
+  return `${Math.round(durationSec / 86400)}-Day Window`;
 }
 
 // ── Quota table (May 2026) ──────────────────────────────────
@@ -186,7 +298,7 @@ export function deriveSnapshot(
   }
 
   return {
-    provider: 'codex',
+    provider: 'chatgpt',
     shortWindow,
     longWindow,
     extras: {},

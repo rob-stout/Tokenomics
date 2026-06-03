@@ -25,9 +25,11 @@ function evt(offsetMs: number, model: string | null = 'gpt-5.5'): ChatGPTMessage
 
 // ── deriveSnapshot ───────────────────────────────────────────
 
-test('deriveSnapshot returns codex provider with estimated flag', () => {
+test('deriveSnapshot returns chatgpt provider with estimated flag', () => {
+  // The fallback counter routes to the ChatGPT pool (was mistakenly 'codex',
+  // which collided with the real Codex CLI pool on the Mac side).
   const snap = deriveSnapshot([], 'free', NOW);
-  assert.equal(snap.provider, 'codex');
+  assert.equal(snap.provider, 'chatgpt');
   assert.equal(snap.estimated, true);
 });
 
