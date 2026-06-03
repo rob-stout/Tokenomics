@@ -193,27 +193,21 @@ actor CodexProvider: UsageProvider {
             )
         }
 
-        // Secondary bar: Context window usage (no pace dot — resets per conversation)
-        let longWindow: WindowUsage
-        if let tc = data.tokenCount {
-            let contextUsed = Double(tc.lastInputTokens) / Double(tc.modelContextWindow) * 100
-            let remaining = tc.modelContextWindow - tc.lastInputTokens
-            let sublabel = "\(Self.formatTokens(remaining)) of \(Self.formatTokens(tc.modelContextWindow)) remaining"
+        // Secondary bar: weekly rate limit. Parallels Claude's 7-Day window and
+        // ChatGPT's Weekly budget so every coding tool tells a consistent
+        // "5-hour + weekly" story. (`secondary` is OpenAI's weekly cap; it was
+        // previously decoded but never surfaced — the slot showed context-window
+        // tokens instead.)
+        let longWindow: WindowUsage?
+        if let secondary = data.rateLimits?.secondary {
             longWindow = WindowUsage(
-                label: "Context Window",
-                utilization: contextUsed,
-                resetsAt: Date.distantFuture,
-                windowDuration: 0,
-                sublabelOverride: sublabel
+                label: "Weekly",
+                utilization: secondary.usedPercent,
+                resetsAt: Date(timeIntervalSince1970: secondary.resetsAt),
+                windowDuration: Double(secondary.windowMinutes) * 60
             )
         } else {
-            longWindow = WindowUsage(
-                label: "Context Window",
-                utilization: 0,
-                resetsAt: Date.distantFuture,
-                windowDuration: 0,
-                sublabelOverride: "No active session"
-            )
+            longWindow = nil
         }
 
         let plan = inferPlan(from: data.rateLimits)
@@ -225,16 +219,6 @@ actor CodexProvider: UsageProvider {
             extraUsage: nil,
             creditsBalance: data.rateLimits?.credits?.balance
         )
-    }
-
-    /// Formats token counts for display (e.g. 230,681 → "230.7K", 258,400 → "258.4K")
-    private static func formatTokens(_ count: Int) -> String {
-        if count >= 1_000_000 {
-            return String(format: "%.1fM", Double(count) / 1_000_000)
-        } else if count >= 1_000 {
-            return String(format: "%.1fK", Double(count) / 1_000)
-        }
-        return "\(count)"
     }
 
     private func inferPlan(from limits: CodexRateLimits?) -> String {

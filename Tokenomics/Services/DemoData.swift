@@ -83,15 +83,24 @@ enum DemoData {
 
     // ChatGPT: ~60%, estimated indicator (sublabelOverride signals the estimated state)
     private static var chatgptSnapshot: ProviderUsageSnapshot {
+        // Mirrors the real extension reader's Plus shape: a 3-Hour GPT-5 message
+        // window + a 7-day "Weekly Thinking" budget. Both are client-side
+        // estimates (no public rate-limit API), hence the "estimated" sublabels.
         ProviderUsageSnapshot(
             shortWindow: WindowUsage(
-                label: "5-Hour Window",
+                label: "3-Hour Window",
                 utilization: 60,
                 resetsAt: futureDate(hours: 2.5),
-                windowDuration: 5 * 3600,
+                windowDuration: 3 * 3600,
                 sublabelOverride: "~60% estimated"
             ),
-            longWindow: nil,
+            longWindow: WindowUsage(
+                label: "Weekly Thinking",
+                utilization: 28,
+                resetsAt: futureDate(hours: 24 * 4),
+                windowDuration: 7 * 24 * 3600,
+                sublabelOverride: "~28% estimated"
+            ),
             planLabel: "Plus",
             extraUsage: nil,
             creditsBalance: nil
@@ -107,7 +116,12 @@ enum DemoData {
                 resetsAt: futureDate(hours: 4.1),
                 windowDuration: 5 * 3600
             ),
-            longWindow: nil,
+            longWindow: WindowUsage(
+                label: "Weekly",
+                utilization: 12,
+                resetsAt: futureDate(hours: 24 * 5 + 6),
+                windowDuration: 7 * 24 * 3600
+            ),
             planLabel: "Plus",
             extraUsage: nil,
             creditsBalance: nil
