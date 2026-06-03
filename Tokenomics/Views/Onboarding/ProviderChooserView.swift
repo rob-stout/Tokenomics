@@ -13,6 +13,10 @@ struct ProviderChooserView: View {
     var onAllSet: () -> Void
     /// Called when the user taps ← Back; nil if there is no back destination.
     var onBack: (() -> Void)? = nil
+    /// Called when the user taps "Start over" — re-runs the guided wizard from the
+    /// beginning. Shown only at the chooser root (where Back is absent); a recovery
+    /// hatch if a step went wrong. Mutually exclusive with `onBack` in the footer.
+    var onStartOver: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var scheme
 
@@ -246,6 +250,14 @@ struct ProviderChooserView: View {
             if let onBack {
                 Button(action: onBack) {
                     Text("← Back")
+                }
+                .buttonStyle(.tokenGhost)
+            } else if let onStartOver {
+                Button(action: onStartOver) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.counterclockwise")
+                        Text("Start over")
+                    }
                 }
                 .buttonStyle(.tokenGhost)
             }

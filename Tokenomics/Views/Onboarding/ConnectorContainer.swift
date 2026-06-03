@@ -113,8 +113,10 @@ struct ConnectorContainer: View {
                     // Back only when there's a real previous step (reached via
                     // "set them up one at a time"). As the entry root — opened from
                     // Settings with providers already connected — there's nothing to
-                    // go back to, so hide it ("I'm all set" is the exit).
-                    onBack: history.isEmpty ? nil : { goBack() }
+                    // go back to, so hide it ("I'm all set" is the exit). At the root
+                    // we offer "Start over" instead: re-run the guided wizard.
+                    onBack: history.isEmpty ? nil : { goBack() },
+                    onStartOver: history.isEmpty ? { startOver() } : nil
                 )
                 // Chooser winbody inset — matches mockup .winbody padding: 32px 40px 28px
                 .padding(.top, Tokens.Spacing.s6)        // 32pt
@@ -352,6 +354,15 @@ struct ConnectorContainer: View {
             }
         )
         screen = .connector
+    }
+
+    /// Re-runs the guided wizard from the beginning. Clears the back-history and
+    /// any draft synthesis state so detection re-seeds fresh, then lands on Welcome.
+    private func startOver() {
+        history = []
+        draftSelection = []
+        synthesisQueue = []
+        screen = .welcome
     }
 
     private func completeOnboarding() {
