@@ -17,7 +17,11 @@ schemes:
     build:
       targets:
         Tokenomics: all
-        TokenomicsBridge: all
+        # TokenomicsBridge is embedded in the app via its dependency (embed: true),
+        # so it must NOT also be archived as a standalone scheme product. A bare
+        # command-line-tool product in the archive makes `xcodebuild -exportArchive`
+        # report "no valid distribution methods" (it can't distribute a CLI tool) —
+        # the app dependency already builds + embeds the bridge.
         TokenomicsTests: [test]
     run:
       config: Debug
@@ -85,8 +89,8 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
-        CFBundleShortVersionString: "2.9.0-beta.2"
-        CFBundleVersion: "49"
+        CFBundleShortVersionString: "2.9.0-beta.3"
+        CFBundleVersion: "54"
         LSUIElement: true
         CFBundleURLTypes:
           - CFBundleURLName: com.robstout.tokenomics
@@ -140,8 +144,8 @@ targets:
       path: TokenomicsWidgets/Info.plist
       properties:
         CFBundleDisplayName: Tokenomics Widgets
-        CFBundleShortVersionString: "2.9.0-beta.2"
-        CFBundleVersion: "49"
+        CFBundleShortVersionString: "2.9.0-beta.3"
+        CFBundleVersion: "54"
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
@@ -181,16 +185,17 @@ targets:
         type: file
       - path: Tokenomics/Models/ProviderVisibilitySetting.swift
         type: file
-    entitlements:
-      path: TokenomicsBridge/TokenomicsBridge.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.com.robstout.tokenomics
+    # No entitlements: this CLI tool reads the group container by path (see
+    # BridgeCore.containerURL). An App Group entitlement here can't be authorized
+    # for Developer ID (tools take no provisioning profile) and breaks export.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics.bridge
         PRODUCT_NAME: TokenomicsBridge
-        CODE_SIGN_ENTITLEMENTS: TokenomicsBridge/TokenomicsBridge.entitlements
+        # Embedded in the app via the dependency copy phase — do NOT also install
+        # it as a standalone archive product (usr/local/bin). A bare CLI-tool
+        # product makes exportArchive report "no valid distribution methods".
+        SKIP_INSTALL: YES
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_STRICT_CONCURRENCY: complete
         MACOSX_DEPLOYMENT_TARGET: "14.0"
@@ -203,7 +208,10 @@ targets:
           CODE_SIGN_STYLE: Manual
           DEVELOPMENT_TEAM: RPDDQP7KZ5
           CODE_SIGN_IDENTITY: "Developer ID Application"
-          PROVISIONING_PROFILE_SPECIFIER: "Tokenomics Bridge Developer ID"
+          # Command-line tool targets don't support provisioning profiles —
+          # Developer ID signing uses the identity directly. (A specifier here
+          # fails the Release archive: "TokenomicsBridge does not support
+          # provisioning profiles".)
 
   TokenomicsTests:
     type: bundle.unit-test

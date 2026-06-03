@@ -229,10 +229,25 @@ enum BridgeFileIO {
     private static let lockFilename = "bridge.lock"
 
     /// Resolves the App Group container URL.
+    ///
+    /// This is a non-sandboxed Developer ID command-line tool, so it deliberately
+    /// does NOT carry the `com.apple.security.application-groups` entitlement —
+    /// tool targets can't bear a provisioning profile, and an unauthorized App
+    /// Group entitlement makes the embedding app fail Developer ID export
+    /// ("no valid distribution method"). The group container lives at a fixed
+    /// path that any non-sandboxed process can reach directly, so resolve it
+    /// manually rather than via the entitlement-gated
+    /// `containerURL(forSecurityApplicationGroupIdentifier:)` API (which returns
+    /// nil without the entitlement). The sandboxed widget and the main app reach
+    /// the identical path through the API, so all three share one directory.
     static func containerURL() -> URL? {
-        FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: groupIdentifier
-        )
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Group Containers", isDirectory: true)
+            .appendingPathComponent(groupIdentifier, isDirectory: true)
+        // Ensure it exists — the bridge may run before an entitled process has
+        // created the container. Same path the API would hand back.
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
     }
 
     /// Opens (or creates) the lock file and acquires an exclusive flock.
