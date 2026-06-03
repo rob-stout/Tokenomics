@@ -46,3 +46,6 @@ tokenomics-extension-key.pem
 
 # Gemini reader spec — private (matches other web-companion strategy docs)
 docs/gemini-reader-spec.md
+
+# Beta-3 handoff reference docs — private (endpoint reverse-engineering + signing)
+docs/beta-3-handoff/
