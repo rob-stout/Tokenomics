@@ -225,9 +225,12 @@ struct MultiSelectStep: View {
                     lineWidth: 1.5
                 )
             if isSelected {
+                // On-accent foreground must contrast the accent fill. accentInk
+                // is the same cyan as the fill in dark mode (invisible), so mirror
+                // the primary button's label color instead: ink900 / white.
                 Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Tokens.Color.accentInk(scheme))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(scheme == .dark ? Tokens.Color.ink900 : Color.white)
             }
         }
         .frame(width: 18, height: 18)

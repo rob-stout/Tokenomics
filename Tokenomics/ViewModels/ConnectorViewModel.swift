@@ -284,6 +284,15 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
         onOutcome(.allSet)
     }
 
+    /// Debug-only: force the connector to its connected state so beta/debug
+    /// builds can click through every onboarding screen and the synthesis queue
+    /// without real auth or an installed extension. Stops polling so the forced
+    /// state isn't reverted on the next tick. Gated in the UI by `BuildInfo.showsDebugTools`.
+    func debugForceConnect() {
+        stop()
+        step = .connected(plan: "Demo")
+    }
+
     // MARK: - Polling
 
     private func runPollingLoop() async {

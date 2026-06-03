@@ -38,6 +38,28 @@ struct ConnectorView: View {
         .navigationTitle("Connect \(viewModel.providerName)")
         .onAppear { viewModel.start() }
         .onDisappear { viewModel.stop() }
+        // Debug-only shortcut: jump any connector straight to "connected" so the
+        // whole flow + synthesis queue can be clicked through without real auth
+        // or an installed extension. Hidden on stable builds.
+        .safeAreaInset(edge: .bottom) {
+            if BuildInfo.showsDebugTools, !isConnectedStep {
+                Button("▶︎ Force connect (debug)") {
+                    viewModel.debugForceConnect()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.orange)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+            }
+        }
+    }
+
+    /// Whether the connector is showing its connected (terminal) state.
+    private var isConnectedStep: Bool {
+        if case .connected = viewModel.step { return true }
+        return false
     }
 
     // MARK: - Header

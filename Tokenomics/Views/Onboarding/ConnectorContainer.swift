@@ -22,6 +22,11 @@ struct ConnectorContainer: View {
     var onComplete: () -> Void
 
     @State private var screen: Screen = .welcome
+    /// Back-navigation history. Every user-initiated forward step pushes the
+    /// screen it left; Back pops one entry. This makes Back always return to the
+    /// actual previous step regardless of which path reached the current screen
+    /// (the chooser and connector are both reachable from multiple origins).
+    @State private var history: [Screen] = []
     @State private var activeConnector: ConnectorViewModel?
     /// True when the current session was started via a pre-targeted provider link
     /// (Install / Sign In / Reconnect from Settings or popover). Used to treat
@@ -63,13 +68,13 @@ struct ConnectorContainer: View {
             switch screen {
             case .welcome:
                 WelcomeView(
-                    onGetStarted: { screen = .permissions },
+                    onGetStarted: { go(to: .permissions) },
                     onSkip: completeOnboarding
                 )
             case .permissions:
                 PermissionsStep(
-                    onContinue: { screen = .multiSelect },
-                    onBack: { screen = .welcome }
+                    onContinue: { go(to: .multiSelect) },
+                    onBack: { goBack() }
                 )
                 // Match chooser's winbody inset — mockup .winbody padding 32/40/28
                 .padding(.top, Tokens.Spacing.s6)
@@ -79,9 +84,9 @@ struct ConnectorContainer: View {
                 MultiSelectStep(
                     selected: $draftSelection,
                     detectionAnnotations: detectionAnnotations,
-                    onContinue: { screen = .setupPlan },
-                    onSetupOneAtATime: { screen = .chooser },
-                    onBack: { screen = .permissions }
+                    onContinue: { go(to: .setupPlan) },
+                    onSetupOneAtATime: { go(to: .chooser) },
+                    onBack: { goBack() }
                 )
                 .padding(.top, Tokens.Spacing.s6)
                 .padding(.horizontal, 40)
@@ -95,7 +100,7 @@ struct ConnectorContainer: View {
                 SetupPlanStep(
                     plan: buildPlan(),
                     onStart: startSynthesisExecution,
-                    onBack: { screen = .multiSelect }
+                    onBack: { goBack() }
                 )
                 .padding(.top, Tokens.Spacing.s6)
                 .padding(.horizontal, 40)
@@ -105,7 +110,7 @@ struct ConnectorContainer: View {
                     viewModel: viewModel,
                     onPick: open(provider:),
                     onAllSet: completeOnboarding,
-                    onBack: { screen = .welcome }
+                    onBack: { goBack() }
                 )
                 // Chooser winbody inset — matches mockup .winbody padding: 32px 40px 28px
                 .padding(.top, Tokens.Spacing.s6)        // 32pt
@@ -115,7 +120,7 @@ struct ConnectorContainer: View {
                 if let active = activeConnector {
                     ConnectorView(
                         viewModel: active,
-                        onBack: { screen = .chooser }
+                        onBack: { goBack() }
                     )
                 } else {
                     // Defensive — shouldn't be reachable.
@@ -131,11 +136,13 @@ struct ConnectorContainer: View {
             if let targetProvider = OnboardingTarget.shared.preselected {
                 OnboardingTarget.shared.preselected = nil
                 isPreTargeted = true
+                history = []
                 open(provider: targetProvider)
                 return
             }
 
             if screen == .connector && activeConnector == nil {
+                history = []
                 screen = .chooser
             }
             // If the user previously finished onboarding but re-opened via Settings,
@@ -143,6 +150,7 @@ struct ConnectorContainer: View {
             // can add more providers without re-running the first-launch chrome.
             let firstLaunchScreens: [Screen] = [.welcome, .permissions, .multiSelect, .setupPlan]
             if viewModel.hasCompletedOnboarding && firstLaunchScreens.contains(screen) {
+                history = []
                 screen = .chooser
             }
         }
@@ -151,6 +159,7 @@ struct ConnectorContainer: View {
             guard let targetProvider else { return }
             OnboardingTarget.shared.preselected = nil
             isPreTargeted = true
+            history = []
             open(provider: targetProvider)
         }
     }
@@ -203,6 +212,9 @@ struct ConnectorContainer: View {
     /// BrowserExtensionConnector declares that as its `id`.
     @MainActor
     private func startSynthesisExecution() {
+        // Record the plan screen so Back from a synthesis connector returns to it
+        // (not to the chooser, which this path never passed through).
+        history.append(screen)
         let brandSelection = Set(draftSelection.map(\.brand))
         synthesisQueue = buildExecutionQueue(from: brandSelection)
         advanceSynthesisQueue()
@@ -286,7 +298,29 @@ struct ConnectorContainer: View {
 
     // MARK: - Navigation
 
+    /// Push the current screen onto the back-history and navigate forward.
+    private func go(to next: Screen) {
+        history.append(screen)
+        screen = next
+    }
+
+    /// Pop one step off the back-history. If there's nothing to return to
+    /// (e.g. a pre-targeted reconnect that opened straight into a connector),
+    /// close the onboarding window instead of stranding the user.
+    private func goBack() {
+        if let previous = history.popLast() {
+            screen = previous
+        } else {
+            completeOnboarding()
+        }
+    }
+
     private func open(provider: ProviderId) {
+        // Record where we came from so Back returns there. Pre-targeted sessions
+        // open directly into a connector with no in-app origin, so they don't.
+        if !isPreTargeted {
+            history.append(screen)
+        }
         let connector = makeConnector(for: provider)
         activeConnector = ConnectorViewModel(
             connector: connector,
@@ -297,9 +331,10 @@ struct ConnectorContainer: View {
                         // Pre-targeted sessions have no chooser context — treat as done.
                         completeOnboarding()
                     } else {
-                        screen = .chooser
                         activeConnector = nil
                         viewModel.redetectProviders()
+                        // Return to the chooser we pushed on entry (history stays balanced).
+                        goBack()
                     }
                 case .allSet:
                     completeOnboarding()

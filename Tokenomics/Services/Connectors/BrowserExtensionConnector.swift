@@ -85,6 +85,19 @@ actor BrowserExtensionConnector: ProviderConnector {
     /// How long to wait between polls once the Web Store has been opened.
     private static let pollInterval: TimeInterval = 5
 
+    /// The "install the extension" step. Rendered with `ConfirmInstallStep`, which
+    /// places the stepper on segment 2 ("Install extension") — the correct
+    /// position while the extension is not yet installed. (The OAuth `.needsAction`
+    /// path put it on segment 3 "Connect", which was wrong for an install.)
+    /// No shell command, so the command card is hidden (`commandPreview: nil`).
+    private static let installStep: ConnectorStep = .confirmingInstall(
+        title: "Install the Tokenomics browser extension",
+        body: "Tokenomics reads your web usage — ChatGPT, Gemini, and more — through a lightweight browser extension. Install it and come back; we'll detect it automatically.",
+        commandPreview: nil,
+        footnote: nil,
+        skipLabel: "Skip for now"
+    )
+
     // MARK: - Dependencies
 
     private let webCompanion: any WebCompanionStateProvider
@@ -135,7 +148,8 @@ actor BrowserExtensionConnector: ProviderConnector {
                 activePhase = .none
                 return .connected(plan: "")
             }
-            return .needsAction
+            // Still waiting for the heartbeat — keep showing the install step.
+            return Self.installStep
 
         case .none:
             break
@@ -148,13 +162,20 @@ actor BrowserExtensionConnector: ProviderConnector {
             return .connected(plan: "")
         }
 
-        return .needsAction
+        return Self.installStep
     }
 
     /// Tapping the primary CTA ("Open Chrome Web Store") opens the store URL
     /// and starts the polling phase. Subsequent taps while polling are no-ops —
     /// the polling loop is already watching for the heartbeat.
     func performPrimaryAction() async {
+        await confirmInstall()
+    }
+
+    /// "Continue" on the install step (`ConfirmInstallStep`): open the install
+    /// destination and begin polling the bridge for the extension's first
+    /// heartbeat. Subsequent taps while polling are no-ops.
+    func confirmInstall() async {
         guard activePhase == .none else {
             // Already polling or skipped — nothing to do.
             return
@@ -165,6 +186,13 @@ actor BrowserExtensionConnector: ProviderConnector {
         // Kick off the background poll loop so the connector drives forward
         // without relying solely on the VM's 1.5s general poll cadence.
         Task { await runPollLoop() }
+    }
+
+    /// "Skip for now" on the install step: mark skipped so the synthesis
+    /// orchestrator advances to the next provider in the queue.
+    func skipInstall() async {
+        activePhase = .skipped
+        Self.log.info("User skipped browser extension install step")
     }
 
     func cancel() async {
