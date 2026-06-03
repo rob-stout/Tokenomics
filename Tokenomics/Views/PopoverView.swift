@@ -8,6 +8,8 @@ struct PopoverView: View {
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
     @State private var showingGeminiPlanSetup = false
+    /// Reveals the consumer Gemini (app) plan picker when its badge is tapped.
+    @State private var showingGeminiConsumerPlanSetup = false
     /// Reveals the debug menu in beta/debug builds (gated on `BuildInfo.showsDebugTools`).
     @State private var showDebugMenu = false
     /// Reveals the hidden "Beta features" section in Settings. Set to `true`
@@ -186,8 +188,8 @@ struct PopoverView: View {
                 ForEach(Array(pairs.enumerated()), id: \.element.0) { index, pair in
                     let (providerId, state) = pair
 
-                    // Pool header label — distinguishes pools within the brand tab
-                    poolSectionHeader(for: providerId)
+                    // Pool header label + inline plan pill (tappable for Gemini pools)
+                    poolSectionHeader(for: providerId, planLabel: planBadgeLabel(for: providerId, usage: state.usage))
 
                     providerContent(state, providerId: providerId)
 
@@ -203,13 +205,16 @@ struct PopoverView: View {
     /// Slim label row identifying a pool within a multi-pool brand tab.
     /// Uses the pool's `tabLabel` which carries the tool-specific name
     /// (e.g. "ChatGPT", "OpenAI" for codex).
-    private func poolSectionHeader(for providerId: ProviderId) -> some View {
+    private func poolSectionHeader(for providerId: ProviderId, planLabel: String?) -> some View {
         HStack {
             Text(providerId.pinTrackerLabel)
                 .font(.system(size: 10, weight: .semibold))
                 .tracking(0.5)
                 .foregroundStyle(.tertiary)
             Spacer()
+            if let planLabel {
+                PlanBadgeView(label: planLabel, onTap: planTapHandler(for: providerId))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
@@ -254,16 +259,44 @@ struct PopoverView: View {
     /// Usage snapshot for the active view, used by the plan badge.
     /// Brand mode: uses the first pool of the selected brand.
     /// Legacy mode: uses the currently selected provider tab.
-    private var activePlanLabel: (label: String, isGemini: Bool)? {
+    /// Plan badge for the popover header. In brand mode it appears ONLY for
+    /// single-(visible-)pool brands; multi-pool brands show a pill per pool
+    /// inline in each section header instead. `tapProvider` is the pool whose
+    /// plan picker the badge opens (nil = non-tappable).
+    private var activePlanLabel: (label: String, tapProvider: ProviderId?)? {
         if FeatureFlags.brandAggregation {
             let brand = selectedBrand ?? viewModel.enabledBrands.first
             guard let brand else { return nil }
-            let firstPair = viewModel.poolPairs(for: brand).first
-            guard let (providerId, state) = firstPair, let usage = state.usage else { return nil }
-            return (usage.planLabel, providerId == .gemini)
+            let pairs = viewModel.poolPairs(for: brand)
+            // Multi-pool: pills live inline in the per-pool section headers.
+            if pairs.count > 1 { return nil }
+            guard let (providerId, state) = pairs.first, let usage = state.usage else { return nil }
+            return (usage.planLabel, providerId)
         } else {
             guard let state = viewModel.currentProviderState, let usage = state.usage else { return nil }
-            return (usage.planLabel, viewModel.selectedTab == .gemini)
+            return (usage.planLabel, viewModel.selectedTab)
+        }
+    }
+
+    /// The plan label to show on a pool's badge. For the consumer Gemini (app)
+    /// pool the tier isn't readable from the web session (the extension sends a
+    /// placeholder), so we use the user-chosen `geminiConsumerPlan` instead of the
+    /// snapshot's label — making the picker authoritative in both live and demo.
+    private func planBadgeLabel(for providerId: ProviderId, usage: ProviderUsageSnapshot?) -> String? {
+        if providerId == .geminiConsumer {
+            return (SettingsService.geminiConsumerPlan ?? .free).displayLabel
+        }
+        return usage?.planLabel
+    }
+
+    /// Returns the tap action that opens a pool's plan picker, or nil if the pool
+    /// has no user-editable plan. Shared by the header badge and the inline
+    /// per-pool section-header badges.
+    private func planTapHandler(for providerId: ProviderId?) -> (() -> Void)? {
+        switch providerId {
+        case .gemini:         return { showingGeminiPlanSetup = true }
+        case .geminiConsumer: return { showingGeminiConsumerPlanSetup = true }
+        default:              return nil
         }
     }
 
@@ -276,12 +309,7 @@ struct PopoverView: View {
             Spacer()
 
             if let plan = activePlanLabel {
-                PlanBadgeView(
-                    label: plan.label,
-                    onTap: plan.isGemini
-                        ? { showingGeminiPlanSetup = true }
-                        : nil
-                )
+                PlanBadgeView(label: plan.label, onTap: planTapHandler(for: plan.tapProvider))
             }
 
             ShareLink(
@@ -322,6 +350,16 @@ struct PopoverView: View {
                 onCancel: SettingsService.geminiPlan != nil
                     ? { showingGeminiPlanSetup = false }
                     : nil
+            )
+        } else if providerId == .geminiConsumer && showingGeminiConsumerPlanSetup {
+            GeminiConsumerPlanSetupView(
+                currentPlan: SettingsService.geminiConsumerPlan,
+                onConfirm: { plan in
+                    SettingsService.geminiConsumerPlan = plan
+                    showingGeminiConsumerPlanSetup = false
+                    viewModel.refresh()
+                },
+                onCancel: { showingGeminiConsumerPlanSetup = false }
             )
         } else if !providerId.supportsUsageTracking {
             comingSoonView(for: providerId)

@@ -44,3 +44,33 @@ enum GeminiPlan: String, CaseIterable, Codable, Sendable {
         return "\(daily) requests/day \u{00B7} \(perMinuteLimit)/min"
     }
 }
+
+/// Consumer Gemini (gemini.google.com app) subscription tiers, post-2025 rename.
+/// Label-only: the app pool's usage % comes directly from the web response, so —
+/// unlike `GeminiPlan` for the CLI — this drives no limit calculation. It exists
+/// only to name the plan badge, since the extension can't read the tier reliably.
+enum GeminiConsumerPlan: String, CaseIterable, Codable, Sendable {
+    case free
+    case plus
+    case pro
+    case ultra
+
+    var displayLabel: String {
+        switch self {
+        case .free:  return "Free"
+        case .plus:  return "AI Plus"
+        case .pro:   return "AI Pro"
+        case .ultra: return "AI Ultra"
+        }
+    }
+
+    /// One-line description shown under the picker.
+    var blurb: String {
+        switch self {
+        case .free:  return "gemini.google.com, no subscription"
+        case .plus:  return "Google AI Plus"
+        case .pro:   return "Google AI Pro (formerly Gemini Advanced)"
+        case .ultra: return "Google AI Ultra"
+        }
+    }
+}

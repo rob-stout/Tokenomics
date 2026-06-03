@@ -183,6 +183,18 @@ enum SettingsService {
         }
     }
 
+    /// User-selected consumer Gemini (gemini.google.com app) tier. Label-only —
+    /// the app pool's usage % comes straight from the web response, so this drives
+    /// no limit math; it just names the badge. nil = hasn't chosen yet (defaults to .free).
+    static var geminiConsumerPlan: GeminiConsumerPlan? {
+        get {
+            defaults.string(forKey: "geminiConsumerPlan").flatMap { GeminiConsumerPlan(rawValue: $0) }
+        }
+        set {
+            defaults.set(newValue?.rawValue, forKey: "geminiConsumerPlan")
+        }
+    }
+
     // MARK: - Copilot Plan Limit
 
     /// User-specified monthly premium request limit for Copilot.

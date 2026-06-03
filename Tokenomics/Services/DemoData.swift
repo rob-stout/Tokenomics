@@ -166,7 +166,8 @@ enum DemoData {
                 resetsAt: futureDate(days: 6),
                 windowDuration: 7 * 24 * 3600
             ),
-            planLabel: "Advanced",
+            // Consumer (app) tier — label-only, set via the tappable plan badge.
+            planLabel: (SettingsService.geminiConsumerPlan ?? .free).displayLabel,
             extraUsage: nil,
             creditsBalance: nil
         )
