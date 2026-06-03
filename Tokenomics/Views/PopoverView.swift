@@ -574,21 +574,8 @@ struct PopoverView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 0) {
-                // ── Preferences ──
-                sectionLabel("Preferences")
-
-                settingsRow(icon: "checkmark.square", label: "Launch at Login") {
-                    Toggle("", isOn: $launchAtLogin)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .labelsHidden()
-                        .onChange(of: launchAtLogin) { newValue in
-                            LaunchAtLoginService.setEnabled(newValue)
-                            launchAtLogin = LaunchAtLoginService.isEnabled
-                        }
-                }
-
-                Divider().padding(.horizontal, 16)
+                // ── Providers ── (provider management, surfaced first)
+                sectionLabel("Providers")
 
                 settingsNavRow(
                     icon: "circle.grid.2x2",
@@ -605,6 +592,20 @@ struct PopoverView: View {
                     label: "Setup providers\u{2026}"
                 ) {
                     openWindow(id: "onboarding")
+                }
+
+                // ── Preferences ──
+                sectionLabel("Preferences")
+
+                settingsRow(icon: "checkmark.square", label: "Launch at Login") {
+                    Toggle("", isOn: $launchAtLogin)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .onChange(of: launchAtLogin) { newValue in
+                            LaunchAtLoginService.setEnabled(newValue)
+                            launchAtLogin = LaunchAtLoginService.isEnabled
+                        }
                 }
 
                 Divider().padding(.horizontal, 16)
