@@ -207,12 +207,20 @@ struct AIConnectionsView: View {
 
         HStack(alignment: .top, spacing: 8) {
 
-            // Provider icon
+            // Provider icon. Nested sub-pool rows show the surface glyph
+            // (extension vs CLI) instead of the brand mark — the brand lives on
+            // the group header above, so the glyph is what distinguishes the pools.
             ZStack {
-                providerIcon(for: provider)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
+                if indented, let symbol = provider.surfaceSymbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 14 * textSize.iconScale, weight: .regular))
+                        .foregroundStyle(.primary)
+                } else {
+                    providerIcon(for: provider)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
+                }
             }
             .frame(width: 26 * textSize.iconScale, height: 26 * textSize.iconScale)
             .background(Color.clear)

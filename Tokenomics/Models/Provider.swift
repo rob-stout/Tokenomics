@@ -399,6 +399,40 @@ enum BrandId: String, CaseIterable, Codable, Sendable, Identifiable {
     }
 }
 
+extension ProviderId {
+    /// How this pool's usage is read — drives a small corner badge on the
+    /// provider icon so visually-identical sub-pools (e.g. ChatGPT vs Codex,
+    /// both the OpenAI mark) are distinguishable at a glance.
+    enum TrackingSurface {
+        case browserExtension   // read via the browser extension / web session
+        case cli                // read from a local coding tool's files
+        case apiKey             // read via a user-supplied API key
+    }
+
+    var trackingSurface: TrackingSurface {
+        switch self {
+        case .chatgpt, .geminiConsumer, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
+            return .browserExtension
+        case .claude, .codex, .gemini, .cursor, .copilot:
+            return .cli
+        case .elevenlabs, .runway, .stableDiffusion:
+            return .apiKey
+        }
+    }
+
+    /// SF Symbol representing this pool's surface (browser extension vs CLI).
+    /// Used as the icon for nested sub-pool rows, where the brand mark already
+    /// lives on the group header — so the surface glyph distinguishes the pools.
+    /// nil for API-key pools (none are multi-pool today).
+    var surfaceSymbol: String? {
+        switch trackingSurface {
+        case .browserExtension: return "puzzlepiece.extension"
+        case .cli:              return "terminal"
+        case .apiKey:           return nil
+        }
+    }
+}
+
 extension BrandId {
     /// Whether this brand owns more than one usage pool (meter). Multi-pool
     /// brands render a brand header with nested sub-rows; single-pool brands
