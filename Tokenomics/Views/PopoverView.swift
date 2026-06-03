@@ -8,6 +8,8 @@ struct PopoverView: View {
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
     @State private var showingGeminiPlanSetup = false
+    /// Reveals the debug menu in beta/debug builds (gated on `BuildInfo.showsDebugTools`).
+    @State private var showDebugMenu = false
     /// Reveals the hidden "Beta features" section in Settings. Set to `true`
     /// only when the user holds Option while opening Settings (checked in
     /// `settingsView.onAppear`). Resets when Settings closes.
@@ -41,6 +43,8 @@ struct PopoverView: View {
                 NotificationsView(viewModel: viewModel)
             } else if viewModel.showTextSize {
                 TextSizeView(onDismiss: { viewModel.showTextSize = false })
+            } else if showDebugMenu && BuildInfo.showsDebugTools {
+                DebugMenuView(viewModel: viewModel, onDismiss: { showDebugMenu = false })
             } else if viewModel.showSettings {
                 settingsView
             } else if !viewModel.hasCompletedOnboarding {
@@ -84,6 +88,7 @@ struct PopoverView: View {
         // Reset to home view when popover closes
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
             viewModel.resetNavigation()
+            showDebugMenu = false
         }
     }
 
@@ -114,7 +119,8 @@ struct PopoverView: View {
             showDisplayMode: viewModel.installedProviders.count > 1,
             updateAvailable: updaterService.updateAvailable,
             isStale: viewModel.isShowingStaleData,
-            viewModel: viewModel
+            viewModel: viewModel,
+            onDebug: BuildInfo.showsDebugTools ? { showDebugMenu = true } : nil
         )
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

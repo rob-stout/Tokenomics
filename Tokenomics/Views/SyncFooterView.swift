@@ -10,6 +10,8 @@ struct SyncFooterView: View {
     var updateAvailable: Bool = false
     var isStale: Bool = false
     @ObservedObject var viewModel: UsageViewModel
+    /// Called when the debug button is tapped. Only rendered when `BuildInfo.showsDebugTools`.
+    var onDebug: (() -> Void)? = nil
 
     @Environment(\.tokenomicsTextSize) private var textSize
 
@@ -82,6 +84,26 @@ struct SyncFooterView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+
+            // Debug button — only rendered in beta/debug builds (never in stable releases)
+            if BuildInfo.showsDebugTools, let onDebug {
+                Divider()
+                    .frame(height: 12)
+
+                Button(action: onDebug) {
+                    Text("Debug")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(viewModel.demoModeEnabled ? Color.orange : Color.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(viewModel.demoModeEnabled ? Color.orange.opacity(0.15) : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("Open debug controls (beta/debug builds only)")
+            }
         }
     }
 }

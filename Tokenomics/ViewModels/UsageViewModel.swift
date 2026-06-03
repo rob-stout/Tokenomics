@@ -63,6 +63,30 @@ final class UsageViewModel: ObservableObject {
     /// so the new connector flow can trigger it from outside that view.
     @Published var copilotPATEntryRequested: Bool = false
 
+    // MARK: - Demo Mode
+
+    /// When `true`, the VM serves fixture data instead of polling live APIs.
+    /// Backed by UserDefaults so it persists across launches (useful for continuous
+    /// review sessions). Only settable when `BuildInfo.showsDebugTools` is true —
+    /// stable release builds can never activate demo mode.
+    @Published var demoModeEnabled: Bool = false {
+        didSet {
+            guard BuildInfo.showsDebugTools else {
+                // Safety net: silently revert if somehow called in a stable build.
+                demoModeEnabled = false
+                return
+            }
+            UserDefaults.standard.set(demoModeEnabled, forKey: DemoModeService.userDefaultsKey)
+            if demoModeEnabled {
+                applyDemoData(snapshots: DemoData.allSnapshots)
+            }
+            // When turning off, re-start normal polling so live data replaces fixture data.
+            if !demoModeEnabled && pollingStarted {
+                Task { await fetchAllProviders() }
+            }
+        }
+    }
+
     // MARK: - Providers
 
     private let providers: [ProviderId: any UsageProvider] = [
@@ -318,11 +342,23 @@ final class UsageViewModel: ObservableObject {
             self.hasCompletedOnboarding = true
             SettingsService.hasCompletedOnboarding = true
         }
+
+        // Restore demo mode from UserDefaults — only honoured in debug/beta builds.
+        if BuildInfo.showsDebugTools {
+            let saved = UserDefaults.standard.bool(forKey: DemoModeService.userDefaultsKey)
+            if saved {
+                self.demoModeEnabled = true
+                applyDemoData(snapshots: DemoData.allSnapshots)
+            }
+        }
     }
 
     // MARK: - Lifecycle
 
     func startPolling() {
+        // Demo mode bypasses all live polling — fixture data is already in providerStates.
+        guard !demoModeEnabled else { return }
+
         // Don't run detection until the user has been through onboarding. The
         // guided flow's PermissionsStep is responsible for triggering the
         // keychain / cross-app prompts at a known UI moment; running
@@ -411,6 +447,11 @@ final class UsageViewModel: ObservableObject {
     }
 
     func refresh() {
+        // In demo mode, re-apply fixture data so the UI updates (e.g. after slam).
+        guard !demoModeEnabled else {
+            applyDemoData(snapshots: DemoData.allSnapshots)
+            return
+        }
         Task {
             // Manual refresh counts as activity — resets idle timer
             await pollingService.noteActivity()
@@ -756,6 +797,57 @@ final class UsageViewModel: ObservableObject {
                 lastSynced: currentState.lastSynced,
                 isLoading: false
             )
+        }
+    }
+
+    // MARK: - Debug Helpers
+
+    /// Resets onboarding state so the guided flow re-runs on next launch.
+    /// Only callable from debug/beta builds via `DebugMenuView`.
+    func resetOnboardingForDebug() {
+        hasCompletedOnboarding = false
+        pollingStarted = false
+    }
+
+    // MARK: - Demo Data
+
+    /// Injects fixture snapshots for every known provider and writes them to
+    /// the shared widget store so the menu-bar rings and widgets also reflect
+    /// demo data. The `connected` state is synthesised so all providers appear
+    /// as tabs — the demo is only meaningful when every UI surface is populated.
+    ///
+    /// Called from `demoModeEnabled.didSet` and `refresh()` while demo mode is on.
+    func applyDemoData(snapshots: [ProviderId: ProviderUsageSnapshot]) {
+        let now = Date()
+        for id in ProviderId.allCases {
+            if let snapshot = snapshots[id] {
+                providerStates[id] = ProviderState(
+                    connection: .connected(plan: snapshot.planLabel),
+                    usage: snapshot,
+                    error: nil,
+                    lastSynced: now,
+                    isLoading: false
+                )
+            } else {
+                // Provider has no demo snapshot (e.g. suno, udio) — mark not installed
+                // so it doesn't show up as a blank tab.
+                providerStates[id] = .empty
+            }
+        }
+
+        // Ensure a tab is selected
+        if selectedTab == nil || providerStates[selectedTab ?? .claude]?.connection.isConnected != true {
+            selectedTab = visibleProviders.first ?? .claude
+        }
+
+        // Push demo data to the widget App Group so menu-bar rings and desktop
+        // widgets render fixture values instead of stale/empty live data.
+        let entries: [(ProviderId, ProviderUsageSnapshot)] = visibleProviders.compactMap { id in
+            guard let usage = providerStates[id]?.usage else { return nil }
+            return (id, usage)
+        }
+        if !entries.isEmpty {
+            WidgetDataStore.write(providers: entries)
         }
     }
 }
