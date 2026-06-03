@@ -817,17 +817,26 @@ final class UsageViewModel: ObservableObject {
     /// as tabs — the demo is only meaningful when every UI surface is populated.
     ///
     /// Called from `demoModeEnabled.didSet` and `refresh()` while demo mode is on.
-    func applyDemoData(snapshots: [ProviderId: ProviderUsageSnapshot]) {
+    /// Applies fixture data for demo mode. When `fireNotifications` is true, each
+    /// connected provider is run through `notificationService.evaluate` exactly as
+    /// the live fetch path does — so the slam buttons can be used to test threshold
+    /// notifications (slam to 0% to reset the hysteresis, then to 90/100% to fire).
+    /// Plain demo-on leaves it false so toggling demo mode doesn't spam alerts.
+    func applyDemoData(snapshots: [ProviderId: ProviderUsageSnapshot], fireNotifications: Bool = false) {
         let now = Date()
         for id in ProviderId.allCases {
             if let snapshot = snapshots[id] {
+                let connection: ProviderConnectionState = .connected(plan: snapshot.planLabel)
                 providerStates[id] = ProviderState(
-                    connection: .connected(plan: snapshot.planLabel),
+                    connection: connection,
                     usage: snapshot,
                     error: nil,
                     lastSynced: now,
                     isLoading: false
                 )
+                if fireNotifications {
+                    notificationService.evaluate(providerId: id, snapshot: snapshot, connection: connection)
+                }
             } else {
                 // Provider has no demo snapshot (e.g. suno, udio) — mark not installed
                 // so it doesn't show up as a blank tab.

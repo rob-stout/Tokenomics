@@ -11,8 +11,9 @@ import SwiftUI
 /// - Brand aggregation flag on/off
 /// - Reset onboarding
 /// - Force refresh
-/// - Slam all providers to a preset utilization (0 / 50 / 90 / 100%) for
-///   quick visual inspection of color thresholds
+/// - Slam all providers to a preset fill level (0 / 50 / 90 / 100%) to check
+///   how the bars/rings render at each level (fill geometry + sublabel text;
+///   bar color is fixed per window type, not utilization-based)
 struct DebugMenuView: View {
     @ObservedObject var viewModel: UsageViewModel
     let onDismiss: () -> Void
@@ -150,7 +151,12 @@ struct DebugMenuView: View {
         if !viewModel.demoModeEnabled {
             viewModel.demoModeEnabled = true
         }
-        viewModel.applyDemoData(snapshots: DemoData.scaledSnapshots(utilization: utilization))
+        // fireNotifications: true → run each provider through the threshold
+        // evaluator so slamming to 90/100% actually triggers notifications.
+        viewModel.applyDemoData(
+            snapshots: DemoData.scaledSnapshots(utilization: utilization),
+            fireNotifications: true
+        )
         onDismiss()
     }
 
@@ -204,23 +210,23 @@ struct DebugMenuView: View {
 // MARK: - Slam Presets
 
 private enum DemoSlamPreset: CaseIterable {
-    case zero, half, nearLimit, maxed
+    case zero, half, high, maxed
 
     var label: String {
         switch self {
-        case .zero:      return "0%"
-        case .half:      return "50%"
-        case .nearLimit: return "90%"
-        case .maxed:     return "100%"
+        case .zero:  return "0%"
+        case .half:  return "50%"
+        case .high:  return "90%"
+        case .maxed: return "100%"
         }
     }
 
     var utilization: Double {
         switch self {
-        case .zero:      return 0
-        case .half:      return 50
-        case .nearLimit: return 90
-        case .maxed:     return 100
+        case .zero:  return 0
+        case .half:  return 50
+        case .high:  return 90
+        case .maxed: return 100
         }
     }
 }

@@ -77,7 +77,8 @@ struct WidgetTheme {
     )
 
     /// Returns the fill color for a bar. `isLong` selects `longColor` vs `shortColor`.
-    func fillColor(for utilization: Double, isLong: Bool = false) -> Color {
+    /// Color is fixed per window type — it does NOT vary with utilization.
+    func fillColor(isLong: Bool = false) -> Color {
         isLong ? longColor : shortColor
     }
 }
@@ -214,7 +215,7 @@ struct SmallWidgetView: View {
                         Circle()
                             .trim(from: 0, to: min(provider.shortWindow.utilization / 100.0, 1.0))
                             .stroke(
-                                theme.fillColor(for: provider.shortWindow.utilization),
+                                theme.fillColor(),
                                 style: StrokeStyle(lineWidth: lineW, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
@@ -238,7 +239,7 @@ struct SmallWidgetView: View {
                             Circle()
                                 .trim(from: 0, to: min(longWindow.utilization / 100.0, 1.0))
                                 .stroke(
-                                    theme.fillColor(for: longWindow.utilization, isLong: true),
+                                    theme.fillColor(isLong: true),
                                     style: StrokeStyle(lineWidth: lineW, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(-90))
@@ -768,7 +769,7 @@ private struct CompactProviderRow: View {
                         .font(.caption2)
                         .fontWeight(.medium)
                         .monospacedDigit()
-                        .foregroundStyle(theme.fillColor(for: provider.shortWindow.utilization))
+                        .foregroundStyle(theme.fillColor())
                 }
 
                 WidgetProgressBar(
@@ -790,7 +791,7 @@ private struct CompactProviderRow: View {
                             .font(.caption2)
                             .fontWeight(.medium)
                             .monospacedDigit()
-                            .foregroundStyle(theme.fillColor(for: longWindow.utilization, isLong: true))
+                            .foregroundStyle(theme.fillColor(isLong: true))
                     }
 
                     WidgetProgressBar(
@@ -851,7 +852,7 @@ private struct LargeProviderRow: View {
                         .font(.caption2)
                         .fontWeight(.medium)
                         .monospacedDigit()
-                        .foregroundStyle(theme.fillColor(for: provider.shortWindow.utilization))
+                        .foregroundStyle(theme.fillColor())
                         .frame(width: 30, alignment: .trailing)
                 }
 
@@ -873,7 +874,7 @@ private struct LargeProviderRow: View {
                             .font(.caption2)
                             .fontWeight(.medium)
                             .monospacedDigit()
-                            .foregroundStyle(theme.fillColor(for: longWindow.utilization, isLong: true))
+                            .foregroundStyle(theme.fillColor(isLong: true))
                             .frame(width: 30, alignment: .trailing)
                     }
                 }
@@ -941,7 +942,7 @@ struct WidgetProgressBar: View {
 
                 // Fill
                 Capsule()
-                    .fill(theme.fillColor(for: utilization, isLong: isLong).opacity(theme.barFillOpacity))
+                    .fill(theme.fillColor(isLong: isLong).opacity(theme.barFillOpacity))
                     .frame(
                         width: geometry.size.width * min(max(utilization / 100.0, 0), 1),
                         height: 4
