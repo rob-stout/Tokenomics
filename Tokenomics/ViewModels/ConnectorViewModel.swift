@@ -203,6 +203,18 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
         }
     }
 
+    /// Back from the extension "Connecting" screen (`.awaitingExternalAuth`) →
+    /// return to the install step. Cancelling resets the connector to `.none`, so
+    /// `currentStep()` reports `.confirmingInstall` again (not an exit from the flow).
+    func tappedBackToInstall() {
+        Task { [connector, weak self] in
+            await connector.cancel()
+            guard let self else { return }
+            let current = await self.connector.currentStep()
+            self.step = current
+        }
+    }
+
     /// Tap "I'm signed in — check now" in `.awaitingExternalAuth` — kicks the
     /// polling loop awake immediately instead of waiting for the next tick.
     func tappedRecheck() {

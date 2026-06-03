@@ -95,7 +95,9 @@ final class BrowserExtensionConnectorTests: XCTestCase {
     }
 
     /// A heartbeat just beyond 300s is stale — connector should show needsAction.
-    func testFreshnessCheck_beyondTTL_isNeedsAction() async {
+    func testFreshnessCheck_beyondTTL_showsInstallStep() async {
+        // A stale heartbeat (beyond TTL) means the extension isn't connected, so
+        // the connector starts at the install step (`.confirmingInstall`).
         let staleDate = Date().addingTimeInterval(-301)
         let state = ExtSideState(updatedAt: staleDate, snapshots: [:], providerVisibility: [:])
         let stub = StubWebCompanionService(state: state)
@@ -106,13 +108,15 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         )
 
         let step = await connector.currentStep()
-        XCTAssertEqual(step, .needsAction)
+        guard case .confirmingInstall = step else {
+            return XCTFail("Expected .confirmingInstall, got \(step)")
+        }
     }
 
-    // MARK: - State 2: Not connected — CTA
+    // MARK: - State 2: Not connected — install step
 
-    /// When the bridge state is stale, `currentStep()` should return `.needsAction`.
-    func testNotConnected_returnsNeedsAction() async {
+    /// When the bridge state is stale, `currentStep()` shows the install step.
+    func testNotConnected_showsInstallStep() async {
         let stub = StubWebCompanionService(state: .stale())
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
@@ -121,7 +125,9 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         )
 
         let step = await connector.currentStep()
-        XCTAssertEqual(step, .needsAction)
+        guard case .confirmingInstall = step else {
+            return XCTFail("Expected .confirmingInstall, got \(step)")
+        }
     }
 
     /// Tapping the primary CTA should open the Chrome Web Store URL.
@@ -262,7 +268,7 @@ final class BrowserExtensionConnectorTests: XCTestCase {
     // MARK: - Cancel
 
     /// `cancel()` resets the connector to its initial state so it can be re-used.
-    func testCancel_resetsToNone_showsNeedsAction() async {
+    func testCancel_resetsToNone_showsInstallStep() async {
         let stub = StubWebCompanionService(state: .stale())
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
@@ -273,8 +279,11 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         await connector.performPrimaryAction() // → polling
         await connector.cancel()              // → none
 
+        // Back to the start of the flow: the install step, not a connecting screen.
         let step = await connector.currentStep()
-        XCTAssertEqual(step, .needsAction)
+        guard case .confirmingInstall = step else {
+            return XCTFail("Expected .confirmingInstall after cancel, got \(step)")
+        }
     }
 
     // MARK: - isFresh helper tests

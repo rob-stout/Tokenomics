@@ -163,7 +163,9 @@ struct ConnectorView: View {
                     headline: headline,
                     instructionText: body,
                     onCheckNow: { viewModel.tappedRecheck() },
-                    onBack: onBack
+                    // Back here returns to the install step (not an exit) — the
+                    // "Connecting" screen always follows install for the extension.
+                    onBack: { viewModel.tappedBackToInstall() }
                 )
             } else {
                 AwaitExternalAuthView(
@@ -386,7 +388,7 @@ struct ConnectorView: View {
                 .multilineTextAlignment(.center)
 
             VStack(spacing: Tokens.Spacing.s2 + 2) { // 10pt
-                Button("Add another provider") {
+                Button("Continue Setup") {
                     viewModel.tappedAddAnother()
                 }
                 .buttonStyle(.tokenPrimary)
@@ -484,7 +486,7 @@ struct ConnectorView: View {
             Group {
                 switch icon {
                 case .waiting:
-                    ProgressView().controlSize(.small)
+                    CircularSpinner(size: 14, color: Tokens.Color.accent(scheme))
                 case .success:
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Tokens.Color.success(scheme))

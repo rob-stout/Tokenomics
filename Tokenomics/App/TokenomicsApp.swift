@@ -1,4 +1,5 @@
 import AppKit
+import MenuBarExtraAccess
 import SwiftUI
 import os
 
@@ -32,6 +33,11 @@ struct TokenomicsApp: App {
             // is gated on hasCompletedOnboarding inside the view model.
             MenuBarLabel(viewModel: viewModel)
         }
+        // Lets us open the popover programmatically (e.g. at the end of
+        // onboarding). Two-way: also reflects user-driven open/close.
+        // MUST be the first modifier after MenuBarExtra (it's a MenuBarExtra
+        // extension, not a generic Scene modifier).
+        .menuBarExtraAccess(isPresented: $viewModel.isPopoverPresented)
         .menuBarExtraStyle(.window)
 
         // MARK: - Onboarding Window
@@ -49,7 +55,12 @@ struct TokenomicsApp: App {
     }
 
     private func onboardingScene() -> some Scene {
-        let base = WindowGroup(id: "onboarding") {
+        // `Window` (not `WindowGroup`) is single-instance: every entry point
+        // (launcher card, detection nudge, "guided setup") calls
+        // openWindow(id: "onboarding"), and Window just brings the existing one
+        // forward instead of spawning duplicates. WindowGroup spawned a new
+        // window on each call.
+        let base = Window("Tokenomics", id: "onboarding") {
             OnboardingWindowRoot(viewModel: viewModel, webCompanion: appDelegate.webCompanionService)
         }
         .windowResizability(.contentSize)
@@ -76,14 +87,16 @@ struct OnboardingWindowRoot: View {
 
     var body: some View {
         ConnectorContainer(viewModel: viewModel, webCompanion: webCompanion) {
-            // Onboarding finished. Close the window and bring the menu bar
-            // back into focus so the user can click the Tokenomics icon to
-            // see their usage. (SwiftUI's MenuBarExtra doesn't expose a
-            // public API to *open* the popover programmatically — the user
-            // has to click the icon themselves. Activating the app gives the
-            // icon visual focus in case the menu bar was occluded.)
+            // Onboarding finished. Close the window, focus the app, then pop the
+            // menu-bar popover open so the user lands on their usage. The popover
+            // is opened via MenuBarExtraAccess (no first-party API exists). A short
+            // delay lets the window dismiss + the status item settle first —
+            // opening immediately can silently no-op.
             NSApp.activate(ignoringOtherApps: true)
             dismissWindow(id: "onboarding")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                viewModel.isPopoverPresented = true
+            }
         }
         .frame(width: 720, height: 560)
         .background(Tokens.DynamicColor.bg.ignoresSafeArea())

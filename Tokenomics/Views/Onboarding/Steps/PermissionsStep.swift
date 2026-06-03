@@ -107,7 +107,7 @@ private struct PermissionsStepBody: View {
 
                 Text(didDeny
                      ? "Tokenomics can't function without these. We only use them to coordinate your computer with the AI providers for usage tracking — your information never leaves your Mac."
-                     : "Tokenomics reads where your AI tools store their session info so it can show usage. macOS protects you with two confirmations the first time.")
+                     : "Tokenomics reads where your AI tools store their session info so it can show usage. The first time, macOS will pull up two separate system prompts to get your permission.")
                     .font(Tokens.Typography.Onboarding.lede)
                     .foregroundStyle(Tokens.Color.textMuted(scheme))
                     .fixedSize(horizontal: false, vertical: true)

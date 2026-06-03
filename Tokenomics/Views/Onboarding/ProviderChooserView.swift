@@ -37,6 +37,11 @@ struct ProviderChooserView: View {
             }
             .padding(.bottom, Tokens.Spacing.s3)
 
+            // Legend pinned above the list (not buried at the bottom of the
+            // scroll) so users actually see what the Quick / Guided badges mean.
+            legendHint
+                .padding(.bottom, Tokens.Spacing.s3)
+
             // Scrollable chooser region — flex 1, scrolls when content overflows
             // mockup .chooser: flex: 1 1 auto, overflow-y: auto
             // Hide scroll indicators — the cut-off bottom row telegraphs more
@@ -56,11 +61,6 @@ struct ProviderChooserView: View {
                             }
                         }
                     }
-
-                    // Legend hint at bottom of scroll area
-                    // mockup .legend: surface-2 bg, border, sm radius, 12.5px, text-muted
-                    legendHint
-                        .padding(.top, Tokens.Spacing.s3)
                 }
                 .padding(.bottom, Tokens.Spacing.s2)
             }
