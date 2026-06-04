@@ -61,12 +61,22 @@ struct ConnectorContainer: View {
     /// from "Start setup" to "Continue" / "Show my usage".
     @State private var hasStartedSetup = false
 
+    // MARK: Screen transition
+
+    /// Direction of the most recent navigation — drives the slide transition.
+    /// Forward pushes the new screen in from the right; backward reverses it.
+    @State private var navDirection: NavDirection = .forward
+
+    enum NavDirection { case forward, backward }
+
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Screen {
         case welcome
         case permissions
         case multiSelect
+        case autoConnect
         case setupPlan
         case chooser
         case connector
@@ -93,7 +103,7 @@ struct ConnectorContainer: View {
                 MultiSelectStep(
                     selected: $draftSelection,
                     detectionAnnotations: detectionAnnotations,
-                    onContinue: { go(to: .setupPlan) },
+                    onContinue: { proceedFromMultiSelect() },
                     onSetupOneAtATime: { go(to: .chooser) },
                     onBack: { goBack() }
                 )
@@ -105,6 +115,14 @@ struct ConnectorContainer: View {
                 .task(id: "detection") {
                     await runDetection()
                 }
+            case .autoConnect:
+                AutoConnectStep(
+                    resolve: { await resolveAutoConnect() },
+                    onFinished: { connected in handleAutoConnectFinished(connected) }
+                )
+                .padding(.top, Tokens.Spacing.s6)
+                .padding(.horizontal, 40)
+                .padding(.bottom, Tokens.Spacing.s5 + 4)
             case .setupPlan:
                 SetupPlanStep(
                     plan: buildPlan(),
@@ -145,6 +163,13 @@ struct ConnectorContainer: View {
                 }
             }
         }
+        // Directional slide between screens. `.id(screen)` gives each screen a
+        // distinct identity so SwiftUI inserts/removes (and thus transitions) on
+        // change; only changes wrapped in `withAnimation` (advance/retreat/go/
+        // goBack) animate — the un-animated onAppear routing below stays an
+        // instant cut. The shared bg sits OUTSIDE this so it never slides.
+        .id(screen)
+        .transition(navTransition)
         .background(Tokens.DynamicColor.bg.ignoresSafeArea())
         // Reset to chooser on re-entry so users who completed or cancelled a
         // previous flow don't land on a stale connector screen.
@@ -166,7 +191,7 @@ struct ConnectorContainer: View {
             // chooser hub (add more / I'm all set). But if nothing is connected
             // yet, keep them at the start of the guided flow (Welcome) rather than
             // dropping them on an empty hub.
-            let firstLaunchScreens: [Screen] = [.welcome, .permissions, .multiSelect, .setupPlan]
+            let firstLaunchScreens: [Screen] = [.welcome, .permissions, .multiSelect, .autoConnect, .setupPlan]
             if viewModel.hasCompletedOnboarding
                 && !viewModel.connectedProviders.isEmpty
                 && firstLaunchScreens.contains(screen) {
@@ -218,6 +243,84 @@ struct ConnectorContainer: View {
         return PlanBuilder.build(selection: brandSelection, detection: detectionResults)
     }
 
+    // MARK: - Auto-connect (already installed + signed in)
+
+    /// CLI/desktop providers whose connection can be established with zero user
+    /// interaction — `checkConnection()` reads local credentials (and validates
+    /// them live). Everything else (extension install, API-key paste) needs the user.
+    private func isAutoConnectableCLI(_ id: ProviderId) -> Bool {
+        switch id {
+        case .claude, .codex, .gemini, .copilot, .cursor: return true
+        default: return false
+        }
+    }
+
+    /// Leaving MultiSelect: if the plan has any CLI steps, route through the
+    /// auto-connect explainer (it probes them and checks off the ready ones).
+    /// If there are no CLI steps at all, there's nothing to auto-connect — go
+    /// straight to the plan.
+    private func proceedFromMultiSelect() {
+        let plan = buildPlan()
+        let hasCLISteps = plan.steps.contains { isAutoConnectableCLI($0.launchTarget) }
+        go(to: hasCLISteps ? .autoConnect : .setupPlan)
+    }
+
+    /// Probes the plan's CLI steps for real, already-signed-in connections.
+    /// Returns the connected providers in plan order plus whether any other work
+    /// remains. Runs on-screen so any credential prompt fires while the user is
+    /// looking at the "checking" UI.
+    @MainActor
+    private func resolveAutoConnect() async -> AutoConnectStep.Resolution {
+        let plan = buildPlan()
+        let candidates = plan.steps.map(\.launchTarget).filter(isAutoConnectableCLI)
+        let connectedSet = await viewModel.probeAutoConnectable(candidates)
+        let connected = plan.steps.map(\.launchTarget).filter { connectedSet.contains($0) }
+        let remaining = plan.steps.contains { step in
+            !completedStepNumbers.contains(step.number) && !connected.contains(step.launchTarget)
+        }
+        return AutoConnectStep.Resolution(connected: connected, hasRemaining: remaining)
+    }
+
+    /// The explainer finished: check off every auto-connected step. If that
+    /// leaves nothing for the user, finish onboarding; otherwise land on the hub
+    /// with the ready ones pre-checked — "here's what still needs you".
+    @MainActor
+    private func handleAutoConnectFinished(_ connected: [ProviderId]) {
+        let result = Self.applyAutoConnect(
+            plan: buildPlan(),
+            alreadyCompleted: completedStepNumbers,
+            connected: connected
+        )
+        completedStepNumbers = result.completed
+        if result.allDone {
+            completeOnboarding()
+        } else {
+            // Replace the transitional screen — Back from the hub returns to
+            // MultiSelect (auto-connect is skipped in history), which is correct.
+            advance(to: .setupPlan)
+        }
+    }
+
+    /// Pure checkoff logic: marks each auto-connected provider's plan step done
+    /// and reports whether the whole plan is now complete. A connected id with no
+    /// matching step is ignored (it should never check off something not in the
+    /// plan). Extracted for testing — this guards the "only genuinely-connected
+    /// steps get checked" guarantee.
+    static func applyAutoConnect(
+        plan: SetupPlan,
+        alreadyCompleted: Set<Int>,
+        connected: [ProviderId]
+    ) -> (completed: Set<Int>, allDone: Bool) {
+        var completed = alreadyCompleted
+        for id in connected {
+            if let step = plan.steps.first(where: { $0.launchTarget == id }) {
+                completed.insert(step.number)
+            }
+        }
+        let allDone = !plan.steps.isEmpty && plan.steps.allSatisfy { completed.contains($0.number) }
+        return (completed, allDone)
+    }
+
     // MARK: - Synthesis Execution (hub-and-spoke)
 
     /// Called by the SetupPlanStep primary button. Launches the next not-yet-done
@@ -256,21 +359,50 @@ struct ConnectorContainer: View {
                     activeConnector = nil
                     viewModel.redetectProviders()
                     _ = history.popLast()  // remove the .setupPlan pushed on launch
-                    screen = .setupPlan
+                    // Pop back to the hub — the spoke slides out to the right.
+                    retreat(to: .setupPlan)
                 case .allSet:
                     completeOnboarding()
                 }
             }
         )
-        screen = .connector
+        // Push the spoke in from the right.
+        advance(to: .connector)
     }
 
     // MARK: - Navigation
 
+    private static let navAnimation: Animation = .easeInOut(duration: 0.26)
+
+    /// The slide transition for the current `navDirection`. Forward enters from
+    /// the right (old exits left); backward reverses. Reduce Motion falls back to
+    /// a crossfade — a horizontal slide is exactly the kind of motion it guards against.
+    private var navTransition: AnyTransition {
+        if reduceMotion { return .opacity }
+        switch navDirection {
+        case .forward:
+            return .asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))
+        case .backward:
+            return .asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .trailing))
+        }
+    }
+
+    /// Animate forward (push): new screen slides in from the right.
+    private func advance(to next: Screen) {
+        navDirection = .forward
+        withAnimation(Self.navAnimation) { screen = next }
+    }
+
+    /// Animate backward (pop): previous screen slides in from the left.
+    private func retreat(to previous: Screen) {
+        navDirection = .backward
+        withAnimation(Self.navAnimation) { screen = previous }
+    }
+
     /// Push the current screen onto the back-history and navigate forward.
     private func go(to next: Screen) {
         history.append(screen)
-        screen = next
+        advance(to: next)
     }
 
     /// Pop one step off the back-history. If there's nothing to return to
@@ -278,7 +410,7 @@ struct ConnectorContainer: View {
     /// close the onboarding window instead of stranding the user.
     private func goBack() {
         if let previous = history.popLast() {
-            screen = previous
+            retreat(to: previous)
         } else {
             completeOnboarding()
         }
@@ -313,7 +445,7 @@ struct ConnectorContainer: View {
                 }
             }
         )
-        screen = .connector
+        advance(to: .connector)
     }
 
     /// Re-runs the guided wizard from the beginning. Clears the back-history and
@@ -324,7 +456,8 @@ struct ConnectorContainer: View {
         completedStepNumbers = []
         activeStepNumber = nil
         hasStartedSetup = false
-        screen = .welcome
+        // Rewind to the very start — slide back to Welcome.
+        retreat(to: .welcome)
     }
 
     private func completeOnboarding() {

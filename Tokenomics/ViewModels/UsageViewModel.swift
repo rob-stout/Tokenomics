@@ -729,6 +729,45 @@ final class UsageViewModel: ObservableObject {
         }
     }
 
+    /// Probes the given providers' *real* connection status and returns those
+    /// that are fully connected. Each probe runs `checkConnection()`, which
+    /// validates credentials live (hitting the provider API for Claude / Cursor /
+    /// Copilot) — so a returned id is genuinely connected, never just "a creds
+    /// file exists". Connected results are written into `providerStates` so the
+    /// running app reflects them immediately once polling starts.
+    ///
+    /// Used by the onboarding auto-connect step to check off providers that are
+    /// already installed + signed in, with zero user interaction. Probes run
+    /// concurrently so a handful of network validations resolve in parallel.
+    @MainActor
+    func probeAutoConnectable(_ ids: [ProviderId]) async -> Set<ProviderId> {
+        let pairs = ids.compactMap { id in providers[id].map { (id, $0) } }
+        guard !pairs.isEmpty else { return [] }
+
+        let results = await withTaskGroup(of: (ProviderId, ProviderConnectionState).self) { group in
+            for (id, provider) in pairs {
+                group.addTask { (id, await provider.checkConnection()) }
+            }
+            var acc: [(ProviderId, ProviderConnectionState)] = []
+            for await result in group { acc.append(result) }
+            return acc
+        }
+
+        var connected: Set<ProviderId> = []
+        for (id, connection) in results where connection.isConnected {
+            connected.insert(id)
+            let existing = providerStates[id] ?? .empty
+            providerStates[id] = ProviderState(
+                connection: connection,
+                usage: existing.usage,
+                error: existing.error,
+                lastSynced: existing.lastSynced,
+                isLoading: false
+            )
+        }
+        return connected
+    }
+
     /// Fetch a single provider by ID (called by the per-provider polling loop)
     private func fetchProvider(_ id: ProviderId) async {
         guard let provider = providers[id] else { return }
