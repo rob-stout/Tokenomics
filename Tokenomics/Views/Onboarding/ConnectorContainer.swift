@@ -425,6 +425,10 @@ struct ConnectorContainer: View {
         let connector = makeConnector(for: provider)
         activeConnector = ConnectorViewModel(
             connector: connector,
+            // Label the success CTA for where `.addAnother` actually lands: the
+            // chooser ("Add a provider") returns to add more; a pre-targeted
+            // session just finishes and shows usage.
+            continueLabel: isPreTargeted ? "Show my usage" : "Add another provider",
             onOutcome: { [self] outcome in
                 switch outcome {
                 case .addAnother:

@@ -65,6 +65,13 @@ actor BrowserExtensionConnector: ProviderConnector {
         ("Checking tools", "Install extension", "Connect", "Connection check")
     }
 
+    // This flow installs the shared browser extension, which covers many web
+    // providers — not just the placeholder `.chatgpt` id. Frame every screen
+    // around the extension so the title/success don't misleadingly say "ChatGPT".
+    nonisolated var flowDisplayName: String { "the browser extension" }
+    nonisolated var successTitle: String { "The browser extension is connected." }
+    nonisolated var successSubtitle: String { "Tokenomics is now reading your AI usage from the browser." }
+
     private static let log = Logger(
         subsystem: "com.robstout.tokenomics",
         category: "BrowserExtensionConnector"

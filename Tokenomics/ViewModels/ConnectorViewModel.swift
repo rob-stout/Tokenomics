@@ -19,6 +19,22 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
     /// Display name shown in the connector header.
     let providerName: String
 
+    /// Name used to frame the whole flow (window title + waiting copy). Equals
+    /// `providerName` for most connectors; the browser-extension connector
+    /// overrides it so its multi-provider flow isn't labelled "ChatGPT".
+    let flowDisplayName: String
+
+    /// Success-screen copy, supplied by the connector (defaults derive from the
+    /// provider name).
+    let successTitle: String
+    let successSubtitle: String
+
+    /// Label for the primary button on the success screen. It must describe where
+    /// `.addAnother` actually goes, which depends on the launching hub: the
+    /// synthesis plan ("Continue Setup") vs. the provider chooser ("Add another
+    /// provider"). Set by the container at creation.
+    let continueLabel: String
+
     let providerId: ProviderId
 
     let pipelineKind: ConnectorPipelineKind
@@ -125,10 +141,15 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
     // MARK: - Init
 
     init(connector: any ProviderConnector,
+         continueLabel: String = "Continue Setup",
          onOutcome: @escaping (Outcome) -> Void) {
         self.connector = connector
         self.providerId = connector.id
         self.providerName = connector.id.displayName
+        self.flowDisplayName = connector.flowDisplayName
+        self.successTitle = connector.successTitle
+        self.successSubtitle = connector.successSubtitle
+        self.continueLabel = continueLabel
         self.pipelineKind = connector.pipelineKind
         // nonisolated — safe to read directly without await
         self.labels = connector.stepperLabels

@@ -35,7 +35,7 @@ struct ConnectorView: View {
             }
         }
         .background(Tokens.DynamicColor.bg.ignoresSafeArea())
-        .navigationTitle("Connect \(viewModel.providerName)")
+        .navigationTitle("Connect \(viewModel.flowDisplayName)")
         .onAppear { viewModel.start() }
         .onDisappear { viewModel.stop() }
         // Debug-only shortcut: jump any connector straight to "connected" so the
@@ -88,7 +88,7 @@ struct ConnectorView: View {
 
             Spacer()
 
-            Text("Connect \(viewModel.providerName)")
+            Text("Connect \(viewModel.flowDisplayName)")
                 .font(Tokens.Typography.Onboarding.windowTitle)
                 .foregroundStyle(Tokens.Color.textMuted(scheme))
 
@@ -370,12 +370,12 @@ struct ConnectorView: View {
             .padding(.top, Tokens.Spacing.s1 + 2)
             .padding(.bottom, Tokens.Spacing.s4 + 2) // 18pt
 
-            Text("\(viewModel.providerName) is connected.")
+            Text(viewModel.successTitle)
                 .font(Tokens.Typography.Onboarding.h1)
                 .foregroundStyle(Tokens.Color.text(scheme))
                 .multilineTextAlignment(.center)
 
-            Text("Tokenomics is now reading your \(viewModel.providerName) usage.")
+            Text(viewModel.successSubtitle)
                 .font(Tokens.Typography.Onboarding.lede)
                 .foregroundStyle(Tokens.Color.textMuted(scheme))
                 .multilineTextAlignment(.center)
@@ -388,7 +388,7 @@ struct ConnectorView: View {
                 .multilineTextAlignment(.center)
 
             VStack(spacing: Tokens.Spacing.s2 + 2) { // 10pt
-                Button("Continue Setup") {
+                Button(viewModel.continueLabel) {
                     viewModel.tappedAddAnother()
                 }
                 .buttonStyle(.tokenPrimary)

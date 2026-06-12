@@ -291,6 +291,19 @@ protocol ProviderConnector: Actor {
     /// wants step 2 = "Installing Cursor", APIKeyConnector wants step 2 = "Get API key".
     /// The default returns the shared labels used by Pattern A/B/C connectors.
     nonisolated var stepperLabels: (step1: String, step2: String, step3: String, step4: String) { get }
+
+    /// Name used to frame the whole connector flow — window title ("Connect \(x)")
+    /// and waiting-state copy. Defaults to the provider's display name. The browser
+    /// extension overrides this because its flow covers many providers, not just its
+    /// placeholder `.chatgpt` id, so "Connect ChatGPT" would mislead.
+    nonisolated var flowDisplayName: String { get }
+
+    /// Headline on the success screen. Defaults to "\(name) is connected."
+    nonisolated var successTitle: String { get }
+
+    /// Body line under the success headline. Defaults to "Tokenomics is now reading
+    /// your \(name) usage."
+    nonisolated var successSubtitle: String { get }
 }
 
 // MARK: - Default no-op implementations
@@ -325,4 +338,11 @@ extension ProviderConnector {
     nonisolated var stepperLabels: (step1: String, step2: String, step3: String, step4: String) {
         ("Checking tools", "Installing tools", "Signing in", "Connection check")
     }
+
+    /// Default flow framing — the provider's own display name.
+    nonisolated var flowDisplayName: String { id.displayName }
+
+    nonisolated var successTitle: String { "\(id.displayName) is connected." }
+
+    nonisolated var successSubtitle: String { "Tokenomics is now reading your \(id.displayName) usage." }
 }
