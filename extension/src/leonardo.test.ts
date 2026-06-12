@@ -34,7 +34,7 @@ test('real fixture: FREE plan, 150 subscription tokens → correct sublabel', ()
   );
   assert.equal(snap.provider, 'leonardo');
   assert.equal(snap.shortWindow.label, 'Tokens');
-  assert.equal(snap.shortWindow.utilization, 0); // no total → always 0
+  assert.equal(snap.shortWindow.utilization, 0); // full balance → 0% used
   assert.equal(snap.shortWindow.sublabelOverride, '150 tokens left');
   assert.equal(snap.planLabel, 'Free');
   assert.equal(snap.longWindow, null);
@@ -134,4 +134,42 @@ test('empty object → safe defaults', () => {
 test('windowDurationSec is 86400 (daily)', () => {
   const snap = mapToSnapshot({}, NOW);
   assert.equal(snap.shortWindow.windowDurationSec, DAY_SEC);
+});
+
+// ── Utilization cap table ────────────────────────────────────
+
+test('FREE, subscriptionTokens 102 → utilization 32 and sublabel "102 tokens left"', () => {
+  // round((150 - 102) / 150 * 100) = round(32) = 32
+  const snap = mapToSnapshot({ plan: 'FREE', subscriptionTokens: 102, paidTokens: 0, rolloverTokens: 0 }, NOW);
+  assert.equal(snap.shortWindow.utilization, 32);
+  assert.equal(snap.shortWindow.sublabelOverride, '102 tokens left');
+});
+
+test('FREE, subscriptionTokens 75 → utilization 50', () => {
+  // round((150 - 75) / 150 * 100) = round(50) = 50
+  const snap = mapToSnapshot({ plan: 'FREE', subscriptionTokens: 75, paidTokens: 0, rolloverTokens: 0 }, NOW);
+  assert.equal(snap.shortWindow.utilization, 50);
+});
+
+test('ARTISAN, subscriptionTokens 12500 → utilization 50', () => {
+  // round((25000 - 12500) / 25000 * 100) = round(50) = 50
+  const snap = mapToSnapshot({ plan: 'ARTISAN', subscriptionTokens: 12500, paidTokens: 0, rolloverTokens: 0 }, NOW);
+  assert.equal(snap.shortWindow.utilization, 50);
+});
+
+test('APPRENTICE_V2 strips suffix → cap 8500, subscriptionTokens 4250 → utilization 50', () => {
+  // round((8500 - 4250) / 8500 * 100) = round(50) = 50
+  const snap = mapToSnapshot({ plan: 'APPRENTICE_V2', subscriptionTokens: 4250, paidTokens: 0, rolloverTokens: 0 }, NOW);
+  assert.equal(snap.shortWindow.utilization, 50);
+});
+
+test('unknown plan ENTERPRISE_XYZ → cap unknown → utilization 0 (safe fallback)', () => {
+  const snap = mapToSnapshot({ plan: 'ENTERPRISE_XYZ', subscriptionTokens: 50, paidTokens: 0, rolloverTokens: 0 }, NOW);
+  assert.equal(snap.shortWindow.utilization, 0);
+});
+
+test('clamp: FREE with subscriptionTokens 150 + paidTokens 100 (totalLeft 250 > cap 150) → utilization 0, not negative', () => {
+  // (150 - 250) / 150 = -0.666... → clamp to 0
+  const snap = mapToSnapshot({ plan: 'FREE', subscriptionTokens: 150, paidTokens: 100, rolloverTokens: 0 }, NOW);
+  assert.equal(snap.shortWindow.utilization, 0);
 });

@@ -30,8 +30,8 @@
  * Cognito→Auth0 migration — just the auth token delivery mechanism changed).
  *
  * Billing unit: tokens (daily — Free = 150/day, paid plans vary).
- * No total is available from this endpoint — utilization is left at 0.
- * // TODO: plan→cap table for a real ring — e.g. Free=150, Apprentice=8500, etc.
+ * Utilization is computed from a plan→cap table (see PLAN_CAPS below) because
+ * the API returns tokens *remaining* but no cap.
  *
  * NOTE: `apiCredit` / `apiSubscriptionTokens` fields are a SEPARATE developer-API
  * pool and are intentionally excluded from this reader.
@@ -41,6 +41,25 @@ import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
 
 const GRAPHQL_URL = 'https://api.leonardo.ai/v1/graphql';
 const DAY_SEC = 86400;
+
+// Per-plan token caps for the utilization ring. The Leonardo API returns
+// tokens *remaining* but no cap, so we map the plan to its known allotment.
+// Free is confirmed live (150/day); paid tiers are the published monthly
+// allotments. Verified 2026-06-11: Free=150, Apprentice=8,500, Artisan=25,000,
+// Maestro=60,000.
+const PLAN_CAPS: Record<string, number> = {
+  FREE: 150,
+  APPRENTICE: 8500,
+  ARTISAN: 25000,
+  MAESTRO: 60000,
+};
+
+/** Look up the token cap for a plan slug (handles "_V2" suffixes). Returns 0 when unknown. */
+function capForPlan(plan: string | undefined): number {
+  if (!plan) return 0;
+  const base = plan.trim().toUpperCase().split('_')[0]; // "APPRENTICE_V2" -> "APPRENTICE"
+  return PLAN_CAPS[base] ?? 0;
+}
 
 export class AuthError extends Error {
   constructor(status: number) {
@@ -153,11 +172,16 @@ export function mapToSnapshot(
   const rolloverTokens = num(details?.rolloverTokens);
   const totalLeft = subscriptionTokens + paidTokens + rolloverTokens;
 
-  // No total cap available from this endpoint — utilization unknown.
-  // TODO: plan→cap table for a real ring — Free=150, Apprentice=8500, Artisan=25000, etc.
+  const cap = capForPlan(details?.plan);
+  // When the cap is known, utilization = used/cap = (cap - remaining)/cap.
+  // Unknown plan (cap 0) keeps the previous safe behavior of 0%.
+  const utilization = cap > 0
+    ? Math.min(100, Math.max(0, Math.round(((cap - totalLeft) / cap) * 100)))
+    : 0;
+
   const shortWindow: WindowUsage = {
     label: 'Tokens',
-    utilization: 0,
+    utilization,
     resetsAt: renewalDateToIso(details?.tokenRenewalDate, now),
     windowDurationSec: DAY_SEC,
     sublabelOverride: `${totalLeft} tokens left`,
