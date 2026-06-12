@@ -38,9 +38,8 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   // Icon assets: elevenlabs-d.blue.svg and elevenlabs-white.svg exist in
   // extension/src/icons/providers/ and are wired in popup.css.
   elevenlabs: { tabLabel: 'ElevenLabs', displayName: 'ElevenLabs', iconBase: 'elevenlabs' },
-  // Icon assets: grok-d.blue.svg / grok-white.svg and perplexity-d.blue.svg /
-  // perplexity-white.svg exist in extension/src/icons/providers/ and are wired
-  // in popup.css. NOTE: leonardo still needs its icon asset — no clean SVG yet.
+  // Icon assets for grok / perplexity / leonardo (-d.blue.svg + -white.svg) exist
+  // in extension/src/icons/providers/ and are wired in popup.css.
   grok: { tabLabel: 'Grok', displayName: 'Grok', iconBase: 'grok' },
   perplexity: { tabLabel: 'Perplexity', displayName: 'Perplexity', iconBase: 'perplexity' },
   leonardo: { tabLabel: 'Leonardo', displayName: 'Leonardo', iconBase: 'leonardo' },
