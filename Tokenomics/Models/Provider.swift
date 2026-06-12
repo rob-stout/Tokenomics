@@ -295,9 +295,8 @@ extension ProviderId {
         case .gemini: return "Gemini"
         case .stableDiffusion: return "stability"
         case .midjourney: return "midjourney"
-        // NOTE: No icon assets exist yet for leonardo/grok/perplexity.
-        // Add <name>-d.blue.svg and <name>-white.svg to
-        // Tokenomics/Resources/Provider Icons/ to complete the icon set.
+        // Icon assets (black/d.blue/white, SVG + PNG 1x/2x) exist for all three
+        // in Tokenomics/Resources/Provider Icons/.
         case .leonardo: return "leonardo"
         case .runway: return "runway"
         case .elevenlabs: return "elevenlabs"
