@@ -35,15 +35,12 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   copilot: { tabLabel: 'Copilot', displayName: 'GitHub Copilot', iconBase: 'Copilot' },
   cursor: { tabLabel: 'Cursor', displayName: 'Cursor', iconBase: 'Cursor' },
   midjourney: { tabLabel: 'Midjourney', displayName: 'Midjourney', iconBase: 'midjourney' },
-  // NOTE: No ElevenLabs icon asset exists in extension/src/icons/providers/ yet.
-  // iconBase 'elevenlabs' is the agreed name — add elevenlabs-d.blue.svg and
-  // elevenlabs-white.svg to that directory to match the other provider icons.
-  // Until then the popup icon will fall back to whatever the PopupIcon component
-  // shows for an unknown iconBase (typically a generic placeholder).
+  // Icon assets: elevenlabs-d.blue.svg and elevenlabs-white.svg exist in
+  // extension/src/icons/providers/ and are wired in popup.css.
   elevenlabs: { tabLabel: 'ElevenLabs', displayName: 'ElevenLabs', iconBase: 'elevenlabs' },
-  // NOTE: No icon assets exist for grok/perplexity/leonardo yet.
-  // Add <name>-d.blue.svg and <name>-white.svg to extension/src/icons/providers/
-  // to match the other provider icons. Popup will fall back gracefully until then.
+  // Icon assets: grok-d.blue.svg / grok-white.svg and perplexity-d.blue.svg /
+  // perplexity-white.svg exist in extension/src/icons/providers/ and are wired
+  // in popup.css. NOTE: leonardo still needs its icon asset — no clean SVG yet.
   grok: { tabLabel: 'Grok', displayName: 'Grok', iconBase: 'grok' },
   perplexity: { tabLabel: 'Perplexity', displayName: 'Perplexity', iconBase: 'perplexity' },
   leonardo: { tabLabel: 'Leonardo', displayName: 'Leonardo', iconBase: 'leonardo' },

@@ -212,6 +212,16 @@ body {
 [data-theme='dark'] .tab__icon--cursor { background-image: url(../icons/providers/Cursor-white.svg); }
 [data-theme='dark'] .tab__icon--midjourney { background-image: url(../icons/providers/midjourney-white.svg); }
 
+.tab__icon--geminiConsumer { background-image: url(../icons/providers/Gemini-d.blue.svg); }
+.tab__icon--elevenlabs { background-image: url(../icons/providers/elevenlabs-d.blue.svg); }
+.tab__icon--grok { background-image: url(../icons/providers/grok-d.blue.svg); }
+.tab__icon--perplexity { background-image: url(../icons/providers/perplexity-d.blue.svg); }
+
+[data-theme='dark'] .tab__icon--geminiConsumer { background-image: url(../icons/providers/Gemini-white.svg); }
+[data-theme='dark'] .tab__icon--elevenlabs { background-image: url(../icons/providers/elevenlabs-white.svg); }
+[data-theme='dark'] .tab__icon--grok { background-image: url(../icons/providers/grok-white.svg); }
+[data-theme='dark'] .tab__icon--perplexity { background-image: url(../icons/providers/perplexity-white.svg); }
+
 /* ── Body ────────────────────────────────────────────── */
 
 .popup__body {
