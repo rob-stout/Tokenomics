@@ -38,7 +38,8 @@ const contentCtx = await esbuild.context({
     'content/gemini-main': 'src/content/gemini-main.ts',
     'content/gemini-watch': 'src/content/gemini-watch.ts',
     'content/elevenlabs-grab': 'src/content/elevenlabs-grab.ts',
-    'content/leonardo-grab': 'src/content/leonardo-grab.ts',
+    'content/leonardo-main': 'src/content/leonardo-main.ts',
+    'content/leonardo-watch': 'src/content/leonardo-watch.ts',
   },
   format: 'iife',
 });

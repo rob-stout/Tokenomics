@@ -1,31 +1,33 @@
 /**
  * Leonardo.ai usage reader.
  *
- * Auth: AWS Cognito ID token (Bearer) + `x-leo-schema-version: latest` header.
+ * Auth: Auth0 access token (Bearer) + `x-leo-schema-version: latest` header.
  *
  * ── HOW THE TOKEN IS OBTAINED ────────────────────────────────────────────────
- * Leonardo uses AWS Cognito. On app.leonardo.ai the Amplify SDK stores the
- * current user's ID token in localStorage under the key:
- *   CognitoIdentityServiceProvider.<clientId>.<userSub>.idToken
- *
- * The `userSub` is the JWT `sub` claim (also stored under the LastAuthUser key).
- *
- * A dedicated ISOLATED-world content script (`content/leonardo-grab.ts`) reads
- * both the token and the userSub from localStorage and posts them to the service
- * worker via `{ kind: 'LEONARDO_TOKEN' }`. The SW caches them and passes them
+ * Leonardo migrated from AWS Cognito to Auth0. The access token is no longer
+ * stored in localStorage — Auth0 keeps it purely in page memory (a closure
+ * inside the SDK). It is captured by a MAIN-world content script
+ * (`content/leonardo-main.ts`) that wraps window.fetch and observes the token
+ * off the page's own outgoing requests to api.leonardo.ai/v1/graphql. The
+ * ISOLATED relay (`content/leonardo-watch.ts`) forwards it to the service
+ * worker via `{ kind: 'LEONARDO_TOKEN' }`. The SW caches it and passes it
  * here for the GraphQL call.
  *
  * ── API ───────────────────────────────────────────────────────────────────────
  * POST https://api.leonardo.ai/v1/graphql
  * Headers: Authorization: Bearer <idToken>, x-leo-schema-version: latest
- * Body: GetUserDetails GraphQL query (confirmed live 2026-06-01)
+ * Body: GetUserTokensFromSub GraphQL query (confirmed live 2026-06-11)
  *
  * ── RESPONSE SHAPE ───────────────────────────────────────────────────────────
- * Real response (Free plan, 2026-06-01):
- *   { "data": { "users": [ { "user_details": [
+ * Real response (Free plan, 2026-06-11):
+ *   { "data": { "user_details": [
  *     { "plan": "FREE", "subscriptionTokens": 150, "paidTokens": 0,
  *       "rolloverTokens": 0, "tokenRenewalDate": "..." }
- *   ] } ] } }
+ *   ] } }
+ *
+ * NOTE: `user_details` is now a ROOT field (not nested under `users`).
+ * `$sub` is the cognitoId (the user's UUID identity, unchanged across the
+ * Cognito→Auth0 migration — just the auth token delivery mechanism changed).
  *
  * Billing unit: tokens (daily — Free = 150/day, paid plans vary).
  * No total is available from this endpoint — utilization is left at 0.
@@ -66,24 +68,24 @@ interface UserDetails {
 
 interface GraphQLResponse {
   data?: {
-    users?: Array<{
-      user_details?: UserDetails[];
-    }>;
+    user_details?: UserDetails[];
   };
 }
 
 // ── Fetch layer ───────────────────────────────────────────────
 
 const GET_USER_DETAILS_QUERY = `
-  query GetUserDetails($userSub: String) {
-    users(where: {user_details: {cognitoId: {_eq: $userSub}}}) {
-      user_details {
-        plan
-        subscriptionTokens
-        paidTokens
-        rolloverTokens
-        tokenRenewalDate
-      }
+  query GetUserTokensFromSub($sub: String) {
+    user_details(where: {cognitoId: {_eq: $sub}}) {
+      id
+      plan
+      subscriptionGptTokens
+      subscriptionModelTokens
+      tokenRenewalDate
+      streamTokens
+      paidTokens
+      subscriptionTokens
+      rolloverTokens
     }
   }
 `.trim();
@@ -91,8 +93,8 @@ const GET_USER_DETAILS_QUERY = `
 /**
  * Fetch token balance via the Leonardo GraphQL API.
  *
- * @param idToken  - Cognito ID token from localStorage.
- * @param userSub  - Cognito user sub (JWT sub claim).
+ * @param idToken  - Auth0 access token captured by the MAIN-world content script.
+ * @param userSub  - User's cognitoId (UUID; unchanged across the Auth0 migration).
  */
 async function fetchUserDetails(idToken: string, userSub: string): Promise<UserDetails | null> {
   const res = await fetch(GRAPHQL_URL, {
@@ -103,8 +105,8 @@ async function fetchUserDetails(idToken: string, userSub: string): Promise<UserD
       'x-leo-schema-version': 'latest',
     },
     body: JSON.stringify({
-      operationName: 'GetUserDetails',
-      variables: { userSub },
+      operationName: 'GetUserTokensFromSub',
+      variables: { sub: userSub },
       query: GET_USER_DETAILS_QUERY,
     }),
   });
@@ -114,7 +116,7 @@ async function fetchUserDetails(idToken: string, userSub: string): Promise<UserD
   if (!res.ok) throw new Error(`leonardo graphql fetch failed: ${res.status}`);
 
   const body = (await res.json()) as GraphQLResponse;
-  const details = body.data?.users?.[0]?.user_details?.[0] ?? null;
+  const details = body.data?.user_details?.[0] ?? null;
   console.log('[tokenomics] leonardo raw user_details:', details);
   return details;
 }
@@ -122,10 +124,10 @@ async function fetchUserDetails(idToken: string, userSub: string): Promise<UserD
 // ── Public API ────────────────────────────────────────────────
 
 /**
- * Fetch Leonardo token balance using a Cognito Bearer token.
+ * Fetch Leonardo token balance using an Auth0 Bearer token.
  *
- * @param idToken - The Cognito ID token from the leonardo-grab content script.
- * @param userSub - The Cognito user sub from the leonardo-grab content script.
+ * @param idToken - The Auth0 access token captured by the MAIN-world leonardo-main content script.
+ * @param userSub - The user's cognitoId (UUID) captured by the same content script.
  */
 export async function fetchLeonardoUsage(
   idToken: string,

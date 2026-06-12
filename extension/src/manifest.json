@@ -45,8 +45,14 @@
     },
     {
       "matches": ["https://app.leonardo.ai/*"],
-      "js": ["content/leonardo-grab.js"],
-      "run_at": "document_idle"
+      "js": ["content/leonardo-main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://app.leonardo.ai/*"],
+      "js": ["content/leonardo-watch.js"],
+      "run_at": "document_start"
     }
   ],
   "options_ui": {
