@@ -499,11 +499,6 @@ struct ConnectorContainer: View {
                 providerId: .runway,
                 provider: RunwayProvider()
             )
-        case .elevenlabs:
-            return APIKeyConnector(
-                providerId: .elevenlabs,
-                provider: ElevenLabsProvider()
-            )
         case .chatgpt:
             // In the synthesis flow .chatgpt is the BrowserExtensionConnector's id.
             // In the chooser path this case was previously a defensive fallback —
@@ -514,8 +509,11 @@ struct ConnectorContainer: View {
             // over the NMH bridge. No standalone connector; route through the
             // BrowserExtensionConnector just like ChatGPT/Midjourney.
             return BrowserExtensionConnector(webCompanion: webCompanion)
-        case .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
-            // These are web-companion-only with no standalone connector yet.
+        case .midjourney, .grok, .perplexity, .leonardo, .elevenlabs, .suno, .udio:
+            // These are web-companion-only with no standalone connector yet —
+            // their usage arrives over the NMH bridge from the extension readers.
+            // ElevenLabs used to route to APIKeyConnector, but it's bridge-fed now
+            // (Firebase bearer auth, usesAPIKeyAuth == false), so it belongs here.
             // BrowserExtensionConnector covers them as part of the extension batch;
             // reaching this path individually would be a routing bug. Defensive fallback.
             return BrowserExtensionConnector(webCompanion: webCompanion)
