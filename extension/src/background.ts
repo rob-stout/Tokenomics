@@ -53,6 +53,8 @@ import {
   setPerplexityAuth,
   setPerplexityBackoff,
   setPerplexitySnapshot,
+  getPerplexityCaps,
+  setPerplexityCaps,
   getLeonardoBackoff,
   getLeonardoSnapshot,
   setLeonardoAuth,
@@ -68,6 +70,7 @@ const MIDJOURNEY_ALARM = 'midjourney-poll';
 const ELEVENLABS_ALARM = 'elevenlabs-poll';
 const GROK_ALARM = 'grok-poll';
 const PERPLEXITY_ALARM = 'perplexity-poll';
+const LEONARDO_ALARM = 'leonardo-poll';
 const PLAN_REDETECT_ALARM = 'chatgpt-plan-redetect';
 const BRIDGE_HEARTBEAT_ALARM = 'bridgeHeartbeat';
 const POLL_PERIOD_MIN = 5;
@@ -75,6 +78,7 @@ const MIDJOURNEY_POLL_PERIOD_MIN = 10; // less frequent — billing data changes
 const ELEVENLABS_POLL_PERIOD_MIN = 10; // monthly billing window, no need to poll rapidly
 const GROK_POLL_PERIOD_MIN = 5;        // daily rolling window — poll at standard cadence
 const PERPLEXITY_POLL_PERIOD_MIN = 5;  // daily window
+const LEONARDO_POLL_PERIOD_MIN = 10;   // token balance changes slowly; gated on cached creds
 const PLAN_REDETECT_PERIOD_MIN = 60 * 24; // re-check plan once a day
 
 // Exponential backoff: 5m → 10m → 20m → 40m → 60m (cap)
@@ -91,8 +95,10 @@ registerRefreshWebProvidersHandler(() => {
   void pollElevenLabs('manual');
   void pollGrok('manual');
   void pollPerplexity('manual');
+  void pollLeonardo('manual');
   void recomputeChatGPTSnapshot();
-  // geminiConsumer and leonardo are content-script-driven — no manual re-fetch available.
+  // geminiConsumer is content-script-driven — no manual re-fetch available.
+  // leonardo re-fetches from cached creds (skips silently if none yet).
 });
 
 void sendBridgeBatch('ping').catch(() => undefined);
@@ -104,6 +110,7 @@ browser.runtime.onInstalled.addListener(async () => {
   void pollElevenLabs('install');
   void pollGrok('install');
   void pollPerplexity('install');
+  void pollLeonardo('install');
   void redetectChatGPTPlan('install');
 });
 
@@ -117,6 +124,7 @@ browser.alarms.onAlarm.addListener((alarm) => {
   else if (alarm.name === ELEVENLABS_ALARM) void pollElevenLabs('alarm');
   else if (alarm.name === GROK_ALARM) void pollGrok('alarm');
   else if (alarm.name === PERPLEXITY_ALARM) void pollPerplexity('alarm');
+  else if (alarm.name === LEONARDO_ALARM) void pollLeonardo('alarm');
   else if (alarm.name === PLAN_REDETECT_ALARM) void redetectChatGPTPlan('alarm');
   else if (alarm.name === BRIDGE_HEARTBEAT_ALARM) void sendBridgeBatch('heartbeat').catch(() => undefined);
 });
@@ -177,20 +185,22 @@ browser.runtime.onMessage.addListener(
     }
 
     if (msg.kind === 'REFRESH_REQUESTED') {
-      const [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff] = await Promise.all([
-        getBackoff(),
-        getMidjourneyBackoff(),
-        getElevenLabsBackoff(),
-        getGrokBackoff(),
-        getPerplexityBackoff(),
-      ]);
+      const [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff] =
+        await Promise.all([
+          getBackoff(),
+          getMidjourneyBackoff(),
+          getElevenLabsBackoff(),
+          getGrokBackoff(),
+          getPerplexityBackoff(),
+          getLeonardoBackoff(),
+        ]);
       // Report the earliest active backoff expiry to the caller.
       const now = Date.now();
-      const activeBackoffs = [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff]
+      const activeBackoffs = [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff]
         .filter((b): b is NonNullable<typeof b> => b !== null && now < b.until)
         .map((b) => b.until);
-      if (activeBackoffs.length === 5) {
-        // All five cookie-poll providers are backed off — surface the soonest expiry.
+      if (activeBackoffs.length === 6) {
+        // All six pollable web providers are backed off — surface the soonest expiry.
         return { kind: 'REFRESH_BACKOFF', until: Math.min(...activeBackoffs) };
       }
       try {
@@ -200,10 +210,12 @@ browser.runtime.onMessage.addListener(
           pollElevenLabs('manual'),
           pollGrok('manual'),
           pollPerplexity('manual'),
+          pollLeonardo('manual'),
           redetectChatGPTPlan('manual'),
         ]);
         await recomputeChatGPTSnapshot();
-        // geminiConsumer and leonardo are content-script-driven — no manual re-fetch here.
+        // geminiConsumer is content-script-driven — no manual re-fetch here.
+        // leonardo re-fetches from cached creds (skips silently if none yet).
         return { kind: 'REFRESH_COMPLETE' };
       } catch (err) {
         return { kind: 'REFRESH_FAILED', error: String(err) };
@@ -221,6 +233,7 @@ async function scheduleAlarms(): Promise<void> {
     browser.alarms.create(ELEVENLABS_ALARM, { periodInMinutes: ELEVENLABS_POLL_PERIOD_MIN }),
     browser.alarms.create(GROK_ALARM, { periodInMinutes: GROK_POLL_PERIOD_MIN }),
     browser.alarms.create(PERPLEXITY_ALARM, { periodInMinutes: PERPLEXITY_POLL_PERIOD_MIN }),
+    browser.alarms.create(LEONARDO_ALARM, { periodInMinutes: LEONARDO_POLL_PERIOD_MIN }),
     browser.alarms.create(PLAN_REDETECT_ALARM, { periodInMinutes: PLAN_REDETECT_PERIOD_MIN }),
     browser.alarms.create(BRIDGE_HEARTBEAT_ALARM, { periodInMinutes: 1 }),
   ]);
@@ -395,7 +408,9 @@ export async function pollPerplexity(trigger: 'install' | 'alarm' | 'manual'): P
   }
 
   try {
-    const snapshot = await fetchPerplexityUsage();
+    const priorCaps = await getPerplexityCaps();
+    const { snapshot, caps } = await fetchPerplexityUsage(priorCaps);
+    await setPerplexityCaps(caps);
     await setPerplexitySnapshot(snapshot);
     scheduleBridgeSend('snapshot');
     await setPerplexityAuth('authenticated');

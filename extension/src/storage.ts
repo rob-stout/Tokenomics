@@ -1,5 +1,6 @@
 import browser from 'webextension-polyfill';
 import type { ChatGPTMessageEvent, ChatGPTPlan } from './chatgpt';
+import type { PerplexityCaps } from './perplexity';
 import { isProviderId, type ProviderId } from './types';
 import type { AuthState, BackoffState, ProviderUsageSnapshot } from './snapshot';
 
@@ -31,6 +32,10 @@ const KEYS = {
   perplexitySnapshot: 'perplexitySnapshot',
   perplexityAuth: 'perplexityAuth',
   perplexityBackoff: 'perplexityBackoff',
+  // Perplexity inferred per-quota caps (high-water-mark — the endpoint returns
+  // remaining-only with no totals and no plan field, so the cap is the max
+  // remaining ever observed).
+  perplexityCaps: 'perplexityCaps',
   // Leonardo
   leonardoSnapshot: 'leonardoSnapshot',
   leonardoAuth: 'leonardoAuth',
@@ -243,6 +248,25 @@ export async function getPerplexityAuth(): Promise<AuthState> {
 
 export async function setPerplexityAuth(state: AuthState): Promise<void> {
   await browser.storage.local.set({ [KEYS.perplexityAuth]: state });
+}
+
+// ── Perplexity inferred caps (high-water-mark) ──────────────
+
+export async function getPerplexityCaps(): Promise<PerplexityCaps> {
+  const result = await browser.storage.local.get(KEYS.perplexityCaps);
+  const raw = result[KEYS.perplexityCaps];
+  if (!raw || typeof raw !== 'object') return {};
+  const caps = raw as PerplexityCaps;
+  // Only surface finite, non-negative numbers; ignore anything else.
+  const out: PerplexityCaps = {};
+  if (typeof caps.pro === 'number' && caps.pro >= 0) out.pro = caps.pro;
+  if (typeof caps.research === 'number' && caps.research >= 0) out.research = caps.research;
+  if (typeof caps.labs === 'number' && caps.labs >= 0) out.labs = caps.labs;
+  return out;
+}
+
+export async function setPerplexityCaps(caps: PerplexityCaps): Promise<void> {
+  await browser.storage.local.set({ [KEYS.perplexityCaps]: caps });
 }
 
 // ── Leonardo snapshot ───────────────────────────────────────
