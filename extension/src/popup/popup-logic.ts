@@ -30,6 +30,29 @@ export const WEB_PROVIDERS: readonly ProviderId[] = [
 // Order here drives the display order for native providers (appended after web).
 export const NATIVE_ONLY_PROVIDERS: readonly ProviderId[] = ['copilot', 'cursor', 'gemini'];
 
+// Web providers whose usage the extension reads from the logged-in browser
+// session. Their empty state tells the user to sign in to that site (NOT to
+// install the Mac app). URLs are the hosts the readers run on (manifest
+// content_scripts). Kept here next to WEB_PROVIDERS so the two stay in sync —
+// the `signInCoversAllWebProviders` test enforces that every web provider is
+// covered by SIGN_IN or COUNT_LOCALLY, so a new reader can't fall through to
+// the wrong "install the menu bar app" fallback again.
+export const SIGN_IN: Partial<Record<ProviderId, { url: string; site: string }>> = {
+  claude: { url: 'https://claude.ai', site: 'claude.ai' },
+  midjourney: { url: 'https://www.midjourney.com/', site: 'midjourney.com' },
+  grok: { url: 'https://grok.com', site: 'grok.com' },
+  perplexity: { url: 'https://www.perplexity.ai', site: 'perplexity.ai' },
+  leonardo: { url: 'https://app.leonardo.ai', site: 'leonardo.ai' },
+  elevenlabs: { url: 'https://elevenlabs.io', site: 'elevenlabs.io' },
+  geminiConsumer: { url: 'https://gemini.google.com', site: 'gemini.google.com' },
+};
+
+// ChatGPT path is a local counter, so the empty state asks the user to open
+// chatgpt.com and chat — that's what populates the counter (stored under codex).
+export const COUNT_LOCALLY: Partial<Record<ProviderId, { url: string; site: string }>> = {
+  codex: { url: 'https://chatgpt.com', site: 'chatgpt.com' },
+};
+
 // Gemini is tracked by the Mac app but not yet sending real snapshots (Phase 2 deferred).
 // Including it here means its row will appear once the bridge sends data for it.
 export type SnapshotSource = 'web' | 'native';

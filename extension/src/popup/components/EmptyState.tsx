@@ -1,5 +1,5 @@
 import { PROVIDER_META, type ProviderId } from '../../types';
-import { isWebProvider } from '../popup-logic';
+import { isWebProvider, SIGN_IN, COUNT_LOCALLY } from '../popup-logic';
 
 interface Props {
   provider: ProviderId;
@@ -9,17 +9,6 @@ interface Props {
 
 const COMING_SOON: ReadonlySet<ProviderId> = new Set([]);
 const TRYTOKENOMICS_URL = 'https://trytokenomics.com';
-
-const SIGN_IN: Partial<Record<ProviderId, { url: string; site: string }>> = {
-  claude: { url: 'https://claude.ai', site: 'claude.ai' },
-  midjourney: { url: 'https://www.midjourney.com/', site: 'midjourney.com' },
-};
-
-// ChatGPT path is a local counter, so the empty state asks the user to
-// open chatgpt.com and chat — that's what populates the counter.
-const COUNT_LOCALLY: Partial<Record<ProviderId, { url: string; site: string }>> = {
-  codex: { url: 'https://chatgpt.com', site: 'chatgpt.com' },
-};
 
 export function EmptyState({ provider, isNativeSource = false }: Props) {
   // Native-only providers (copilot, cursor, gemini) have no web reader.

@@ -12,9 +12,27 @@ import {
   bridgeWindowToWindowUsage,
   WEB_PROVIDERS,
   NATIVE_ONLY_PROVIDERS,
+  SIGN_IN,
+  COUNT_LOCALLY,
 } from './popup-logic';
 import type { BridgeSnapshot } from '../bridge-types';
 import type { ProviderUsageSnapshot } from '../snapshot';
+
+// ── Empty-state coverage guard ───────────────────────────────────
+// Every web provider must have an empty-state path that points at the BROWSER
+// (SIGN_IN) or the local-counter site (COUNT_LOCALLY). Without this, a newly
+// added web reader silently falls through to the wrong "install the menu bar
+// app" fallback in EmptyState — the bug that hid Grok/ElevenLabs/Gemini/Leonardo.
+test('signInCoversAllWebProviders: every web provider has a web empty state', () => {
+  const missing = WEB_PROVIDERS.filter(
+    (id) => SIGN_IN[id] === undefined && COUNT_LOCALLY[id] === undefined,
+  );
+  assert.deepEqual(
+    missing,
+    [],
+    `Web providers missing a SIGN_IN/COUNT_LOCALLY entry (they'd wrongly show "install the menu bar app"): ${missing.join(', ')}`,
+  );
+});
 
 // ── Helpers ──────────────────────────────────────────────────────
 
