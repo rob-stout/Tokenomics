@@ -11,14 +11,15 @@ const COMING_SOON: ReadonlySet<ProviderId> = new Set([]);
 const TRYTOKENOMICS_URL = 'https://trytokenomics.com';
 
 export function EmptyState({ provider, isNativeSource = false }: Props) {
-  // Native-only providers (copilot, cursor, gemini) have no web reader.
-  // Their empty state should ask the user to open the Mac app, not a website.
+  const meta = PROVIDER_META[provider];
+
+  // Native-only providers (copilot, cursor, gemini) have no web reader — their
+  // usage is read locally by the Mac app, so point there, not at a website.
   if (isNativeSource || !isWebProvider(provider)) {
-    const meta = PROVIDER_META[provider];
     return (
       <div class="empty-state">
         <p class="empty-state__copy">
-          Connect the Tokenomics menu bar app to see {meta.displayName} usage here.
+          Tokenomics reads {meta.displayName} from the app on your Mac. Open it to see your usage here.
         </p>
         <a
           class="empty-state__cta"
@@ -37,7 +38,7 @@ export function EmptyState({ provider, isNativeSource = false }: Props) {
     return (
       <div class="empty-state">
         <p class="empty-state__copy">
-          Sign in to {signIn.site} in your browser to start tracking your usage.
+          Tokenomics reads your {meta.displayName} usage from the web. Sign in to {signIn.site} to see it here.
         </p>
         <a
           class="empty-state__cta"
@@ -56,8 +57,7 @@ export function EmptyState({ provider, isNativeSource = false }: Props) {
     return (
       <div class="empty-state">
         <p class="empty-state__copy">
-          Open {countLocally.site} and send a message — your usage is
-          counted locally as you chat.
+          Tokenomics counts your ChatGPT usage as you chat. Open {countLocally.site} and send a message.
         </p>
         <a
           class="empty-state__cta"
@@ -79,7 +79,6 @@ export function EmptyState({ provider, isNativeSource = false }: Props) {
     );
   }
 
-  const meta = PROVIDER_META[provider];
   return (
     <div class="empty-state">
       <p class="empty-state__copy">
