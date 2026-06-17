@@ -110,6 +110,10 @@ final class PoolLabelAlignmentTests: XCTestCase {
             (.elevenlabs, .elevenlabs),
             (.runway, .runway),
             (.stableDiffusion, .stableDiffusion),
+            (.midjourney, .midjourney),
+            (.leonardo, .leonardo),
+            (.grok, .grok),
+            (.perplexity, .perplexity),
         ]
         for (pick, provider) in mapping {
             let rep = WidgetProviderSelection.caseDisplayRepresentations[pick]

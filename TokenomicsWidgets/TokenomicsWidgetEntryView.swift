@@ -181,6 +181,14 @@ struct SmallWidgetView: View {
         case .chatgpt:
             // Consumer ChatGPT pool — NMH bridge data.
             return providers.first(where: { $0.id == "chatgpt" })
+        case .midjourney:
+            return providers.first(where: { $0.id == "midjourney" })
+        case .leonardo:
+            return providers.first(where: { $0.id == "leonardo" })
+        case .grok:
+            return providers.first(where: { $0.id == "grok" })
+        case .perplexity:
+            return providers.first(where: { $0.id == "perplexity" })
         }
     }
 

@@ -29,6 +29,11 @@ enum WidgetProviderSelection: String, AppEnum {
     case elevenlabs      = "elevenlabs"
     case runway          = "runway"
     case stableDiffusion = "stableDiffusion"
+    // Web-companion pools (NMH bridge). Raw values match ProviderId.
+    case midjourney      = "midjourney"
+    case leonardo        = "leonardo"
+    case grok            = "grok"
+    case perplexity      = "perplexity"
 
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -45,7 +50,11 @@ enum WidgetProviderSelection: String, AppEnum {
         .cursor:          "Cursor",
         .elevenlabs:      "ElevenLabs",
         .runway:          "Runway",
-        .stableDiffusion: "Stability AI"
+        .stableDiffusion: "Stability AI",
+        .midjourney:      "Midjourney",
+        .leonardo:        "Leonardo",
+        .grok:            "Grok",
+        .perplexity:      "Perplexity"
     ]
 }
 
