@@ -101,8 +101,10 @@ if [[ -n "$SHIPPED_VERSION" && "$NEW_VERSION" == "$SHIPPED_VERSION" ]]; then
     die "Version $NEW_VERSION is the same as the last shipped release.\nBump the version in project.yml before distributing."
 fi
 
-# Update build number in both files, sync version to Info.plist
-sed -i '' "s/CFBundleVersion: \".*\"/CFBundleVersion: \"$NEXT_BUILD\"/" "$YML_PATH"
+# Update build number, sync version to Info.plist.
+# /g: bump CFBundleVersion for BOTH targets (main app + widgets) so their
+# build numbers stay in sync — without it, only the first (main) target bumps.
+sed -i '' "s/CFBundleVersion: \".*\"/CFBundleVersion: \"$NEXT_BUILD\"/g" "$YML_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT_BUILD" "$PLIST_PATH"
 
