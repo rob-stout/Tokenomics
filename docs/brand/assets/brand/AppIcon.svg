@@ -1,0 +1,239 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- macOS rounded-rect clip: squircle approximation via corner radius = 22.37% -->
+    <clipPath id="squircle">
+      <rect width="1024" height="1024" rx="229" ry="229"/>
+    </clipPath>
+
+    <!-- Background gradient: deep neutral-dark, slight warm tint -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1C1C1E"/>
+      <stop offset="100%" stop-color="#131315"/>
+    </linearGradient>
+
+    <!-- Arc track gradient: dark muted ring -->
+    <linearGradient id="trackGrad" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#3A3A3C"/>
+      <stop offset="100%" stop-color="#2C2C2E"/>
+    </linearGradient>
+
+    <!-- Arc fill gradient: electric cyan-to-teal, the "healthy" token state -->
+    <!-- Distinct from system orange/red so the icon represents the neutral/good state -->
+    <linearGradient id="arcGrad" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#6EE7F7"/>
+      <stop offset="100%" stop-color="#30C8A8"/>
+    </linearGradient>
+
+    <!-- Needle glow filter -->
+    <filter id="needleGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft center glow behind needle pivot -->
+    <radialGradient id="pivotGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#6EE7F7" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#6EE7F7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Icon background -->
+  <g clip-path="url(#squircle)">
+    <rect width="1024" height="1024" fill="url(#bgGrad)"/>
+
+    <!--
+      GAUGE ARC
+      Center: 512, 530 (slightly below true center for optical balance)
+      Outer radius: 310  Inner radius: 240  (track is 70px thick)
+      Arc span: 240 degrees, from 150deg to 390deg (30deg past 12 o'clock)
+      —— so the gap (open section) is at the bottom, 120deg wide, symmetric ——
+
+      SVG arc math:
+        startAngle = 150deg  -> radians from positive-X = 150  (CCW in SVG = CW visually)
+        endAngle   = 30deg   (= 390deg wrapped)
+
+      Converting to path coords (SVG Y-down, angles from 3 o'clock, clockwise):
+        angle_svg = angle_standard (3 o'clock = 0, going CW)
+        150deg standard → point at (cx + r*cos(150°), cy + r*sin(150°))
+        30deg standard  → point at (cx + r*cos(30°),  cy + r*sin(30°))
+
+      Arc is CLOCKWISE (large-arc-flag = 1 for 240deg > 180deg)
+    -->
+
+    <!-- Computed values (cx=512, cy=530):
+      Outer arc (R=310):
+        start (150°): x = 512 + 310*cos(150) = 512 - 268.5 = 243.5,  y = 530 + 310*sin(150) = 530 + 155 = 685
+        end   (30°):  x = 512 + 310*cos(30)  = 512 + 268.5 = 780.5,  y = 530 + 310*sin(30)  = 530 + 155 = 685
+        ... wait, we want the open gap at the BOTTOM, so gap centered at 270° (6 o'clock).
+        Gap = 120°, so arc runs from 210° to 510° (=150°) — from bottom-left to bottom-right, going CW through top.
+
+      Corrected: gap is at bottom (270°), gap half-width = 60°
+        arcStart = 270 - 60 - 90  ... let me use standard trig directly.
+
+      Gap centered at 270° (bottom). Gap = 120°.
+      Arc start = 270 + 60 = 330° (lower-right)
+      Arc end   = 270 - 60 = 210° (lower-left)
+      Direction: clockwise (so we go 330 → 360/0 → 90 → 180 → 210, sweeping 240° CW)
+
+      Outer R=310, cx=512, cy=530:
+        start(330°): x=512+310*cos(330)=512+268.5=780.5,  y=530+310*sin(330)=530-155=375
+        end  (210°): x=512+310*cos(210)=512-268.5=243.5,  y=530+310*sin(210)=530-155=375
+
+      Inner R=240, cx=512, cy=530:
+        start(330°): x=512+240*cos(330)=512+207.8=719.8,  y=530+240*sin(330)=530-120=410
+        end  (210°): x=512+240*cos(210)=512-207.8=304.2,  y=530+240*sin(210)=530-120=410
+
+      For the filled arc at ~60% fill (showing a healthy-but-partial state):
+        Fill sweeps from 330° CW by 144° (60% of 240°) = ending at 330+144 = 474° = 114°
+        end(114°): outer x=512+310*cos(114)=512-126.7=385.3, y=530+310*sin(114)=530+283.1=813.1 — too low
+        Let me recalc: 60% of 240° = 144°, end = 330+144 = 474° mod 360 = 114°
+        cos(114°) = -0.4067, sin(114°) = 0.9135
+        outer end(114°): x=512+310*(-0.4067)=512-126.1=385.9, y=530+310*(0.9135)=530+283.2=813.2
+
+        That's correct for a 60% fill ending in upper-left quadrant.
+        Inner end(114°): x=512+240*(-0.4067)=512-97.6=414.4, y=530+240*(0.9135)=530+219.2=749.2
+    -->
+
+    <!-- TRACK (full 240° arc, unfilled background) -->
+    <path
+      d="
+        M 780.5 375
+        A 310 310 0 1 1 243.5 375
+        L 304.2 410
+        A 240 240 0 1 0 719.8 410
+        Z
+      "
+      fill="url(#trackGrad)"
+    />
+
+    <!-- FILL (60% of arc — a plausible "mid-usage" state that reads as a gauge with headroom) -->
+    <path
+      d="
+        M 780.5 375
+        A 310 310 0 0 1 385.9 813.2
+        L 414.4 749.2
+        A 240 240 0 0 0 719.8 410
+        Z
+      "
+      fill="url(#arcGrad)"
+    />
+
+    <!-- ARC END CAP — rounded terminator on the fill end, reinforces gauge feel -->
+    <circle cx="385.9" cy="813.2" r="35" fill="url(#arcGrad)" opacity="0.9"/>
+    <circle cx="414.4" cy="749.2" r="27" fill="url(#arcGrad)" opacity="0.6"/>
+
+    <!-- START CAP — subtle cap at arc origin (330°, lower-right) -->
+    <circle cx="750" cy="392" r="35" fill="#2C2C2E"/>
+
+    <!--
+      TICK MARKS
+      Three small ticks at key positions on the outer radius edge (R=326):
+        0%   marker at 330°
+        50%  marker at 330 + 120 = 450° = 90° (top)
+        100% marker at 210°
+      Tick: a short radial line from R=295 to R=325
+    -->
+
+    <!-- 0% tick (330°) — cx+R*cos, cy+R*sin -->
+    <!-- cos(330)=0.866, sin(330)=-0.5 -->
+    <line
+      x1="512" y1="530"
+      x2="512" y2="530"
+      stroke="none"
+    />
+    <!-- Using transform-based ticks for precision -->
+    <g transform="translate(512 530)">
+      <!-- 0% = 330° -->
+      <line
+        x1="268" y1="-134"
+        x2="295" y2="-147.5"
+        stroke="#3A3A3C" stroke-width="8" stroke-linecap="round"
+        transform="rotate(60)"
+      />
+      <!-- 50% = 90° (top) -->
+      <line
+        x1="0" y1="-268"
+        x2="0" y2="-297"
+        stroke="#3A3A3C" stroke-width="8" stroke-linecap="round"
+      />
+      <!-- 100% = 210° -->
+      <line
+        x1="-268" y1="-134"
+        x2="-295" y2="-147.5"
+        stroke="#3A3A3C" stroke-width="8" stroke-linecap="round"
+        transform="rotate(-60)"
+      />
+    </g>
+
+    <!--
+      NEEDLE
+      Pivots from center (512, 530).
+      At 60% fill, needle points to the same angle as the fill end: 330 + 144 = 114°
+      cos(114)=-0.4067, sin(114)=0.9135
+
+      Needle: a slim tapered line, tip at R=270, tail at R=-60 (counterbalance)
+      Tip:  512 + 270*(-0.4067) = 512 - 109.8 = 402.2,  530 + 270*(0.9135) = 530 + 246.6 = 776.6
+      Tail: 512 + (-60)*(-0.4067) = 512 + 24.4 = 536.4,  530 + (-60)*(0.9135) = 530 - 54.8 = 475.2
+    -->
+
+    <!-- Needle glow -->
+    <line
+      x1="536.4" y1="475.2"
+      x2="402.2" y2="776.6"
+      stroke="#6EE7F7"
+      stroke-width="18"
+      stroke-linecap="round"
+      opacity="0.25"
+      filter="url(#needleGlow)"
+    />
+
+    <!-- Needle body -->
+    <line
+      x1="536.4" y1="475.2"
+      x2="402.2" y2="776.6"
+      stroke="white"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+
+    <!-- Pivot glow halo -->
+    <circle cx="512" cy="530" r="80" fill="url(#pivotGlow)"/>
+
+    <!-- Pivot cap -->
+    <circle cx="512" cy="530" r="28" fill="#3A3A3C"/>
+    <circle cx="512" cy="530" r="18" fill="white" opacity="0.9"/>
+
+    <!--
+      PERCENTAGE LABEL
+      Shows "60%" — represents a mid-state reading. Monospaced, centered below pivot.
+      In production the icon is static; this is purely the icon composition.
+    -->
+    <text
+      x="512"
+      y="430"
+      text-anchor="middle"
+      font-family="-apple-system, SF Pro Display, Helvetica Neue, sans-serif"
+      font-size="88"
+      font-weight="700"
+      letter-spacing="-2"
+      fill="white"
+      opacity="0.92"
+    >60%</text>
+
+    <!-- SUBTLE LABEL — "tokens" wordmark, very small, gives the icon a utility feel at large sizes -->
+    <text
+      x="512"
+      y="650"
+      text-anchor="middle"
+      font-family="-apple-system, SF Pro Text, Helvetica Neue, sans-serif"
+      font-size="52"
+      font-weight="400"
+      letter-spacing="12"
+      fill="white"
+      opacity="0.28"
+    >TOKENS</text>
+  </g>
+</svg>

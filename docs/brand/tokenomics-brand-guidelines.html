@@ -1,0 +1,3322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tokenomics — Design System · App Addendum</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hedvig+Letters+Serif:opsz@12..24&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+  /* ---------- TOKENS ---------- */
+  :root {
+    /* Brand / palette (from Figma) */
+    --ink-900: #051928;    /* BG Grad End (deep) */
+    --ink-800: #0E334D;    /* BG Grad Start (navy) */
+    --ink-700: #286195;    /* Bar Track base (dark ink) */
+    --brand-600: #2F84BF;  /* Label / Short Bar (light) */
+    --brand-500: #3389C7;  /* Long Bar (dark) */
+    --brand-400: #4BA6D2;  /* Bar Track base (dark) */
+    --brand-300: #56A2D6;  /* Long Bar (light) */
+    --brand-200: #75CBF5;  /* Label / Short Bar (dark) */
+
+    --cream-50:  #F3EFE5;  /* BG Grad Start (light) */
+    --cream-100: #E6E0D4;  /* BG Grad End (light) */
+    --cream-200: #D9D1C0;  /* derived surface-2 */
+
+    --white: #FFFFFF;
+
+    /* Website semantic tokens — default (light) */
+    --bg:        var(--cream-50);
+    --bg-2:      var(--cream-100);
+    --surface:   #FFFFFF;
+    --surface-2: #FBF8F1;
+    --border:    rgba(14,51,77,0.12);
+    --border-strong: rgba(14,51,77,0.22);
+    --text:      #0E334D;
+    --text-muted: rgba(14,51,77,0.64);
+    --text-subtle: rgba(14,51,77,0.44);
+    --accent:    #2F84BF;
+    --accent-ink:#0E334D;
+
+    /* Semantic — pulled from app onboarding (guided-onboarding-mockup.html) */
+    --success:   #2F8F4F;
+    --warning:   #C26A1F;
+    --danger:    #B33A3A;
+
+    /* Type */
+    --font-serif: 'Hedvig Letters Serif', 'Iowan Old Style', Georgia, serif;
+    --font-sans:  'DM Sans', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+
+    /* Scale (clamped for responsive) */
+    --fs-display: clamp(48px, 6.4vw, 88px);
+    --fs-h1: clamp(36px, 4.4vw, 56px);
+    --fs-h2: clamp(28px, 3.2vw, 40px);
+    --fs-h3: clamp(22px, 2.2vw, 28px);
+    --fs-h4: 20px;
+    --fs-body-lg: 18px;
+    --fs-body: 16px;
+    --fs-small: 14px;
+    --fs-micro: 12px;
+
+    /* Spacing (8pt) */
+    --s-1: 4px;
+    --s-2: 8px;
+    --s-3: 12px;
+    --s-4: 16px;
+    --s-5: 24px;
+    --s-6: 32px;
+    --s-7: 48px;
+    --s-8: 64px;
+    --s-9: 96px;
+
+    /* Radius */
+    --r-xs: 6px;
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 20px;
+    --r-xl: 28px;
+    --r-pill: 999px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(14,51,77,0.06), 0 1px 1px rgba(14,51,77,0.04);
+    --shadow-md: 0 8px 24px rgba(14,51,77,0.10), 0 2px 6px rgba(14,51,77,0.06);
+    --shadow-lg: 0 28px 60px rgba(14,51,77,0.10), 0 8px 18px rgba(14,51,77,0.05);
+    --shadow-ring: 0 0 0 4px rgba(47,132,191,0.18);
+
+    /* Motion */
+    --ease: cubic-bezier(.2,.7,.2,1);
+    --dur-fast: 120ms;
+    --dur: 220ms;
+    --dur-slow: 420ms;
+
+    /* Widget gradients (from Figma) */
+    --widget-light: linear-gradient(135deg, #F3EFE5 0%, #E6E0D4 100%);
+    --widget-dark:  linear-gradient(135deg, #0E334D 0%, #051928 100%);
+  }
+
+  [data-theme="dark"] {
+    --bg:        #07101a;
+    --bg-2:      #0b1a29;
+    --surface:   #0E334D;
+    --surface-2: #0a2439;
+    --border:    rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.22);
+    --text:      #E6EEF6;
+    --text-muted: rgba(230,238,246,0.68);
+    --text-subtle: rgba(230,238,246,0.44);
+    --accent:    #75CBF5;
+    --accent-ink:#E6EEF6;
+    --success:   #6FD18A;
+    --warning:   #E2A765;
+    --danger:    #E27777;
+  }
+
+  /* ---------- BASE ---------- */
+  *,*::before,*::after { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
+    font-feature-settings: "ss01","cv11";
+  }
+  h1,h2,h3,h4 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.08;
+    margin: 0 0 var(--s-3);
+    color: var(--text);
+  }
+  h1 { font-size: var(--fs-h1); }
+  h2 { font-size: var(--fs-h2); }
+  h3 { font-size: var(--fs-h3); }
+  h4 { font-size: var(--fs-h4); }
+  p  { margin: 0 0 var(--s-4); color: var(--text-muted); max-width: 64ch; }
+  a  { color: var(--accent); text-underline-offset: 3px; }
+  code, kbd {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    color: var(--text);
+    padding: 2px 6px;
+    border-radius: var(--r-xs);
+  }
+  hr { border: 0; border-top: 1px solid var(--border); margin: var(--s-8) 0; }
+
+  /* ---------- LAYOUT ---------- */
+  .page { max-width: 1200px; margin: 0 auto; padding: var(--s-8) var(--s-5) var(--s-9); }
+
+  .nav {
+    position: sticky; top: 0; z-index: 10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: var(--s-4) var(--s-5);
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display:flex; align-items:center; justify-content:space-between; max-width: 1200px; margin: 0 auto; width:100%;}
+  .brand { display:flex; align-items:center; gap: var(--s-3); font-family: var(--font-serif); font-size: 22px; letter-spacing: -0.01em;}
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--widget-dark);
+    display:grid; place-items:center; color:#fff;
+    font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  }
+  .nav-links { display:flex; gap: var(--s-5); font-size: var(--fs-small); color: var(--text-muted); }
+  .nav-links a { color: inherit; text-decoration: none; }
+  .nav-links a:hover { color: var(--text); }
+  .theme-toggle {
+    font-family: var(--font-sans);
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: var(--r-pill);
+    font-size: var(--fs-small);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+  }
+  .theme-toggle:hover { background: var(--surface-2); }
+
+  .hero { padding: var(--s-9) 0 var(--s-7); text-align:left; }
+  .eyebrow {
+    display:inline-block;
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    margin-bottom: var(--s-4);
+  }
+  .display {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display);
+    line-height: 0.98;
+    letter-spacing: -0.022em;
+    margin: 0 0 var(--s-5);
+    max-width: 14ch;
+  }
+  .display em { font-style: italic; color: var(--accent); }
+  .lede { font-size: var(--fs-body-lg); color: var(--text-muted); max-width: 56ch; }
+
+  section { margin: var(--s-8) 0; scroll-margin-top: 80px; }
+  .section-header { display:flex; align-items:baseline; justify-content:space-between; margin-bottom: var(--s-5); gap: var(--s-4); flex-wrap: wrap;}
+  .section-header .kicker { display: block; font-family: var(--font-sans); font-size: var(--fs-micro); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-subtle); margin-bottom: var(--s-3); }
+
+  .grid { display:grid; gap: var(--s-4); }
+  .grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .grid.cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  @media (max-width: 800px) {
+    .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .grid.cols-2 { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--s-5);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ---------- COLOR SWATCHES ---------- */
+  .swatch {
+    border-radius: var(--r-md);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .swatch .chip {
+    height: 96px;
+    border-bottom: 1px solid var(--border);
+  }
+  .swatch .meta {
+    padding: var(--s-3) var(--s-4);
+    display:flex; flex-direction:column; gap: 2px;
+  }
+  .swatch .name { font-weight: 500; font-size: var(--fs-small); }
+  .swatch .hex { font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-micro); color: var(--text-muted); text-transform: uppercase; }
+
+  /* ---------- TYPOGRAPHY SPECIMEN ---------- */
+  .type-row {
+    display:grid; grid-template-columns: 180px 1fr; gap: var(--s-5);
+    padding: var(--s-4) 0;
+    border-top: 1px solid var(--border);
+    align-items:baseline;
+  }
+  .type-row:last-child { border-bottom: 1px solid var(--border); }
+  .type-label { font-family: var(--font-sans); font-size: var(--fs-micro); letter-spacing:0.08em; text-transform:uppercase; color: var(--text-subtle); }
+  .type-label small { display:block; font-size: 11px; color: var(--text-subtle); text-transform: none; letter-spacing:0; margin-top:2px;}
+
+  .serif { font-family: var(--font-serif); }
+  .sans  { font-family: var(--font-sans); }
+
+  /* ---------- BUTTONS ---------- */
+  .btn-row { display:flex; flex-wrap:wrap; gap: var(--s-3); align-items:center; }
+  .btn {
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    font-weight: 500;
+    padding: 12px 20px;
+    border-radius: var(--r-pill);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    display: inline-flex; align-items:center; gap: var(--s-2);
+    line-height: 1;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--accent-ink); color: #fff; }
+  .btn-primary:hover { background: #14456b; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  [data-theme="dark"] .btn-primary { background: var(--brand-200); color: var(--ink-900); }
+  [data-theme="dark"] .btn-primary:hover { background: #9cdcfa; }
+
+  .btn-secondary { background: transparent; color: var(--text); border-color: var(--border-strong); }
+  .btn-secondary:hover { background: var(--surface-2); }
+  .btn-secondary:disabled { color: rgba(14,51,77,0.80); border-color: var(--border); cursor: default; }
+  [data-theme="dark"] .btn-secondary:disabled { color: rgba(230,238,246,0.80); border-color: var(--border); }
+
+  .btn-ghost { background: transparent; color: var(--text-muted); padding: 10px 14px;}
+  .btn-ghost:hover { color: var(--text); background: var(--surface-2); }
+
+  .btn-sm { padding: 8px 14px; font-size: var(--fs-small);}
+  .btn-lg { padding: 14px 36px; font-size: var(--fs-body-lg);}
+
+  /* ---------- PILL / BADGE ---------- */
+  .pill {
+    display:inline-flex; align-items:center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    font-size: var(--fs-micro);
+    font-weight: 500;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .pill.dot::before { content:""; width:6px; height:6px; border-radius:50%; background: currentColor; }
+
+  /* ---------- INPUT ---------- */
+  .field {
+    display:flex; flex-direction:column; gap: 6px;
+  }
+  .field label { font-size: var(--fs-small); color: var(--text-muted); font-weight:500;}
+  .input {
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    padding: 12px 14px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  }
+  .input:focus { outline: none; border-color: var(--accent); box-shadow: var(--shadow-ring); }
+
+  /* ---------- WIDGET MOCKUPS (mirrors TokenomicsWidgetEntryView.swift) ---------- */
+  .widget-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-5);
+    align-items: flex-start;
+  }
+
+  /* Widget container — matches WidgetKit sizes (systemSmall 170, systemMedium 360x170, systemLarge 360x360 roughly) */
+  .widget {
+    position: relative;
+    overflow: hidden;
+    border-radius: 22px;
+    font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+    box-shadow: var(--shadow-lg);
+    /* Swift gradient: stops [.103 → .881], start (0.35,0) → end (0.65,1.0) */
+  }
+  /* Widget gradient direction matches the design-system swatch: 135deg
+     (light at top-left → dark at bottom-right). Earlier 197deg was
+     horizontally mirrored relative to the spec; design-system is
+     authoritative. */
+  .widget.light {
+    background: linear-gradient(135deg, #F3EFE5 1.6%, #E6E0D4 84.5%);
+    color: #2F84BF;
+  }
+  .widget.dark {
+    background: linear-gradient(135deg, #0E334D 10.3%, #051928 88.1%);
+    color: #75CBF5;
+  }
+
+  /* Widget sizes — FIXED dimensions tied by the WidgetKit proportional
+     rule: 2 × small + gap = medium width; 2 × medium height + gap =
+     large height; medium width = large width.
+     With small=200 and gap=32: medium = 432×200, large = 432×432.
+     Don't try to scale these — inner content uses fixed pixel sizes
+     (12px caption, 4px bars) and breaks under container queries. */
+  .w-small  { width: 200px; height: 200px; }
+  .w-medium { width: 432px; height: 200px; }
+  .w-large  { width: 432px; height: 432px; }
+
+  /* Content padding: .padding(.top, 14), .bottom, 16 (medium) or 14 (large), horizontal 16 */
+  .w-body {
+    position: absolute; inset: 0;
+    padding: 14px 16px 16px 16px;
+    display: flex; flex-direction: column;
+    font-feature-settings: "tnum";
+  }
+  .w-large .w-body { padding-bottom: 14px; }
+
+  /* Header row: "Tokenomics" caption.semibold + relative time caption2 */
+  .w-head {
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size: 12px; /* .caption */
+  }
+  .w-head .title { font-weight: 600; }
+  .w-head .time  { font-size: 11px; /* .caption2 */ }
+  .widget.dark  .w-head { color: rgba(117,203,245,0.5); }
+  .widget.light .w-head { color: rgba(47,132,191,0.67); }
+
+  /* Spacing under header: 20pt (spacious) or 8pt (compact) or 14pt (large w/ overflow) */
+  .w-head.gap-spacious { margin-bottom: 20px; }
+  .w-head.gap-compact  { margin-bottom: 8px;  }
+  .w-head.gap-overflow { margin-bottom: 14px; }
+
+  /* Rows container */
+  .w-rows { display:flex; flex-direction:column; flex: 1 1 auto; min-height: 0; }
+
+  /* ---- CompactProviderRow (Medium 2+, Large 4+) ---- */
+  .row-compact {
+    display: grid;
+    grid-template-columns: 17px 1fr 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .row-compact .pico {
+    width: 17px; height: 17px;
+    display:grid; place-items:center;
+  }
+  .row-compact .pico img { width: 17px; height: 17px; display:block; object-fit: contain; }
+  .row-compact .col { display:flex; flex-direction:column; gap: 2px; min-width: 0; }
+  .row-compact .col .head {
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
+  .row-compact .col .lbl { font-size: 9px; }
+  .row-compact .col .pct { font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .widget.dark  .lbl { color: rgba(117,203,245,0.5); }
+  .widget.light .lbl { color: rgba(47,132,191,0.67); }
+
+  /* Compact rows — spacing between rows clamped between 8 and 24 (Medium) / 12 and 28 (Large) */
+  .w-medium .row-compact + .row-compact { margin-top: 16px; }
+  .w-large  .row-compact + .row-compact { margin-top: 20px; }
+
+  /* ---- LargeProviderRow (Medium 1, Large 1-3) ---- */
+  .row-large {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .row-large .r-head {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .row-large .r-head .pico img { width: 17px; height: 17px; display:block; }
+  .row-large .r-head .name { font-size: 12px; font-weight: 500; }
+  .row-large .r-head .plan { font-size: 11px; margin-left: auto; }
+  .widget.dark  .r-head .name { color: rgba(117,203,245,0.85); }
+  .widget.light .r-head .name { color: rgba(47,132,191,0.85); }
+  .widget.dark  .r-head .plan { color: rgba(117,203,245,0.5); }
+  .widget.light .r-head .plan { color: rgba(47,132,191,0.67); }
+
+  .row-large .metrics { display:flex; flex-direction:column; gap: 8px; }
+  .row-large .bar-row {
+    display: grid;
+    grid-template-columns: 48px 1fr 30px;
+    gap: 8px;
+    align-items: center;
+  }
+  .row-large .bar-row .lbl { font-size: 9px; }
+  .row-large .bar-row .pct { font-size: 11px; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Centered spacious layout for 1-provider medium */
+  .w-medium .spacious-center { flex: 1 1 auto; display:flex; flex-direction:column; justify-content:center; }
+  .w-large  .row-large + .row-large { margin-top: 20px; }
+
+  /* ---- Progress bar (4pt capsule, track + fill + pace dot) ---- */
+  .pbar {
+    position: relative;
+    height: 4px;
+    border-radius: 999px;
+    overflow: visible;
+  }
+  .pbar .track {
+    position:absolute; inset:0;
+    border-radius: 999px;
+  }
+  .pbar .fill {
+    position:absolute; left:0; top:0; bottom:0;
+    border-radius: 999px;
+  }
+  .pbar .pace {
+    position:absolute; top:50%;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .widget.dark  .pbar .track { background: rgba(75,166,210,0.25); }
+  .widget.light .pbar .track { background: rgba(40,97,149,0.12); }
+  .widget.dark  .pbar .fill       { background: #75CBF5; }
+  .widget.light .pbar .fill       { background: #2F84BF; }
+  .widget.dark  .pbar .fill.long  { background: #3389C7; }
+  .widget.light .pbar .fill.long  { background: #56A2D6; }
+  .widget.dark  .pbar .pace { background: #FFFFFF; }
+  .widget.light .pbar .pace { background: #0E334D; }
+
+  /* Short/long pct color in compact rows — matches fillColor */
+  .widget.dark  .row-compact .pct       { color: #75CBF5; }
+  .widget.dark  .row-compact .pct.long  { color: #3389C7; }
+  .widget.light .row-compact .pct       { color: #2F84BF; }
+  .widget.light .row-compact .pct.long  { color: #56A2D6; }
+  .widget.dark  .row-large .bar-row .pct       { color: #75CBF5; }
+  .widget.dark  .row-large .bar-row .pct.long  { color: #3389C7; }
+  .widget.light .row-large .bar-row .pct       { color: #2F84BF; }
+  .widget.light .row-large .bar-row .pct.long  { color: #56A2D6; }
+
+  /* Footer: "+N in app" or share CTA */
+  .w-foot {
+    display: flex; justify-content: center; align-items: center; gap: 4px;
+    font-size: 11px;
+    padding-top: 10px;
+  }
+  .widget.dark  .w-foot { color: rgba(117,203,245,0.5); }
+  .widget.light .w-foot { color: rgba(47,132,191,0.67); }
+  .w-large .w-foot { padding-top: 12px; }
+  .w-foot svg { width: 9px; height: 9px; }
+
+  /* ---- Small widget (dual ring) — the full SVG fills the widget so text/icon scale with the rings ---- */
+  .w-small { container-type: inline-size; container-name: wsmall; }
+  .w-small .ring-stage {
+    position: absolute; inset: 0;
+  }
+  .w-small .ring-svg { width: 100%; height: 100%; display:block; }
+  .w-small .resets {
+    position: absolute; left:0; right:0;
+    bottom: 0;
+    text-align: center;
+    font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 5.2cqw;
+    padding-bottom: 6cqw;
+  }
+  .widget.dark  .w-small .resets { color: rgba(117,203,245,0.5); }
+  .widget.light .w-small .resets { color: rgba(47,132,191,0.67); }
+
+  /* ---------- TOKEN TABLE ---------- */
+  table.tokens {
+    width:100%; border-collapse: collapse; font-size: var(--fs-small);
+    border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden;
+  }
+  .tokens th, .tokens td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .tokens th { background: var(--surface-2); font-weight: 600; font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);}
+  .tokens tr:last-child td { border-bottom: 0; }
+  .tokens .chip-inline { display:inline-block; width:14px; height:14px; border-radius: 4px; vertical-align: -2px; margin-right: 8px; border: 1px solid var(--border);}
+  .tokens code { background: transparent; padding: 0; }
+
+  /* ---------- SPACING / RADIUS VISUAL ---------- */
+  .ruler { display:flex; align-items:flex-end; gap: var(--s-3); }
+  .ruler .tick {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: var(--r-xs);
+    display:flex; align-items:flex-end; justify-content:center;
+    font-size: 10px; color: var(--text-muted);
+    padding: 4px;
+  }
+
+  .radius-demo { display:flex; gap: var(--s-4); align-items:center; flex-wrap:wrap; }
+  .radius-demo div {
+    width: 72px; height: 72px;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    display:grid; place-items:center;
+    font-size: 11px; color: var(--text-muted);
+  }
+
+  /* ---------- SHADOW DEMO ---------- */
+  .shadow-card {
+    background: var(--surface);
+    border-radius: var(--r-md);
+    padding: var(--s-5);
+    border: 1px solid var(--border);
+    text-align: center;
+    font-size: var(--fs-small);
+    color: var(--text-muted);
+  }
+
+  /* ---------- ICON DEMO ---------- */
+  .icon-strip { display:flex; gap: var(--s-4); flex-wrap: wrap; align-items:center; }
+  .icon-strip .i {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    display:grid; place-items:center;
+    color: var(--accent);
+  }
+
+  /* ---------- TOC ---------- */
+  .toc {
+    position: sticky; top: 80px;
+    font-size: var(--fs-small);
+  }
+  .toc ol { list-style: none; padding: 0; margin: 0; display:flex; flex-direction: column; gap: 6px;}
+  .toc a { color: var(--text-muted); text-decoration: none; }
+  .toc a:hover { color: var(--text); }
+
+  .layout-2col {
+    display: grid; grid-template-columns: 200px 1fr; gap: var(--s-8);
+  }
+  @media (max-width: 900px) { .layout-2col { grid-template-columns: 1fr; } .toc {position:static;} }
+
+  /* Pull-quote / principle card */
+  .principle {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    line-height: 1.25;
+    padding: var(--s-6);
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    color: var(--text);
+    max-width: 52ch;
+    display: flex;
+    flex-direction: column;
+  }
+  .principle small {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    margin-top: auto;
+    padding-top: var(--s-5);
+  }
+
+  /* ---------- BUTTON STATES (visualized) ---------- */
+  .state-grid { display:grid; grid-template-columns: 120px 1fr; gap: var(--s-4); align-items:center; }
+  .state-grid + .state-grid { margin-top: var(--s-3); }
+  .state-grid .label { font-size: var(--fs-micro); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-subtle); }
+  /* Forced states for the demo (not :hover) */
+  .btn.is-hover.btn-primary { background: #14456b; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  [data-theme="dark"] .btn.is-hover.btn-primary { background: #9cdcfa; }
+  .btn.is-active.btn-primary { background: #0E334D; transform: translateY(0); box-shadow: none; filter: brightness(0.95); }
+  [data-theme="dark"] .btn.is-active.btn-primary { background: #75CBF5; filter: brightness(0.95); }
+  .btn.is-hover.btn-secondary { background: var(--surface-2); }
+  .btn.is-active.btn-secondary { background: var(--surface-2); filter: brightness(0.95); }
+
+  /* ---------- PROGRESS BAR (marketing) ---------- */
+  .pbar-demo {
+    position: relative;
+    height: 4px;
+    border-radius: 999px;
+    overflow: visible;
+    background: rgba(40,97,149,0.12);
+  }
+  [data-theme="dark"] .pbar-demo { background: rgba(75,166,210,0.25); }
+  .pbar-demo .fill {
+    position:absolute; left:0; top:0; bottom:0;
+    border-radius: 999px;
+    background: var(--brand-600);
+  }
+  .pbar-demo .fill.long { background: var(--brand-300); }
+  [data-theme="dark"] .pbar-demo .fill { background: var(--brand-200); }
+  [data-theme="dark"] .pbar-demo .fill.long { background: var(--brand-500); }
+  .pbar-demo .pace {
+    position:absolute; top:50%;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--ink-800);
+  }
+  [data-theme="dark"] .pbar-demo .pace { background: #FFFFFF; }
+  .pbar-row {
+    display: grid; grid-template-columns: 80px 1fr 40px; gap: var(--s-4);
+    align-items: center;
+  }
+  .pbar-row + .pbar-row { margin-top: var(--s-4); }
+  .pbar-row .lbl { font-size: var(--fs-micro); color: var(--text-muted); }
+  .pbar-row .pct { font-size: var(--fs-small); font-variant-numeric: tabular-nums; text-align: right; color: var(--brand-600); }
+  .pbar-row .pct.long { color: var(--brand-300); }
+  [data-theme="dark"] .pbar-row .pct { color: var(--brand-200); }
+  [data-theme="dark"] .pbar-row .pct.long { color: var(--brand-500); }
+
+  /* ---------- PROVIDER CHIP ---------- */
+  .provider-chip {
+    display: inline-flex; align-items: center; gap: var(--s-3);
+    height: 48px;
+    padding: 0 var(--s-4);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .provider-chip img { width: 20px; height: 20px; display:block; }
+  .provider-chip .meta { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+  .provider-chip .name { font-family: var(--font-sans); font-size: var(--fs-small); font-weight: 500; color: var(--text); }
+  .provider-chip .sub { font-family: var(--font-sans); font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+  /* ---------- INSTALL BLOCK ---------- */
+  .install-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .install-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+  .install-tab {
+    font-family: var(--font-sans);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    padding: var(--s-3) var(--s-5);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  }
+  .install-tab:hover { color: var(--text); }
+  .install-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .install-code {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+    padding: var(--s-4) var(--s-5);
+  }
+  .install-code code {
+    background: transparent;
+    color: var(--accent);
+    padding: 0;
+    font-size: 13px;
+  }
+  [data-theme="dark"] .install-code code { color: var(--brand-200); }
+  .copy-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--r-xs);
+    background: transparent;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    color: var(--text-muted);
+    display: grid; place-items: center;
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+  }
+  .copy-btn:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ---------- FAQ ---------- */
+  .faq-list { display: flex; flex-direction: column; }
+  .faq + .faq { border-top: 1px solid var(--border); }
+  .faq summary {
+    list-style: none;
+    cursor: pointer;
+    padding: var(--s-4) 0;
+    display: flex; justify-content: space-between; align-items: center; gap: var(--s-4);
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    font-weight: 500;
+    color: var(--text);
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary .chev {
+    width: 16px; height: 16px;
+    color: var(--text-subtle);
+    transition: transform 300ms cubic-bezier(.25,.46,.45,.94);
+    flex-shrink: 0;
+  }
+  .faq[open] summary .chev { transform: rotate(180deg); }
+  .faq .answer {
+    font-family: var(--font-sans);
+    font-size: var(--fs-small);
+    color: var(--text-muted);
+    padding-bottom: var(--s-5);
+    max-width: 64ch;
+    line-height: 1.55;
+  }
+
+  /* ---------- RADIUS NESTING DEMO ---------- */
+  .nest {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: var(--r-lg);
+    padding: var(--s-4);
+    max-width: 360px;
+  }
+  .nest .nest-2 {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+    border-radius: var(--r-md);
+    padding: var(--s-3);
+    margin-top: var(--s-2);
+  }
+  .nest .nest-3 {
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 44%, transparent);
+    border-radius: var(--r-sm);
+    padding: var(--s-2);
+    margin-top: var(--s-2);
+    font-size: var(--fs-small);
+    text-align: center;
+    color: var(--text);
+  }
+  .nest .tag { font-size: var(--fs-micro); color: var(--text-muted); }
+
+  /* ---------- MOTION TABLE ---------- */
+  table.motion {
+    width:100%; border-collapse: collapse; font-size: var(--fs-small);
+    border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden;
+  }
+  .motion th, .motion td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .motion th { background: var(--surface-2); font-weight: 600; font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);}
+  .motion tr:last-child td { border-bottom: 0; }
+  .motion code { background: transparent; padding: 0; font-size: 12px; }
+
+  /* ---------- PACE DIAGRAM (annotated dual-ring) ---------- */
+  .pace-diagram {
+    position: relative;
+    width: min(460px, 100%);
+    aspect-ratio: 460 / 440;
+    --ring-outer: #2F84BF;
+    --ring-inner: #56A2D6;
+    --ring-track: rgba(40, 97, 149, 0.12);
+    --pace-dot: #0E334D;
+    color: var(--text);
+  }
+  [data-theme="dark"] .pace-diagram {
+    --ring-outer: #75CBF5;
+    --ring-inner: #3389C7;
+    --ring-track: rgba(75, 166, 210, 0.25);
+    --pace-dot: #FFFFFF;
+  }
+  .pace-diagram svg { width: 100%; height: 100%; overflow: visible; }
+  .pace-label {
+    position: absolute;
+    left: 82.6%;
+    width: 36%;
+    font-family: var(--font-sans);
+  }
+  .pace-label--top    { top: 30.5%; }
+  .pace-label--bottom { top: 70.3%; }
+  .pace-label__title { font-size: 15px; font-weight: 600; line-height: 1.2; }
+  .pace-label__sub { margin-top: 4px; font-size: 13px; line-height: 1.3; opacity: 0.6; }
+
+  /* ---------- MENU-BAR POPOVER ---------- */
+  .menubar-scene {
+    --mb-wall: linear-gradient(to bottom right, rgba(47,132,191,0.15), rgba(47,132,191,0.40));
+    --mb-wall-ring: rgba(0,0,0,0.06);
+    --mb-bar-bg: rgba(255,255,255,0.35);
+    --mb-bar-edge: rgba(0,0,0,0.06);
+    --mb-svg-filter: invert(0.88) brightness(0.85);
+
+    --pop-bg: rgba(245,240,228,0.78);
+    --pop-text: rgba(31,29,26,0.88);
+    --pop-subtle: rgba(31,29,26,0.55);
+    --pop-muted: rgba(31,29,26,0.38);
+    --pop-ring: rgba(0,0,0,0.06);
+    --pop-divider: rgba(0,0,0,0.07);
+    --pop-tab-track: rgba(0,0,0,0.04);
+    --pop-tab-active-bg: rgba(255,255,255,0.45);
+    --pop-tab-active-edge: rgba(0,0,0,0.04);
+    --pop-pill-bg: rgba(0,0,0,0.06);
+    --pop-pill-text: rgba(31,29,26,0.78);
+    --pop-bar-track: rgba(0,0,0,0.08);
+    --pop-bar-fill: rgba(31,29,26,0.42);
+    --pop-pace: rgba(31,29,26,0.72);
+
+    position: relative;
+    display: flex; flex-direction: column;
+    padding: 0 14px 20px;
+    border-radius: 14px;
+    background: var(--mb-wall);
+    box-shadow: inset 0 0 0 1px var(--mb-wall-ring), 0 10px 40px -10px rgba(0,0,0,0.18);
+  }
+  [data-theme="dark"] .menubar-scene {
+    --mb-wall:
+      radial-gradient(120% 80% at 80% 0%, #2b2235 0%, transparent 55%),
+      radial-gradient(100% 100% at 20% 100%, #14182b 0%, transparent 60%),
+      linear-gradient(180deg, #1a1d2e 0%, #0e1120 100%);
+    --mb-wall-ring: rgba(255,255,255,0.05);
+    --mb-bar-bg: rgba(255,255,255,0.06);
+    --mb-bar-edge: rgba(255,255,255,0.05);
+    --mb-svg-filter: none;
+    --pop-bg: rgba(28, 28, 30, 0.72);
+    --pop-text: rgba(255,255,255,0.92);
+    --pop-subtle: rgba(255,255,255,0.65);
+    --pop-muted: rgba(255,255,255,0.38);
+    --pop-ring: rgba(255,255,255,0.07);
+    --pop-divider: rgba(255,255,255,0.07);
+    --pop-tab-track: rgba(255,255,255,0.04);
+    --pop-tab-active-bg: rgba(255,255,255,0.1);
+    --pop-tab-active-edge: rgba(255,255,255,0.06);
+    --pop-pill-bg: rgba(255,255,255,0.1);
+    --pop-pill-text: rgba(255,255,255,0.82);
+    --pop-bar-track: rgba(255,255,255,0.1);
+    --pop-bar-fill: rgba(255,255,255,0.45);
+    --pop-pace: rgba(255,255,255,0.85);
+  }
+  .menubar-bar {
+    position: relative;
+    width: calc(100% + 28px);
+    margin: 0 -14px 12px;
+    height: 38px;
+    border-radius: 14px 14px 0 0;
+    background: var(--mb-bar-bg);
+    box-shadow: inset 0 -1px 0 var(--mb-bar-edge);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 14px;
+    color: var(--pop-subtle);
+    font-size: 11px;
+    gap: 12px;
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .menubar-bar .mb-token { display: inline-flex; align-items: center; gap: 4px; }
+  .menubar-bar .mb-ring {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--pop-bar-fill);
+    border-right-color: transparent; border-bottom-color: transparent;
+    transform: rotate(45deg);
+  }
+  .menubar-popover {
+    position: relative;
+    align-self: flex-end;
+    width: min(420px, 100%);
+    padding: 18px 20px 14px;
+    border-radius: 16px;
+    color: var(--pop-text);
+    font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+    background: var(--pop-bg);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    box-shadow:
+      0 24px 48px -18px rgba(0,0,0,0.35),
+      0 4px 12px rgba(0,0,0,0.18),
+      inset 0 0 0 1px var(--pop-ring);
+  }
+  .menubar-popover::before {
+    content: ""; position: absolute;
+    top: -6px; left: 56%;
+    width: 12px; height: 12px;
+    background: var(--pop-bg);
+    transform: translateX(-50%) rotate(45deg);
+    border-radius: 2px;
+    box-shadow: inset 1px 1px 0 var(--pop-ring);
+  }
+  .pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .pop-head-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+  .pop-head-actions { display: flex; align-items: center; gap: 10px; }
+  .pop-plan-pill {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--pop-pill-bg);
+    color: var(--pop-pill-text);
+  }
+  .pop-iconbtn {
+    all: unset;
+    display: grid; place-items: center;
+    width: 24px; height: 24px;
+    color: var(--pop-subtle);
+    cursor: default;
+  }
+  .pop-iconbtn svg { width: 14px; height: 14px; display: block; }
+  .pop-tabs {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px;
+    margin-bottom: 18px;
+    background: var(--pop-tab-track);
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--pop-ring);
+  }
+  .pop-tab {
+    all: unset; box-sizing: border-box;
+    display: grid; place-items: center;
+    flex: 1 1 0; height: 32px;
+    border-radius: 7px;
+    cursor: default;
+    color: var(--pop-subtle);
+  }
+  .pop-tab img { width: 16px; height: 16px; opacity: 0.6; filter: var(--mb-svg-filter); }
+  .pop-tab.active {
+    grid-auto-flow: column;
+    grid-template-columns: auto auto;
+    gap: 8px;
+    padding: 0 14px;
+    flex: 2 1 0;
+    background: var(--pop-tab-active-bg);
+    color: var(--pop-text);
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15), inset 0 0 0 1px var(--pop-tab-active-edge);
+  }
+  .pop-tab.active img { opacity: 1; }
+  .pop-section { padding: 2px 0; }
+  .pop-section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  .pop-section-title { font-size: 14px; font-weight: 600; color: var(--pop-text); letter-spacing: -0.1px; }
+  .pop-section-pct { font-size: 20px; font-weight: 700; color: var(--pop-text); letter-spacing: -0.3px; font-variant-numeric: tabular-nums; }
+  .pop-bar { position: relative; height: 6px; border-radius: 999px; background: var(--pop-bar-track); margin-bottom: 10px; }
+  .pop-bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--pop-bar-fill); }
+  .pop-bar-pace { position: absolute; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--pop-pace); transform: translate(-50%, -50%); }
+  .pop-section-resets { font-size: 12px; color: var(--pop-subtle); font-variant-numeric: tabular-nums; }
+  .pop-divider { height: 1px; background: var(--pop-divider); margin: 14px 0; }
+  .pop-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+  .pop-foot-left { font-size: 12px; color: var(--pop-muted); }
+  .pop-foot-right { display: flex; align-items: center; gap: 8px; color: var(--pop-subtle); }
+  .pop-foot-sep { width: 1px; height: 14px; background: var(--pop-divider); }
+
+  /* ---------- INSTALL (segmented + dual panel) — REPLACES old install-block ---------- */
+  .install-v2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-8);
+    align-items: center;
+  }
+  @media (max-width: 900px) { .install-v2 { grid-template-columns: 1fr; } }
+  .seg-tabs {
+    display: flex; gap: 2px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 3px;
+    width: fit-content;
+  }
+  .seg-tab {
+    font-family: var(--font-sans);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: calc(var(--r-sm) - 2px);
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease);
+  }
+  .seg-tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+  .brew-row {
+    display: flex; align-items: center; gap: var(--s-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: var(--fs-small);
+    color: var(--text);
+  }
+  .brew-row .brew-prompt { color: var(--text-subtle); user-select: none; margin-right: 6px; }
+  .brew-row .brew-cmd { flex: 1; overflow-x: auto; white-space: nowrap; }
+  .copy-btn-v2 {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-xs);
+    color: var(--text-muted);
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    transition: all var(--dur-fast) var(--ease);
+  }
+  .copy-btn-v2:hover { background: var(--surface-2); color: var(--text); }
+
+  /* Drag-to-install flow — uses real brand SVGs (assets/brand/) for 1:1
+     parity with index.html. */
+  .install-flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: var(--s-3);
+    padding: var(--s-5) var(--s-3);
+    border-radius: var(--r-lg);
+    text-decoration: none;
+  }
+  .install-flow-icon, .install-flow-folder {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; flex-shrink: 0;
+  }
+  .install-flow-icon-mask {
+    width: 84px; height: 84px;
+    border-radius: 22.37%;
+    overflow: hidden;
+    box-shadow: -4px 8px 12px rgba(0,0,0,0.25);
+  }
+  .install-flow-icon-mask img { display: block; width: 100%; height: 100%; }
+  .install-flow-arrow-stack {
+    display: flex; flex-direction: column; align-items: center;
+    flex-shrink: 0;
+    gap: var(--s-3);
+  }
+  .install-flow-arrow { width: 140px; height: auto; display: block; }
+  .install-flow-folder img {
+    width: auto; height: 84px; display: block;
+    border-radius: 10px;
+  }
+  .install-flow-icon-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-weight: 500;
+  }
+  .install-flow-caption {
+    text-align: center;
+    margin: 0;
+    color: #EC7655;
+    font-weight: 900;
+    font-family: -apple-system, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+    letter-spacing: 0.01em;
+  }
+
+  /* ---------- DESKTOP FRAME (widget showcase platter) ----------
+     Fixed layout — widgets render at canonical sizes (small 200,
+     medium 432×200, large 432×432) so inner content never overlaps
+     and the WidgetKit proportional rules hold. The frame is wide;
+     on narrow viewports it scrolls horizontally rather than squishing
+     the widgets. */
+  .desktop-frame {
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg);
+    background: linear-gradient(160deg, #1e3a52 0%, #0d2035 40%, #07101a 100%);
+    padding: var(--s-7) var(--s-6) var(--s-6);
+    position: relative;
+    overflow-x: auto;
+  }
+  .desktop-frame::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 20%, rgba(47,132,191,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 70%, rgba(117,203,245,0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .desktop-widgets {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 432px 432px 200px;
+    grid-template-rows: 200px 200px;
+    gap: 32px;
+    justify-content: center;
+    width: max-content;
+    margin: 0 auto;
+  }
+  /* DOM order: Small-dark, Small-light, Medium-dark, Medium-light, Large.
+     Layout: large spans col 1 rows 1-2; mediums in col 2; smalls in col 3. */
+  .desktop-widgets > *:nth-child(1) { grid-column: 3; grid-row: 1; }
+  .desktop-widgets > *:nth-child(2) { grid-column: 3; grid-row: 2; }
+  .desktop-widgets > *:nth-child(3) { grid-column: 2; grid-row: 1; }
+  .desktop-widgets > *:nth-child(4) { grid-column: 2; grid-row: 2; }
+  .desktop-widgets > *:nth-child(5) { grid-column: 1; grid-row: 1 / span 2; }
+
+  /* ---------- v2 SECTION HIGHLIGHT ---------- */
+  .v2-tag, .v3-tag {
+    display: inline-block;
+    margin-left: var(--s-2);
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .v3-tag {
+    background: color-mix(in srgb, var(--success) 20%, transparent);
+    color: var(--success);
+  }
+
+  /* ============== APP-SPECIFIC COMPONENTS (from guided-onboarding-mockup.html) ============== */
+
+  /* ---------- SEMANTIC SWATCH GRID ---------- */
+  .sem-swatch {
+    border-radius: var(--r-md);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .sem-swatch .chip { height: 96px; border-bottom: 1px solid var(--border); }
+  .sem-swatch .meta { padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: 2px; }
+  .sem-swatch .name { font-weight: 500; font-size: var(--fs-small); }
+  .sem-swatch .hex { font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-micro); color: var(--text-muted); text-transform: uppercase; }
+  .sem-swatch .role { font-size: 11px; color: var(--text-subtle); margin-top: 2px; }
+
+  /* ---------- WINDOW CHROME (macOS) ---------- */
+  .mac-window {
+    width: 100%; max-width: 680px;
+    background: var(--bg);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(14,51,77,0.18), 0 4px 16px rgba(14,51,77,0.08);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-sans);
+  }
+  [data-theme="dark"] .mac-window {
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55), 0 6px 20px rgba(0,0,0,0.35);
+  }
+  .titlebar {
+    height: 38px;
+    display: flex; align-items: center;
+    padding: 0 14px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 70%, white 0%), var(--bg));
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  [data-theme="dark"] .titlebar { background: linear-gradient(to bottom, #112c41, #0a2235); }
+  .traffic { display: flex; gap: 8px; }
+  .traffic .light {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #FF5F57; border: 1px solid rgba(0,0,0,0.06);
+  }
+  .traffic .light.amber { background: #FEBC2E; }
+  .traffic .light.green { background: #28C840; }
+  [data-theme="dark"] .traffic .light { border-color: rgba(0,0,0,0.4); }
+  .titlebar .titlebar-title {
+    position: absolute; left: 0; right: 0; text-align: center;
+    font-size: 13px; font-weight: 500; color: var(--text-muted);
+    pointer-events: none;
+  }
+  .winbody { padding: 32px 40px 28px; }
+
+  /* ---------- STEPPER ---------- */
+  .stepper {
+    display: flex; align-items: flex-start; justify-content: center; gap: 0;
+    margin-bottom: 32px;
+  }
+  .stepper .step {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    flex: 0 0 110px;
+    text-align: center;
+  }
+  .step-mark {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--text-subtle);
+    border: 1.5px solid var(--border-strong);
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    transition: all var(--dur) var(--ease);
+  }
+  .step.done .step-mark { background: var(--accent); color: #fff; border-color: var(--accent); }
+  [data-theme="dark"] .step.done .step-mark { color: var(--ink-900); }
+  .step.active .step-mark {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  [data-theme="dark"] .step.active .step-mark { color: var(--ink-900); }
+  .step.error .step-mark {
+    background: var(--danger); color: #fff; border-color: var(--danger);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 22%, transparent);
+  }
+  .step-label {
+    font-size: 11px;
+    color: var(--text-subtle);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .step.active .step-label { color: var(--text); font-weight: 600; }
+  .step.done .step-label { color: var(--text-muted); }
+  .step.error .step-label { color: var(--danger); font-weight: 600; }
+  .step-line {
+    flex: 0 0 36px;
+    height: 2px;
+    background: var(--border-strong);
+    margin: 11px 0 0;
+    border-radius: 2px;
+  }
+  .step-line.done { background: var(--accent); }
+
+  /* ---------- BADGES (variants) ---------- */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
+    font-size: 11px;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .badge.success {
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 25%, transparent);
+  }
+  .badge.warn {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 25%, transparent);
+  }
+  .badge.danger {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 25%, transparent);
+  }
+  .badge.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ---------- DONE-CHECK CIRCLE ---------- */
+  .done-check {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--success) 16%, transparent);
+    color: var(--success);
+    display: grid; place-items: center;
+    margin: 0 auto;
+    font-size: 32px;
+    line-height: 1;
+  }
+
+  /* ---------- ERROR BLOCK ---------- */
+  .errblock {
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+    border-radius: var(--r-sm);
+    padding: 14px 16px;
+  }
+  .errblock .err-h { font-size: 14px; font-weight: 600; color: var(--danger); }
+  .errblock .err-b { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono); }
+
+  /* ---------- PROVIDER CHOOSER ROW ---------- */
+  .chooser-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 14px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: background var(--dur) var(--ease);
+  }
+  .chooser-row:hover { background: var(--surface-2); }
+  .chooser-row .picon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 14px;
+    overflow: hidden;
+  }
+  .chooser-row .picon img { width: 18px; height: 18px; }
+  .chooser-row .pinfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .chooser-row .pname { font-size: 14px; font-weight: 600; color: var(--text); }
+  .chooser-row .pscope { font-size: 12px; color: var(--text-subtle); }
+  .chooser-row .pend { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  /* ---------- CHECK ROW (detect list) ---------- */
+  .check-row {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+  }
+  .check-row .ico { display: grid; place-items: center; }
+  .check-row .ico.ok { color: var(--success); }
+  .check-row .ico.pending { color: var(--text-subtle); }
+  .check-row .clabel { font-size: 14px; font-weight: 500; color: var(--text); }
+  .check-row .csub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .check-row .cright { font-size: 12px; color: var(--text-muted); }
+
+  /* ---------- iOS TOGGLE ---------- */
+  .ios-toggle {
+    width: 40px; height: 24px;
+    border-radius: 999px;
+    background: var(--accent);
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: background var(--dur) var(--ease);
+    border: 0;
+    padding: 0;
+  }
+  .ios-toggle::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: white;
+    top: 2px; left: 18px;
+    transition: left var(--dur) var(--ease);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .ios-toggle.off { background: var(--border-strong); }
+  .ios-toggle.off::after { left: 2px; }
+
+  /* ---------- PLAN-SEGMENT (Free / Standard / Enterprise) ---------- */
+  .plan-seg {
+    display: flex;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    width: fit-content;
+  }
+  .plan-seg .tab {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 16px;
+    border: 0;
+    background: transparent;
+    border-radius: 999px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+  }
+  .plan-seg .tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ---------- HELP BANNER (top of providers popover) ---------- */
+  .help-banner {
+    padding: 11px 16px;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    font-size: 12.5px;
+    color: var(--text-muted);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .help-banner a {
+    font-size: 12.5px; font-weight: 500;
+    color: var(--accent); text-decoration: none;
+  }
+  .help-banner a:hover { text-decoration: underline; }
+
+  /* ---------- TEXT BUTTON (naked link) ---------- */
+  /* Tertiary action — no background, no border, accent-colored. Used for
+     "Open the guided setup →", "Back", "Read more", inline help links.
+     Distinguished from plain <a> by being a discrete UI control with
+     proper button semantics and a hover affordance. */
+  .btn-text {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease);
+  }
+  .btn-text:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .btn-text.is-back { color: var(--text-muted); }
+  .btn-text.is-back:hover { color: var(--text); }
+  .btn-text.is-danger { color: var(--danger); }
+  .btn-text .arrow { transition: transform var(--dur-fast) var(--ease); }
+  .btn-text:hover .arrow { transform: translateX(2px); }
+  .btn-text.is-back:hover .arrow { transform: translateX(-2px); }
+
+  /* ---------- BUTTON-IN-FIELD ---------- */
+  /* Small action sitting inside an input or code-row. Less weight than
+     a regular .btn — smaller padding, softer border, transparent default. */
+  .field-row {
+    display: flex; align-items: center; gap: var(--s-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    padding: 10px 12px 10px 14px;
+    font-family: var(--font-sans);
+    font-size: var(--fs-small);
+    color: var(--text);
+  }
+  .field-row .field-cmd { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; color: var(--text); }
+  .field-row .field-cmd.mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+  .field-row .field-prompt { color: var(--text-subtle); user-select: none; margin-right: 6px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+  .btn-in-field {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-xs);
+    color: var(--text-muted);
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: all var(--dur-fast) var(--ease);
+  }
+  .btn-in-field:hover { background: var(--surface-2); color: var(--text); }
+  .btn-in-field.is-icon { padding: 5px; }
+  .btn-in-field.is-success { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+
+  /* ---------- SEGMENTED CONTROL ---------- */
+  /* Two variants in production:
+     .seg-rounded (r-sm corners) — used by Install Download/Homebrew
+     .seg-pill (full-pill)      — used by plan tabs Free/Standard/Enterprise
+     Both share: tinted track, padded cradle, raised active pill on white. */
+  .seg {
+    display: inline-flex;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    padding: 3px;
+    width: fit-content;
+  }
+  .seg-rounded { border-radius: var(--r-sm); gap: 2px; }
+  .seg-pill    { border-radius: 999px; gap: 0; }
+  .seg .opt {
+    font-family: var(--font-sans);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    padding: 8px 16px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease);
+  }
+  .seg-rounded .opt { border-radius: calc(var(--r-sm) - 2px); }
+  .seg-pill .opt    { border-radius: 999px; padding: 6px 18px; font-size: 12px; }
+  .seg .opt:hover { color: var(--text); }
+  .seg .opt.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ---------- QUICK-SETUP PILL BUTTON ---------- */
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 14px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    border: 0;
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--dur) var(--ease);
+  }
+  .pill-btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  .pill-btn .chev { opacity: 0.6; }
+
+  /* ===== APP ADDENDUM — sections not in website v3 ===== */
+  .app-tag { display:inline-block; margin-left:var(--s-2); padding:2px 8px; border-radius:var(--r-pill);
+    background:color-mix(in srgb, var(--warning) 22%, transparent); color:var(--warning);
+    font-family:var(--font-sans); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; font-weight:600; vertical-align:middle; }
+  .menubar-art-wrap { padding:var(--s-4); border-radius:var(--r-md); border:1px solid var(--border); }
+  .menubar-art-wrap.light { background:#e8e3d8; }
+  .menubar-art-wrap.dark  { background:#0a1622; }
+  .menubar-art { width:100%; height:auto; display:block; }
+  .spec-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .spec-table th { text-align:left; font-family:var(--font-sans); font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); padding:var(--s-2) var(--s-3); border-bottom:1px solid var(--border-strong); }
+  .spec-table td { padding:var(--s-2) var(--s-3); border-bottom:1px solid var(--border); vertical-align:top; }
+  .spec-table tr:last-child td { border-bottom:0; }
+  .spec-table code { font-size:12px; }
+  .pop-pool-head { font-size:10px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:var(--pop-subtle); margin:4px 0 6px; }
+  .brand-head { display:flex; align-items:center; gap:8px; margin:8px 0 2px; }
+  .brand-head img { width:13px; height:13px; display:block; object-fit:contain; }
+  .brand-head .bn { font-size:9px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; }
+  .widget.dark  .brand-head .bn { color:rgba(117,203,245,0.7); }
+  .widget.light .brand-head .bn { color:rgba(47,132,191,0.7); }
+  .row-compact.sub { margin-left:22px; }
+  .ext { width:300px; border-radius:14px; overflow:hidden; border:1px solid var(--border); box-shadow:var(--shadow-md); background:var(--bg);
+    font-family:-apple-system,'SF Pro Text',system-ui,sans-serif; }
+  .ext-banner { display:flex; align-items:center; gap:6px; padding:5px 16px; font-size:10px;
+    background:color-mix(in srgb,var(--warning) 8%,transparent); color:var(--warning); border-bottom:1px solid color-mix(in srgb,var(--warning) 18%,transparent); }
+  .xmatrix { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .xmatrix th { text-align:center; font-family:var(--font-sans); font-size:11px; text-transform:uppercase; letter-spacing:0.03em; color:var(--text-muted); padding:var(--s-2); border-bottom:2px solid var(--border-strong); }
+  .xmatrix th:first-child, .xmatrix td:first-child { text-align:left; }
+  .xmatrix td { padding:var(--s-2) var(--s-3); border-bottom:1px solid var(--border); text-align:center; }
+  .xmatrix td:first-child { font-weight:600; }
+  .xmatrix .y { color:var(--success); font-weight:700; }
+  .xmatrix .v { color:var(--warning); font-weight:600; }
+  .xmatrix .n { color:var(--text-subtle); }
+  .prop { border-left:3px solid var(--brand-400); }
+  .prop .prop-h { display:flex; align-items:center; gap:var(--s-2); flex-wrap:wrap; margin-bottom:2px; }
+  .prop .prop-h .pn { font-weight:600; font-size:15px; }
+  .prop .prop-h .pw { font-family:var(--font-mono); font-size:11px; color:var(--text-subtle); }
+  .prop p { font-size:var(--fs-small); color:var(--text-muted); margin:6px 0 0; max-width:none; }
+  .tagchip { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; padding:2px 8px; border-radius:var(--r-pill); }
+  .tagchip.token { background:color-mix(in srgb,var(--accent) 16%,transparent); color:var(--accent); }
+  .tagchip.comp  { background:color-mix(in srgb,var(--success) 16%,transparent); color:var(--success); }
+  .tagchip.fix   { background:color-mix(in srgb,var(--warning) 18%,transparent); color:var(--warning); }
+  .tagchip.q     { background:color-mix(in srgb,var(--danger) 16%,transparent); color:var(--danger); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <img src="assets/Tokenomics-logo.svg" alt="Tokenomics" style="width:32px; height:32px; display:block;">
+      Tokenomics <span style="color:var(--text-subtle); font-size:14px; font-family:var(--font-sans); margin-left:6px;">/ Design System · App Addendum</span>
+    </div>
+    <div style="display:flex; gap: var(--s-4); align-items:center;">
+      <div class="nav-links">
+        <a href="#foundations">Foundations</a>
+        <a href="#color">Color</a>
+        <a href="#type">Type</a>
+        <a href="#components">Components</a>
+        <a href="#widgets">Widgets</a>
+        <a href="#menubar-icon">App</a>
+        <a href="#proposals">Gaps</a>
+      </div>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">Dark</button>
+    </div>
+  </div>
+</nav>
+
+<main class="page">
+
+  <!-- HERO -->
+  <header class="hero">
+    <span class="eyebrow">Design System · App Addendum</span>
+    <h1 class="display">The same system, <em>all the way</em> to the menu bar.</h1>
+    <p class="lede">
+      A duplicate of the website design system (<code>design-system-v3.html</code>) — the source of truth for color, type, the rendered mockups, and the real provider iconography — extended with the surfaces that live only in the macOS app and the browser extension: the menu-bar glyph, brand aggregation, the extension companion, a cross-surface matrix, and a running list of gaps to resolve. <strong>The website file is untouched; this copy is where the app layer grows.</strong>
+    </p>
+    <div class="btn-row" style="margin-top: var(--s-5);">
+      <a class="btn btn-primary" href="#menubar-icon">App surfaces</a>
+      <a class="btn btn-secondary" href="#surface-matrix">Cross-surface matrix</a>
+      <a class="btn btn-ghost" href="#proposals">Gaps &amp; proposals</a>
+    </div>
+  </header>
+
+  <div class="layout-2col">
+    <aside class="toc">
+      <div class="eyebrow">Contents</div>
+      <ol>
+        <li><a href="#foundations">01 · Foundations</a></li>
+        <li><a href="#color">02 · Color</a></li>
+        <li><a href="#type">03 · Typography</a></li>
+        <li><a href="#space">04 · Space &amp; Radius</a></li>
+        <li><a href="#shadow">05 · Shadow &amp; Motion</a></li>
+        <li><a href="#components">06 · Components</a></li>
+        <li><a href="#widgets">07 · Widget mockups</a></li>
+        <li><a href="#showcase">08 · Widget showcase</a></li>
+        <li><a href="#popover">09 · Menu-bar popover</a></li>
+        <li><a href="#pace-diagram">10 · Pace-dot diagram</a></li>
+        <li><a href="#install">11 · Install block</a></li>
+        <li><a href="#semantic">12 · Semantic colors</a></li>
+        <li><a href="#app-components">13 · App components</a></li>
+        <li><a href="#menubar-icon">14 · Menu-bar icon</a></li>
+        <li><a href="#brand-aggregation">15 · Brand aggregation</a></li>
+        <li><a href="#extension">16 · Browser extension</a></li>
+        <li><a href="#surface-matrix">17 · Cross-surface matrix</a></li>
+        <li><a href="#proposals">18 · Gaps &amp; proposals</a></li>
+        <li><a href="#tokens">19 · Token reference</a></li>
+      </ol>
+    </aside>
+
+    <div>
+
+    <!-- FOUNDATIONS -->
+    <section id="foundations">
+      <div class="section-header">
+        <div>
+          <span class="kicker">01 · Foundations</span>
+          <h2>Three principles</h2>
+        </div>
+      </div>
+
+      <div class="grid cols-3">
+        <div class="principle">
+          Calm, not clever.
+          <small>01 · Voice</small>
+        </div>
+        <div class="principle">
+          The product is the proof. Screenshots before slogans.
+          <small>02 · Content</small>
+        </div>
+        <div class="principle">
+          Serif for soul, sans for signal.
+          <small>03 · Type</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLOR -->
+    <section id="color">
+      <div class="section-header">
+        <div>
+          <span class="kicker">02 · Color</span>
+          <h2>Palette</h2>
+          <p>Ink navy + paper cream, with a cool blue accent lifted from the widget bars. Every swatch below comes from the Figma frame.</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Ink &amp; Accent</h3>
+      <div class="grid cols-4">
+        <div class="swatch"><div class="chip" style="background:#051928;"></div><div class="meta"><span class="name">Ink 900 / BG Grad End</span><span class="hex">#051928</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#0E334D;"></div><div class="meta"><span class="name">Ink 800 / BG Grad Start</span><span class="hex">#0E334D</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#286195;"></div><div class="meta"><span class="name">Ink 700 / Bar Track (L)</span><span class="hex">#286195</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#2F84BF;"></div><div class="meta"><span class="name">Brand 600 / Short Bar (L)</span><span class="hex">#2F84BF</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#3389C7;"></div><div class="meta"><span class="name">Brand 500 / Long Bar (D)</span><span class="hex">#3389C7</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#4BA6D2;"></div><div class="meta"><span class="name">Brand 400 / Bar Track (D)</span><span class="hex">#4BA6D2</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#56A2D6;"></div><div class="meta"><span class="name">Brand 300 / Long Bar (L)</span><span class="hex">#56A2D6</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#75CBF5;"></div><div class="meta"><span class="name">Brand 200 / Short Bar (D)</span><span class="hex">#75CBF5</span></div></div>
+      </div>
+
+      <h3 style="margin-top: var(--s-7);">Paper &amp; Cream</h3>
+      <div class="grid cols-4">
+        <div class="swatch"><div class="chip" style="background:#F3EFE5;"></div><div class="meta"><span class="name">Cream 50 / BG Grad Start</span><span class="hex">#F3EFE5</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#E6E0D4;"></div><div class="meta"><span class="name">Cream 100 / BG Grad End</span><span class="hex">#E6E0D4</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#D9D1C0;"></div><div class="meta"><span class="name">Cream 200 / Surface 2</span><span class="hex">#D9D1C0</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#FFFFFF; box-shadow: inset 0 0 0 1px var(--border);"></div><div class="meta"><span class="name">White / Icon (D)</span><span class="hex">#FFFFFF</span></div></div>
+      </div>
+
+      <h3 style="margin-top: var(--s-7);">Widget gradients</h3>
+      <div class="grid cols-2">
+        <div class="swatch"><div class="chip" style="background: linear-gradient(135deg,#F3EFE5,#E6E0D4); height: 140px;"></div>
+          <div class="meta"><span class="name">Widget · Light</span><span class="hex">#F3EFE5 → #E6E0D4</span></div>
+        </div>
+        <div class="swatch"><div class="chip" style="background: linear-gradient(135deg,#0E334D,#051928); height: 140px;"></div>
+          <div class="meta"><span class="name">Widget · Dark</span><span class="hex">#0E334D → #051928</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TYPOGRAPHY -->
+    <section id="type">
+      <div class="section-header">
+        <div>
+          <span class="kicker">03 · Typography</span>
+          <h2>Type system</h2>
+          <p>Hedvig Letters Serif sets headlines and pull-quotes with a gentle humanist warmth. DM Sans handles UI, body, and numerics with a grotesque clarity. Everything else — the macOS app and widgets — uses SF.</p>
+        </div>
+      </div>
+
+      <div class="card" style="padding: var(--s-6);">
+        <div class="type-row">
+          <div class="type-label">Display<small>Hedvig · 88 / 0.98</small></div>
+          <div class="serif" style="font-size: 72px; line-height: 0.98; letter-spacing: -0.022em;">See it <em>before</em> you pay for it.</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">H1<small>Hedvig · 56 / 1.08</small></div>
+          <div class="serif" style="font-size: 52px; line-height: 1.08; letter-spacing: -0.018em;">A menu-bar view of every AI tool you pay for.</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">H2<small>Hedvig · 40 / 1.1</small></div>
+          <div class="serif" style="font-size: 36px; line-height: 1.1;">Five providers, one ring.</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">H3<small>Hedvig · 28 / 1.2</small></div>
+          <div class="serif" style="font-size: 26px; line-height: 1.2;">Quiet polling, loud clarity.</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">Eyebrow<small>DM Sans · 12 / 0.14em</small></div>
+          <div class="sans" style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-subtle);">Now in public beta</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">Lede<small>DM Sans · 18 / 1.55</small></div>
+          <div class="sans" style="font-size: 18px; line-height: 1.55; color: var(--text-muted);">Tokenomics quietly watches your Claude, Codex, Gemini, Copilot, and Cursor usage — so you stop refreshing dashboards and start shipping.</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">Body<small>DM Sans · 16 / 1.55</small></div>
+          <div class="sans" style="font-size: 16px; line-height: 1.55;">The idea is simple. Five providers, one ring. Tokenomics sits in your menu bar, talks to each API directly, and shows you what's left — without another tab, another login, or another Slack ping from finance.</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">Small<small>DM Sans · 14 / 1.5</small></div>
+          <div class="sans" style="font-size: 14px; line-height: 1.5; color: var(--text-muted);">Built for macOS 13+ · Developer ID signed · Sparkle auto-updates</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">Micro<small>DM Sans · 12 / 1.4</small></div>
+          <div class="sans" style="font-size: 12px; line-height: 1.4; color: var(--text-subtle);">v2.7.7 · macOS · © 2026</div>
+        </div>
+        <div class="type-row">
+          <div class="type-label">Numerics<small>DM Sans · tabular</small></div>
+          <div class="sans" style="font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">42% · 7-Day · 12,480 tokens</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SPACE & RADIUS -->
+    <section id="space">
+      <div class="section-header">
+        <div>
+          <span class="kicker">04 · Space &amp; Radius</span>
+          <h2>Rhythm</h2>
+          <p>An 8pt base scale. Widgets use 16px outer padding and 14px vertical gaps — the system keeps the rest of the site on the same grid.</p>
+        </div>
+      </div>
+
+      <h3>Spacing scale</h3>
+      <div class="card">
+        <div class="ruler">
+          <div class="tick" style="width:4px; height:4px;"></div>
+          <div class="tick" style="width:8px; height:8px;"></div>
+          <div class="tick" style="width:12px; height:12px;"></div>
+          <div class="tick" style="width:16px; height:16px;"></div>
+          <div class="tick" style="width:24px; height:24px;"></div>
+          <div class="tick" style="width:32px; height:32px;"></div>
+          <div class="tick" style="width:48px; height:48px;"></div>
+          <div class="tick" style="width:64px; height:64px;"></div>
+          <div class="tick" style="width:96px; height:96px;"></div>
+        </div>
+        <div style="display:flex; gap: var(--s-3); margin-top: var(--s-4); font-family: var(--font-sans); color: var(--text-subtle); font-size:11px;">
+          <span style="width:4px;">4</span><span style="width:8px;">8</span><span style="width:12px;">12</span><span style="width:16px;">16</span><span style="width:24px;">24</span><span style="width:32px;">32</span><span style="width:48px;">48</span><span style="width:64px;">64</span><span>96</span>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Corner radius</h3>
+      <div class="card">
+        <div class="radius-demo">
+          <div style="border-radius: 6px;">6 · xs</div>
+          <div style="border-radius: 10px;">10 · sm</div>
+          <div style="border-radius: 14px;">14 · md</div>
+          <div style="border-radius: 20px;">20 · lg</div>
+          <div style="border-radius: 28px;">28 · xl</div>
+          <div style="border-radius: 999px;">pill</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Radius nesting</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Children always have a smaller radius than their parent: <strong>20 → 14 → 10</strong>. This keeps concentric corners visually parallel rather than gapping. The same rule applies to widget chrome (22) → row content (14) → pill (999).</p>
+        <div class="nest" style="margin-top: var(--s-4);">
+          <span class="tag">20 · lg · card</span>
+          <div class="nest-2">
+            <span class="tag">14 · md · inner card</span>
+            <div class="nest-3">10 · sm · button / chip</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SHADOW & MOTION -->
+    <section id="shadow">
+      <div class="section-header">
+        <div>
+          <span class="kicker">05 · Shadow &amp; Motion</span>
+          <h2>Soft physics</h2>
+          <p>Three elevation tiers. Default animation is 220ms with a gentle ease-out. Widgets lift slightly on hover to hint interactivity.</p>
+        </div>
+      </div>
+      <div class="grid cols-3">
+        <div class="shadow-card" style="box-shadow: var(--shadow-sm);">sm · cards at rest</div>
+        <div class="shadow-card" style="box-shadow: var(--shadow-md);">md · hover / popover</div>
+        <div class="shadow-card" style="box-shadow: var(--shadow-lg);">lg · hero widgets</div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Motion rules</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Default: <code>220ms cubic-bezier(.2,.7,.2,1)</code>. Each animatable behavior below has its own tuned curve. <strong>Honor <code>prefers-reduced-motion</code></strong> — collapse all transitions to 0ms when set.</p>
+        <table class="motion" style="margin-top: var(--s-4);">
+          <thead>
+            <tr><th>Element</th><th>Property</th><th>Duration</th><th>Easing</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Buttons (hover / active)</td><td>transform, filter, shadow</td><td><code>120ms</code> · fast</td><td><code>cubic-bezier(.2,.7,.2,1)</code></td></tr>
+            <tr><td>Cards (scroll-enter)</td><td>opacity 0→1, translateY 16→0</td><td><code>420ms</code> · slow</td><td>ease-out, 80ms stagger</td></tr>
+            <tr><td>Bars (scroll-enter)</td><td>width 0→final</td><td><code>500ms</code></td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
+            <tr><td>Rings (scroll-enter)</td><td>stroke-dashoffset 0→filled</td><td><code>600ms</code></td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
+            <tr><td>Pace dot (after bar fills)</td><td>±4px sinusoidal drift</td><td><code>2.5s</code> loop, 400ms delay</td><td>ease-in-out, infinite</td></tr>
+            <tr><td>FAQ expand</td><td>max-height (only)</td><td><code>300ms</code></td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
+            <tr><td>Theme toggle</td><td>background, color, border, shadow</td><td><code>220ms</code> · default</td><td><code>cubic-bezier(.2,.7,.2,1)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- COMPONENTS -->
+    <section id="components">
+      <div class="section-header">
+        <div>
+          <span class="kicker">06 · Components</span>
+          <h2>Building blocks</h2>
+        </div>
+      </div>
+
+      <h3>Buttons</h3>
+      <div class="card">
+        <div class="btn-row">
+          <button class="btn btn-primary">Download for macOS</button>
+          <button class="btn btn-secondary">View on GitHub</button>
+          <button class="btn btn-ghost">Read the changelog →</button>
+        </div>
+        <div class="btn-row" style="margin-top: var(--s-4);">
+          <button class="btn btn-primary btn-sm">Small primary</button>
+          <button class="btn btn-primary btn-lg">Large primary</button>
+          <button class="btn btn-secondary btn-sm">Small secondary</button>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Button states</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Hover lifts 1px and adds the medium shadow. Active settles back to baseline with a slight darken. All transitions: <code>120ms cubic-bezier(.2,.7,.2,1)</code>. Honors <code>prefers-reduced-motion</code>.</p>
+
+        <div class="state-grid" style="margin-top: var(--s-4);">
+          <span class="label">Primary</span>
+          <div class="btn-row">
+            <button class="btn btn-primary">Default</button>
+            <button class="btn btn-primary is-hover">Hover</button>
+            <button class="btn btn-primary is-active">Active</button>
+            <button class="btn btn-primary" disabled style="opacity:0.4; cursor:not-allowed;">Disabled</button>
+          </div>
+        </div>
+        <div class="state-grid">
+          <span class="label">Secondary</span>
+          <div class="btn-row">
+            <button class="btn btn-secondary">Default</button>
+            <button class="btn btn-secondary is-hover">Hover</button>
+            <button class="btn btn-secondary is-active">Active</button>
+            <button class="btn btn-secondary" disabled style="opacity:0.4; cursor:not-allowed;">Disabled</button>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Footer pairing</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">A window footer pairs a recoverable action (left) with a forward action (right). The right slot's weight should match what the left slot is doing — otherwise one side dominates. Both pills together = balanced & bold. A bare text-link Back next to a primary pill reads as "you must press this" and is forbidden.</p>
+        <table class="motion" style="margin-top: var(--s-4);">
+          <thead>
+            <tr><th>Left</th><th>Right</th><th>Use case</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>.btn-primary</code></td><td><code>.btn-secondary</code></td><td>Two genuine alternatives, both worth pursuing. Both bold, balanced.</td></tr>
+            <tr><td><code>.btn-secondary</code></td><td><code>.btn-primary</code></td><td>One forward CTA + one alternative. Same balance, reversed by emphasis.</td></tr>
+            <tr><td>Text-link <code>← Back</code></td><td><code>.btn-secondary</code></td><td>The forward action is real but not the screen's main event (chooser, install previews). Asymmetry is intentional — secondary is the only window-level affordance.</td></tr>
+            <tr><td>Text-link <code>← Back</code></td><td><code>.btn-ghost</code> or text-link</td><td>The forward action is optional/dismissive ("Skip", "Maybe later"). Both sides feel light; user isn't pushed.</td></tr>
+            <tr><td>Text-link <code>← Back</code></td><td><code>.btn-primary</code></td><td><strong>Don't.</strong> Use Secondary on the right, or upgrade Back to a Ghost button.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Progress bars</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Marketing-page bars match the in-app widget bars: 4px height, pill radius, optional pace dot. <strong>Pace dot is only rendered when <code>0.01 &lt; pace &lt; 0.99</code></strong> (i.e. between 1% and 99%) — at the extremes it merges with the cap and adds visual noise. This rule comes from <code>WidgetProgressBar</code> in <code>TokenomicsWidgetEntryView.swift</code>.</p>
+
+        <div style="margin-top: var(--s-4);">
+          <div class="pbar-row">
+            <span class="lbl">5-Hour</span>
+            <div class="pbar-demo"><div class="fill" style="width:75%"></div><div class="pace" style="left:80%"></div></div>
+            <span class="pct">75%</span>
+          </div>
+          <div class="pbar-row">
+            <span class="lbl">7-Day</span>
+            <div class="pbar-demo"><div class="fill long" style="width:33%"></div><div class="pace" style="left:40%"></div></div>
+            <span class="pct long">33%</span>
+          </div>
+          <div class="pbar-row">
+            <span class="lbl">Tokens</span>
+            <div class="pbar-demo"><div class="fill" style="width:0%"></div></div>
+            <span class="pct">0%</span>
+          </div>
+          <div class="pbar-row">
+            <span class="lbl">Premium</span>
+            <div class="pbar-demo"><div class="fill" style="width:100%"></div></div>
+            <span class="pct">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Pills &amp; badges</h3>
+      <div class="card" style="display:flex; gap: var(--s-3); flex-wrap:wrap;">
+        <span class="pill dot">v2.7.7 live</span>
+        <span class="pill">Notarized</span>
+        <span class="pill">Homebrew</span>
+        <span class="pill" style="background: color-mix(in srgb, #0E334D 14%, transparent); color: #0E334D; border-color: color-mix(in srgb,#0E334D 26%, transparent);">Pro plan</span>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Form field</h3>
+      <div class="card" style="max-width: 480px;">
+        <div class="field">
+          <label for="email">Get launch updates</label>
+          <input class="input" id="email" type="email" placeholder="you@yourdomain.com" />
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Cards</h3>
+      <div class="grid cols-3">
+        <div class="card">
+          <div class="eyebrow">Feature</div>
+          <h4 class="serif" style="font-family: var(--font-serif); font-size: 22px; margin-top: 4px;">One ring to rule them</h4>
+          <p style="font-size: 14px; margin: 0;">Menu-bar rings aggregate every provider into one glance.</p>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Feature</div>
+          <h4 class="serif" style="font-family: var(--font-serif); font-size: 22px; margin-top: 4px;">Quiet polling</h4>
+          <p style="font-size: 14px; margin: 0;">Exponential backoff on 429s keeps the APIs happy.</p>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Feature</div>
+          <h4 class="serif" style="font-family: var(--font-serif); font-size: 22px; margin-top: 4px;">Zero-friction auth</h4>
+          <p style="font-size: 14px; margin: 0;">Reads existing CLI credentials. Nothing to sign in twice.</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Provider chips</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">A single provider's identity at-a-glance — used in marketing copy ("supports Claude, Codex, Gemini…") and in compact lists. 48px tall, 14px radius (md), 20px icon.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-4);">
+          <div class="provider-chip">
+            <img src="assets/icons/Claude-d.blue.svg" alt="">
+            <div class="meta"><span class="name">Claude Code</span><span class="sub">Pro · 75%</span></div>
+          </div>
+          <div class="provider-chip">
+            <img src="assets/icons/Codex-d.blue.svg" alt="">
+            <div class="meta"><span class="name">Codex CLI</span><span class="sub">Plus · 25%</span></div>
+          </div>
+          <div class="provider-chip">
+            <img src="assets/icons/Gemini-d.blue.svg" alt="">
+            <div class="meta"><span class="name">Gemini CLI</span><span class="sub">Free · 13%</span></div>
+          </div>
+          <div class="provider-chip">
+            <img src="assets/icons/Copilot-d.blue.svg" alt="">
+            <div class="meta"><span class="name">GitHub Copilot</span><span class="sub">Pro · 42%</span></div>
+          </div>
+          <div class="provider-chip">
+            <img src="assets/icons/Cursor-d.blue.svg" alt="">
+            <div class="meta"><span class="name">Cursor</span><span class="sub">Pro · 8%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">FAQ</h3>
+      <div class="card" style="padding: 0 var(--s-5);">
+        <div class="faq-list">
+          <details class="faq" open>
+            <summary>Does Tokenomics phone home?
+              <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+            </summary>
+            <div class="answer">No. Every provider is queried directly from your Mac using credentials already on disk. Tokenomics has no server, no telemetry, no account.</div>
+          </details>
+          <details class="faq">
+            <summary>How does it stay updated?
+              <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+            </summary>
+            <div class="answer">Sparkle handles in-app updates automatically — every release is signed and notarized. The Homebrew cask is for first install only.</div>
+          </details>
+          <details class="faq">
+            <summary>Which macOS versions are supported?
+              <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+            </summary>
+            <div class="answer">macOS 13 Ventura and later. Apple Silicon and Intel both work.</div>
+          </details>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Text button (naked link)</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">A tertiary action with no background or border — just accent-colored text. Used for "<em>Open the guided setup</em>", "<em>Back</em>", "<em>Read more</em>", inline help links, and tertiary CTAs that shouldn't compete with primary buttons. Hover underlines (3px offset); when the button has a directional arrow, the arrow nudges 2px toward its direction on hover.</p>
+
+        <div style="display: flex; flex-wrap: wrap; gap: var(--s-5); align-items: center; margin-top: var(--s-4);">
+          <button class="btn-text">
+            Open the guided setup
+            <svg class="arrow" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          </button>
+
+          <button class="btn-text is-back">
+            <svg class="arrow" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 8H3M7 4L3 8l4 4"/></svg>
+            Back
+          </button>
+
+          <button class="btn-text">
+            Read the changelog
+            <svg class="arrow" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
+          </button>
+
+          <button class="btn-text">Learn more</button>
+
+          <button class="btn-text is-danger">Disconnect provider</button>
+        </div>
+
+        <p style="font-size: var(--fs-small); color: var(--text-muted); margin-top: var(--s-5);"><strong>Variants:</strong> <code>.btn-text</code> (default — accent), <code>.is-back</code> (muted, used for window/back navigation; text-muted by default, text-primary on hover), <code>.is-danger</code> (uses <code>--danger</code> for destructive tertiary actions like "Disconnect"). Pair with an inline SVG <code>.arrow</code> for directional CTAs.</p>
+
+        <p style="font-size: var(--fs-small); color: var(--text-muted); margin-top: var(--s-3);"><strong>When to choose what:</strong></p>
+        <ul style="font-size: var(--fs-small); color: var(--text-muted); line-height: 1.7;">
+          <li><code>.btn-primary</code> — the one main action on a screen</li>
+          <li><code>.btn-secondary</code> — alternate path of equal-ish weight ("Cancel", "Skip")</li>
+          <li><code>.btn-ghost</code> — sits next to primaries but lower weight; has a hover background</li>
+          <li><code>.btn-text</code> — tertiary; no padding/border/bg; reads as a link but is a button</li>
+          <li><code>&lt;a&gt;</code> — inline within prose (e.g. "Install <a href="#">Homebrew</a> first")</li>
+        </ul>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Button in a field</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">A small action button that sits <em>inside</em> a code field, input, or pill row — used for Copy, Clear, Edit-in-line, etc. Smaller padding (<code>5×10</code>), 6px corner radius, <code>--text-muted</code> by default, fills with <code>--surface-2</code> on hover (matches <code>.btn-secondary</code> / <code>.btn-ghost</code> for a unified subtle hover language). Less visual weight than a regular <code>.btn</code> because it's already nested inside an interactive surface.</p>
+
+        <div style="display: flex; flex-direction: column; gap: var(--s-3); margin-top: var(--s-4); max-width: 560px;">
+          <!-- With monospace command + Copy -->
+          <div class="field-row">
+            <span class="field-prompt">$</span>
+            <span class="field-cmd mono">brew install rob-stout/tap/tokenomics</span>
+            <button class="btn-in-field" aria-label="Copy">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2 0v8h8V2H6zM2 4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2h-2v2H2V6h2V4H2z"/>
+              </svg>
+              Copy
+            </button>
+          </div>
+
+          <!-- With plain text + Edit -->
+          <div class="field-row">
+            <span class="field-cmd">robbystout@gmail.com</span>
+            <button class="btn-in-field">Edit</button>
+          </div>
+
+          <!-- Search-style with clear -->
+          <div class="field-row">
+            <span class="field-cmd" style="color: var(--text);">claude code usage</span>
+            <button class="btn-in-field is-icon" aria-label="Clear">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+            </button>
+          </div>
+
+          <!-- Confirmation state (after copy success) -->
+          <div class="field-row">
+            <span class="field-prompt">$</span>
+            <span class="field-cmd mono">brew install rob-stout/tap/tokenomics</span>
+            <button class="btn-in-field is-success" aria-label="Copied">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/>
+              </svg>
+              Copied
+            </button>
+          </div>
+        </div>
+
+        <p style="font-size: var(--fs-small); color: var(--text-muted); margin-top: var(--s-4);"><strong>Variants:</strong> <code>.btn-in-field</code> (default), <code>.is-icon</code> (square 5px padding for icon-only), <code>.is-success</code> (green text + 30% green border for confirmation states).</p>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Segmented control</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">A two-or-three-option toggle on a tinted track with the active option elevated on a white pill. Two rounding variants ship today:</p>
+
+        <div style="margin-top: var(--s-4); display: flex; flex-direction: column; gap: var(--s-5);">
+          <div>
+            <div style="font-size: var(--fs-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle); margin-bottom: var(--s-2);">.seg.seg-rounded — used by Install Download/Homebrew</div>
+            <div class="seg seg-rounded">
+              <button class="opt">Download</button>
+              <button class="opt active">Homebrew</button>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size: var(--fs-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle); margin-bottom: var(--s-2);">.seg.seg-pill — used by plan tabs Free/Standard/Enterprise</div>
+            <div class="seg seg-pill">
+              <button class="opt active">Free</button>
+              <button class="opt">Standard</button>
+              <button class="opt">Enterprise</button>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size: var(--fs-small); color: var(--text-muted); margin-top: var(--s-4);"><strong>Rule of thumb:</strong> Use <code>.seg-rounded</code> for primary navigation/install-flow choices that sit inline with body content. Use <code>.seg-pill</code> for inline plan/tier pickers nested inside a row or list. Both reuse the same opt button — only the corner radius and padding differ.</p>
+      </div>
+    </section>
+
+    <!-- WIDGETS -->
+    <section id="widgets">
+      <div class="section-header">
+        <div>
+          <span class="kicker">07 · Widget mockups</span>
+          <h2>The product, on the page</h2>
+          <p>These are HTML/CSS reproductions of the Figma widgets (node 421:440) — used on marketing pages so the app and site feel continuous. Colors come straight from the palette above.</p>
+        </div>
+      </div>
+
+      <div class="widget-grid">
+
+        <!-- ============ SMALL · DUAL RING · LIGHT ============
+             Mirrors SmallWidgetView.swift:
+             outerDia=size*0.61 (r=30.5), innerDia=size*0.46 (r=23), lineW=size*0.07 (=7)
+             fontSize=size*0.125 (=12.5), corner icon 11.2×11.2 at (8.2, 8.2),
+             rings offset y = size*0.024 so they sit slightly below center leaving room for resets text.
+        -->
+        <div class="widget w-small light">
+          <div class="ring-stage">
+            <svg class="ring-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <!-- Corner provider icon -->
+              <image href="assets/icons/Claude-d.blue.svg" x="8.2" y="8.2" width="11.2" height="11.2"/>
+
+              <g transform="translate(50 47.4)">
+                <!-- Outer track (short window) -->
+                <circle r="30.5" fill="none" stroke="rgba(40,97,149,0.12)" stroke-width="7"/>
+                <!-- Outer fill (75%) — C = 2π·30.5 ≈ 191.64 -->
+                <circle r="30.5" fill="none" stroke="#2F84BF" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="191.64" stroke-dashoffset="47.91"
+                  transform="rotate(-90)"/>
+                <!-- Inner track (long window) -->
+                <circle r="23" fill="none" stroke="rgba(40,97,149,0.12)" stroke-width="7"/>
+                <!-- Inner fill (33%) — C = 2π·23 ≈ 144.51 -->
+                <circle r="23" fill="none" stroke="#56A2D6" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="144.51" stroke-dashoffset="96.82"
+                  transform="rotate(-90)"/>
+                <!-- Pace dots (dark navy on light) -->
+                <circle r="3.5" fill="#0E334D" transform="rotate(198) translate(0 -30.5)"/>
+                <circle r="3.5" fill="#0E334D" transform="rotate(54)  translate(0 -23)"/>
+                <!-- Percentage (shortColor), bold monospaced -->
+                <text x="0" y="0"
+                  text-anchor="middle" dominant-baseline="central"
+                  font-family="-apple-system, 'SF Pro Text', system-ui, sans-serif"
+                  font-size="12.5" font-weight="700" letter-spacing="-0.3"
+                  style="font-variant-numeric: tabular-nums;"
+                  fill="#2F84BF">75%</text>
+              </g>
+            </svg>
+          </div>
+          <div class="resets">Resets in 2h 45m</div>
+        </div>
+
+        <!-- ============ SMALL · DUAL RING · DARK ============ -->
+        <div class="widget w-small dark">
+          <div class="ring-stage">
+            <svg class="ring-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <image href="assets/icons/Claude-white.svg" x="8.2" y="8.2" width="11.2" height="11.2"/>
+
+              <g transform="translate(50 47.4)">
+                <circle r="30.5" fill="none" stroke="rgba(75,166,210,0.25)" stroke-width="7"/>
+                <!-- Outer fill 55% -->
+                <circle r="30.5" fill="none" stroke="#75CBF5" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="191.64" stroke-dashoffset="86.24"
+                  transform="rotate(-90)"/>
+                <circle r="23" fill="none" stroke="rgba(75,166,210,0.25)" stroke-width="7"/>
+                <!-- Inner fill 33% -->
+                <circle r="23" fill="none" stroke="#3389C7" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="144.51" stroke-dashoffset="96.82"
+                  transform="rotate(-90)"/>
+                <!-- Pace dots white -->
+                <circle r="3.5" fill="#FFFFFF" transform="rotate(198) translate(0 -30.5)"/>
+                <circle r="3.5" fill="#FFFFFF" transform="rotate(54)  translate(0 -23)"/>
+                <text x="0" y="0"
+                  text-anchor="middle" dominant-baseline="central"
+                  font-family="-apple-system, 'SF Pro Text', system-ui, sans-serif"
+                  font-size="12.5" font-weight="700" letter-spacing="-0.3"
+                  style="font-variant-numeric: tabular-nums;"
+                  fill="#75CBF5">55%</text>
+              </g>
+            </svg>
+          </div>
+          <div class="resets">Resets in 2h 45m</div>
+        </div>
+
+        <!-- ============ MEDIUM · 1 PROVIDER · LIGHT (LargeProviderRow) ============ -->
+        <div class="widget w-medium light">
+          <div class="w-body">
+            <div class="w-head gap-spacious">
+              <span class="title">Tokenomics</span>
+              <span class="time">30 sec ago</span>
+            </div>
+            <div class="spacious-center">
+              <div class="row-large">
+                <div class="r-head">
+                  <span class="pico"><img src="assets/icons/Claude-d.blue.svg" alt=""></span>
+                  <span class="name">Claude Code</span>
+                  <span class="plan">Pro</span>
+                </div>
+                <div class="metrics">
+                  <div class="bar-row">
+                    <span class="lbl">5-Hour</span>
+                    <div class="pbar">
+                      <div class="track"></div>
+                      <div class="fill" style="width:75%"></div>
+                      <div class="pace" style="left:80%"></div>
+                    </div>
+                    <span class="pct">75%</span>
+                  </div>
+                  <div class="bar-row">
+                    <span class="lbl">7-Day</span>
+                    <div class="pbar">
+                      <div class="track"></div>
+                      <div class="fill long" style="width:33%"></div>
+                      <div class="pace" style="left:40%"></div>
+                    </div>
+                    <span class="pct long">33%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="w-foot">
+              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2l-3 3h2v5h2V5h2L8 2zm-5 9v3h10v-3h-2v1H5v-1H3z"/></svg>
+              <span>Tokenomics</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ MEDIUM · 1 PROVIDER · DARK ============ -->
+        <div class="widget w-medium dark">
+          <div class="w-body">
+            <div class="w-head gap-spacious">
+              <span class="title">Tokenomics</span>
+              <span class="time">30 sec ago</span>
+            </div>
+            <div class="spacious-center">
+              <div class="row-large">
+                <div class="r-head">
+                  <span class="pico"><img src="assets/icons/Claude-white.svg" alt=""></span>
+                  <span class="name">Claude Code</span>
+                  <span class="plan">Pro</span>
+                </div>
+                <div class="metrics">
+                  <div class="bar-row">
+                    <span class="lbl">5-Hour</span>
+                    <div class="pbar">
+                      <div class="track"></div>
+                      <div class="fill" style="width:90%"></div>
+                      <div class="pace" style="left:82%"></div>
+                    </div>
+                    <span class="pct">90%</span>
+                  </div>
+                  <div class="bar-row">
+                    <span class="lbl">7-Day</span>
+                    <div class="pbar">
+                      <div class="track"></div>
+                      <div class="fill long" style="width:33%"></div>
+                      <div class="pace" style="left:40%"></div>
+                    </div>
+                    <span class="pct long">33%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="w-foot">
+              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2l-3 3h2v5h2V5h2L8 2zm-5 9v3h10v-3h-2v1H5v-1H3z"/></svg>
+              <span>Tokenomics</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ MEDIUM · 3 PROVIDERS · LIGHT (CompactProviderRow) ============ -->
+        <div class="widget w-medium light">
+          <div class="w-body">
+            <div class="w-head gap-compact">
+              <span class="title">Tokenomics</span>
+              <span class="time">30 sec ago</span>
+            </div>
+            <div class="w-rows">
+              <!-- Row 1: Claude (short + long) -->
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Claude-d.blue.svg" alt=""></span>
+                <div class="col">
+                  <div class="head"><span class="lbl">5-Hour</span><span class="pct">50%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill" style="width:50%"></div><div class="pace" style="left:55%"></div></div>
+                </div>
+                <div class="col">
+                  <div class="head"><span class="lbl">7-Day</span><span class="pct long">33%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill long" style="width:33%"></div><div class="pace" style="left:40%"></div></div>
+                </div>
+              </div>
+              <!-- Row 2: Codex (short + long) -->
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Codex-d.blue.svg" alt=""></span>
+                <div class="col">
+                  <div class="head"><span class="lbl">5-Hour</span><span class="pct">25%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill" style="width:25%"></div><div class="pace" style="left:30%"></div></div>
+                </div>
+                <div class="col">
+                  <div class="head"><span class="lbl">Context</span><span class="pct long">13%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill long" style="width:13%"></div></div>
+                </div>
+              </div>
+              <!-- Row 3: Gemini -->
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Gemini-d.blue.svg" alt=""></span>
+                <div class="col">
+                  <div class="head"><span class="lbl">Tokens</span><span class="pct">13%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill" style="width:13%"></div></div>
+                </div>
+                <div class="col">
+                  <div class="head"><span class="lbl">Requests</span><span class="pct long">0%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill long" style="width:0%"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="w-foot">+1 in app</div>
+          </div>
+        </div>
+
+        <!-- ============ MEDIUM · 3 PROVIDERS · DARK ============ -->
+        <div class="widget w-medium dark">
+          <div class="w-body">
+            <div class="w-head gap-compact">
+              <span class="title">Tokenomics</span>
+              <span class="time">30 sec ago</span>
+            </div>
+            <div class="w-rows">
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Claude-white.svg" alt=""></span>
+                <div class="col">
+                  <div class="head"><span class="lbl">5-Hour</span><span class="pct">50%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill" style="width:50%"></div><div class="pace" style="left:55%"></div></div>
+                </div>
+                <div class="col">
+                  <div class="head"><span class="lbl">7-Day</span><span class="pct long">33%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill long" style="width:33%"></div><div class="pace" style="left:40%"></div></div>
+                </div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Codex-white.svg" alt=""></span>
+                <div class="col">
+                  <div class="head"><span class="lbl">5-Hour</span><span class="pct">25%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill" style="width:25%"></div></div>
+                </div>
+                <div class="col">
+                  <div class="head"><span class="lbl">Context</span><span class="pct long">13%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill long" style="width:13%"></div></div>
+                </div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Gemini-white.svg" alt=""></span>
+                <div class="col">
+                  <div class="head"><span class="lbl">Tokens</span><span class="pct">13%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill" style="width:13%"></div></div>
+                </div>
+                <div class="col">
+                  <div class="head"><span class="lbl">Requests</span><span class="pct long">0%</span></div>
+                  <div class="pbar"><div class="track"></div><div class="fill long" style="width:0%"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="w-foot">+1 in app</div>
+          </div>
+        </div>
+
+        <!-- ============ LARGE · 7 PROVIDERS · LIGHT (compact rows + overflow) ============ -->
+        <div class="widget w-large light">
+          <div class="w-body">
+            <div class="w-head gap-overflow">
+              <span class="title">Tokenomics</span>
+              <span class="time">21 sec ago</span>
+            </div>
+            <div class="w-rows">
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Claude-d.blue.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">5-Hour</span><span class="pct">0%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:0%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">7-Day</span><span class="pct long">33%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:33%"></div><div class="pace" style="left:40%"></div></div></div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Copilot-d.blue.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">Premium</span><span class="pct">42%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:42%"></div><div class="pace" style="left:46%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">18%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:18%"></div></div></div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Codex-d.blue.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">5-Hour</span><span class="pct">1%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:1%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">Context</span><span class="pct long">13%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:13%"></div></div></div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Gemini-d.blue.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">Tokens</span><span class="pct">0%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:0%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">0%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:0%"></div></div></div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/Cursor-d.blue.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">Premium</span><span class="pct">8%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:8%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">12%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:12%"></div></div></div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/elevenlabs-d.blue.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">Credits</span><span class="pct">25%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:25%"></div><div class="pace" style="left:30%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">15%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:15%"></div></div></div>
+              </div>
+              <div class="row-compact">
+                <span class="pico"><img src="assets/icons/runway-d.blue.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">Tokens</span><span class="pct">5%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:5%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">Cost</span><span class="pct long">3%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:3%"></div></div></div>
+              </div>
+            </div>
+            <div class="w-foot">+1 in app</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- WIDGET SHOWCASE (desktop frame) -->
+    <section id="showcase">
+      <div class="section-header">
+        <div>
+          <span class="kicker">08 · Widget showcase</span>
+          <h2>Desktop frame <span class="v2-tag">new in v2</span></h2>
+          <p>The marketing-page presentation of the widgets: a dark gradient platter with subtle radial glow that holds all three sizes in a fixed mosaic. Dimensions follow the WidgetKit proportional rule — <strong>2 × small + gap = medium width</strong> and <strong>2 × medium height + gap = large height</strong>, with medium and large sharing the same width. With <code>small = 200</code> and <code>gap = 32</code>: medium <strong>432×200</strong> and large <strong>432×432</strong>. Total mosaic width <strong>1128px</strong>; height <strong>432px</strong>. The frame scrolls horizontally on narrow viewports rather than scaling (inner content is fixed-pixel and would break).</p>
+        </div>
+      </div>
+
+      <div class="desktop-frame">
+        <div class="desktop-widgets">
+          <!-- Small dark -->
+          <div class="widget w-small dark">
+            <div class="ring-stage">
+              <svg class="ring-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <image href="assets/icons/Claude-white.svg" x="8.2" y="8.2" width="11.2" height="11.2"/>
+                <g transform="translate(50 47.4)">
+                  <circle r="30.5" fill="none" stroke="rgba(75,166,210,0.25)" stroke-width="7"/>
+                  <circle r="30.5" fill="none" stroke="#75CBF5" stroke-width="7" stroke-linecap="round" stroke-dasharray="191.64" stroke-dashoffset="86.24" transform="rotate(-90)"/>
+                  <circle r="23" fill="none" stroke="rgba(75,166,210,0.25)" stroke-width="7"/>
+                  <circle r="23" fill="none" stroke="#3389C7" stroke-width="7" stroke-linecap="round" stroke-dasharray="144.51" stroke-dashoffset="96.82" transform="rotate(-90)"/>
+                  <circle r="3.5" fill="#FFFFFF" transform="rotate(198) translate(0 -30.5)"/>
+                  <circle r="3.5" fill="#FFFFFF" transform="rotate(54) translate(0 -23)"/>
+                  <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, 'SF Pro Text', system-ui, sans-serif" font-size="12.5" font-weight="700" letter-spacing="-0.3" style="font-variant-numeric: tabular-nums;" fill="#75CBF5">55%</text>
+                </g>
+              </svg>
+            </div>
+            <div class="resets">Resets in 2h 45m</div>
+          </div>
+          <!-- Small light -->
+          <div class="widget w-small light">
+            <div class="ring-stage">
+              <svg class="ring-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <image href="assets/icons/Claude-d.blue.svg" x="8.2" y="8.2" width="11.2" height="11.2"/>
+                <g transform="translate(50 47.4)">
+                  <circle r="30.5" fill="none" stroke="rgba(40,97,149,0.12)" stroke-width="7"/>
+                  <circle r="30.5" fill="none" stroke="#2F84BF" stroke-width="7" stroke-linecap="round" stroke-dasharray="191.64" stroke-dashoffset="86.24" transform="rotate(-90)"/>
+                  <circle r="23" fill="none" stroke="rgba(40,97,149,0.12)" stroke-width="7"/>
+                  <circle r="23" fill="none" stroke="#56A2D6" stroke-width="7" stroke-linecap="round" stroke-dasharray="144.51" stroke-dashoffset="96.82" transform="rotate(-90)"/>
+                  <circle r="3.5" fill="#0E334D" transform="rotate(198) translate(0 -30.5)"/>
+                  <circle r="3.5" fill="#0E334D" transform="rotate(54) translate(0 -23)"/>
+                  <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, 'SF Pro Text', system-ui, sans-serif" font-size="12.5" font-weight="700" letter-spacing="-0.3" style="font-variant-numeric: tabular-nums;" fill="#2F84BF">55%</text>
+                </g>
+              </svg>
+            </div>
+            <div class="resets">Resets in 2h 45m</div>
+          </div>
+          <!-- Medium dark (1 provider, GitHub Copilot) -->
+          <div class="widget w-medium dark">
+            <div class="w-body">
+              <div class="w-head gap-spacious"><span class="title">Tokenomics</span><span class="time">30 sec ago</span></div>
+              <div class="spacious-center">
+                <div class="row-large">
+                  <div class="r-head">
+                    <span class="pico"><img src="assets/icons/Copilot-white.svg" alt=""></span>
+                    <span class="name">GitHub Copilot</span>
+                    <span class="plan">Business</span>
+                  </div>
+                  <div class="metrics">
+                    <div class="bar-row"><span class="lbl">Premium</span><div class="pbar"><div class="track"></div><div class="fill" style="width:42%"></div><div class="pace" style="left:46%"></div></div><span class="pct">42%</span></div>
+                    <div class="bar-row"><span class="lbl">Requests</span><div class="pbar"><div class="track"></div><div class="fill long" style="width:18%"></div></div><span class="pct long">18%</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="w-foot">
+                <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2l-3 3h2v5h2V5h2L8 2zm-5 9v3h10v-3h-2v1H5v-1H3z"/></svg>
+                <span>Tokenomics</span>
+              </div>
+            </div>
+          </div>
+          <!-- Medium light (3 providers) -->
+          <div class="widget w-medium light">
+            <div class="w-body">
+              <div class="w-head gap-compact"><span class="title">Tokenomics</span><span class="time">30 sec ago</span></div>
+              <div class="w-rows">
+                <div class="row-compact">
+                  <span class="pico"><img src="assets/icons/Claude-d.blue.svg" alt=""></span>
+                  <div class="col"><div class="head"><span class="lbl">5-Hour</span><span class="pct">50%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:50%"></div><div class="pace" style="left:55%"></div></div></div>
+                  <div class="col"><div class="head"><span class="lbl">7-Day</span><span class="pct long">33%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:33%"></div><div class="pace" style="left:40%"></div></div></div>
+                </div>
+                <div class="row-compact">
+                  <span class="pico"><img src="assets/icons/Codex-d.blue.svg" alt=""></span>
+                  <div class="col"><div class="head"><span class="lbl">5-Hour</span><span class="pct">25%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:25%"></div></div></div>
+                  <div class="col"><div class="head"><span class="lbl">Context</span><span class="pct long">13%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:13%"></div></div></div>
+                </div>
+                <div class="row-compact">
+                  <span class="pico"><img src="assets/icons/Gemini-d.blue.svg" alt=""></span>
+                  <div class="col"><div class="head"><span class="lbl">Tokens</span><span class="pct">13%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:13%"></div></div></div>
+                  <div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">0%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:0%"></div></div></div>
+                </div>
+              </div>
+              <div class="w-foot">+1 in app</div>
+            </div>
+          </div>
+          <!-- Large dark (7 providers) -->
+          <div class="widget w-large dark">
+            <div class="w-body">
+              <div class="w-head gap-overflow"><span class="title">Tokenomics</span><span class="time">21 sec ago</span></div>
+              <div class="w-rows">
+                <div class="row-compact"><span class="pico"><img src="assets/icons/Claude-white.svg" alt=""></span><div class="col"><div class="head"><span class="lbl">5-Hour</span><span class="pct">0%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:0%"></div></div></div><div class="col"><div class="head"><span class="lbl">7-Day</span><span class="pct long">33%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:33%"></div><div class="pace" style="left:40%"></div></div></div></div>
+                <div class="row-compact"><span class="pico"><img src="assets/icons/Copilot-white.svg" alt=""></span><div class="col"><div class="head"><span class="lbl">Premium</span><span class="pct">42%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:42%"></div><div class="pace" style="left:46%"></div></div></div><div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">18%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:18%"></div></div></div></div>
+                <div class="row-compact"><span class="pico"><img src="assets/icons/Codex-white.svg" alt=""></span><div class="col"><div class="head"><span class="lbl">5-Hour</span><span class="pct">1%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:1%"></div></div></div><div class="col"><div class="head"><span class="lbl">Context</span><span class="pct long">13%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:13%"></div></div></div></div>
+                <div class="row-compact"><span class="pico"><img src="assets/icons/Gemini-white.svg" alt=""></span><div class="col"><div class="head"><span class="lbl">Tokens</span><span class="pct">0%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:0%"></div></div></div><div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">0%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:0%"></div></div></div></div>
+                <div class="row-compact"><span class="pico"><img src="assets/icons/Cursor-white.svg" alt=""></span><div class="col"><div class="head"><span class="lbl">Premium</span><span class="pct">8%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:8%"></div></div></div><div class="col"><div class="head"><span class="lbl">Requests</span><span class="pct long">12%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:12%"></div></div></div></div>
+                <div class="row-compact"><span class="pico"><img src="assets/icons/elevenlabs-white.svg" alt=""></span><div class="col"><div class="head"><span class="lbl">Credits</span><span class="pct">25%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:25%"></div><div class="pace" style="left:30%"></div></div></div><div class="col"><div class="head"><span class="lbl">Monthly</span><span class="pct long">18%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:18%"></div></div></div></div>
+                <div class="row-compact"><span class="pico"><img src="assets/icons/runway-white.svg" alt=""></span><div class="col"><div class="head"><span class="lbl">Chars</span><span class="pct">62%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:62%"></div><div class="pace" style="left:48%"></div></div></div><div class="col"><div class="head"><span class="lbl">Monthly</span><span class="pct long">41%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:41%"></div></div></div></div>
+              </div>
+              <div class="w-foot">
+                <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2l-3 3h2v5h2V5h2L8 2zm-5 9v3h10v-3h-2v1H5v-1H3z"/></svg>
+                <span>Tokenomics</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- POPOVER -->
+    <section id="popover">
+      <div class="section-header">
+        <div>
+          <span class="kicker">09 · Menu-bar popover</span>
+          <h2>The popover that drops from the menu bar <span class="v2-tag">new in v2</span></h2>
+          <p>The actual popover users see when they click the menu-bar item. <strong>Glass surface</strong> (translucent fill + 24px backdrop-blur), 16px radius, 420px max width. The active provider tab expands into a pill with icon + name; inactive tabs are icon-only. Bars are 6px (not 4px like widgets — this is a fuller-resolution surface). The whole component sits on a wallpaper-tinted "scene" so the marketing page can show it in context.</p>
+        </div>
+      </div>
+
+      <div class="grid cols-2" style="gap: var(--s-5);">
+        <!-- Light -->
+        <div class="menubar-scene">
+          <div class="menubar-bar">
+            <span class="mb-token"><span class="mb-ring"></span> 43%</span>
+            <span style="opacity:0.5;">Wed Apr 1 9:41 AM</span>
+          </div>
+          <div class="menubar-popover">
+            <div class="pop-head">
+              <div class="pop-head-title">Tokenomics</div>
+              <div class="pop-head-actions">
+                <span class="pop-plan-pill">Max</span>
+                <button class="pop-iconbtn" type="button" aria-label="Share">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v9M5 5l3-3 3 3M3 11v3h10v-3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="pop-tabs">
+              <button class="pop-tab active" type="button">
+                <img src="assets/icons/Claude-white.svg" alt="" width="16" height="16"/>
+                <span>Claude</span>
+              </button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Codex-white.svg" alt="" width="16" height="16"/></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Gemini-white.svg" alt="" width="16" height="16"/></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Copilot-white.svg" alt="" width="16" height="16"/></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Cursor-white.svg" alt="" width="16" height="16"/></button>
+            </div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">5-Hour Window</div><div class="pop-section-pct">46%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:46%"></div><div class="pop-bar-pace" style="left:60%"></div></div>
+              <div class="pop-section-resets">Resets in 1h 36m</div>
+            </div>
+            <div class="pop-divider"></div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">7-Day Window</div><div class="pop-section-pct">32%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:32%"></div><div class="pop-bar-pace" style="left:78%"></div></div>
+              <div class="pop-section-resets">Resets tomorrow</div>
+            </div>
+            <div class="pop-divider"></div>
+            <div class="pop-foot">
+              <div class="pop-foot-left">Updated just now</div>
+              <div class="pop-foot-right">
+                <button class="pop-iconbtn" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8a6 6 0 1 1-1.76-4.24M14 2v4h-4"/></svg></button>
+                <span class="pop-foot-sep"></span>
+                <button class="pop-iconbtn" type="button" aria-label="Settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M13.5 8a5.5 5.5 0 0 0-.1-1l1.4-1.1-1.4-2.4-1.7.5a5.5 5.5 0 0 0-1.7-1l-.4-1.7h-2.8l-.4 1.7a5.5 5.5 0 0 0-1.7 1l-1.7-.5L1.6 5.9 3 7a5.5 5.5 0 0 0 0 2L1.6 10.1l1.4 2.4 1.7-.5a5.5 5.5 0 0 0 1.7 1l.4 1.7h2.8l.4-1.7a5.5 5.5 0 0 0 1.7-1l1.7.5 1.4-2.4L13.4 9a5.5 5.5 0 0 0 .1-1z"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dark — uses data-theme attribute on the scene to flip the popover -->
+        <div class="menubar-scene" data-theme="dark">
+          <div class="menubar-bar">
+            <span class="mb-token"><span class="mb-ring"></span> 43%</span>
+            <span style="opacity:0.5;">Wed Apr 1 9:41 AM</span>
+          </div>
+          <div class="menubar-popover">
+            <div class="pop-head">
+              <div class="pop-head-title">Tokenomics</div>
+              <div class="pop-head-actions">
+                <span class="pop-plan-pill">Max</span>
+                <button class="pop-iconbtn" type="button" aria-label="Share">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v9M5 5l3-3 3 3M3 11v3h10v-3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="pop-tabs">
+              <button class="pop-tab active" type="button">
+                <img src="assets/icons/Claude-white.svg" alt="" width="16" height="16"/>
+                <span>Claude</span>
+              </button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Codex-white.svg" alt="" width="16" height="16"/></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Gemini-white.svg" alt="" width="16" height="16"/></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Copilot-white.svg" alt="" width="16" height="16"/></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Cursor-white.svg" alt="" width="16" height="16"/></button>
+            </div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">5-Hour Window</div><div class="pop-section-pct">46%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:46%"></div><div class="pop-bar-pace" style="left:60%"></div></div>
+              <div class="pop-section-resets">Resets in 1h 36m</div>
+            </div>
+            <div class="pop-divider"></div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">7-Day Window</div><div class="pop-section-pct">32%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:32%"></div><div class="pop-bar-pace" style="left:78%"></div></div>
+              <div class="pop-section-resets">Resets tomorrow</div>
+            </div>
+            <div class="pop-divider"></div>
+            <div class="pop-foot">
+              <div class="pop-foot-left">Updated just now</div>
+              <div class="pop-foot-right">
+                <button class="pop-iconbtn" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8a6 6 0 1 1-1.76-4.24M14 2v4h-4"/></svg></button>
+                <span class="pop-foot-sep"></span>
+                <button class="pop-iconbtn" type="button" aria-label="Settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M13.5 8a5.5 5.5 0 0 0-.1-1l1.4-1.1-1.4-2.4-1.7.5a5.5 5.5 0 0 0-1.7-1l-.4-1.7h-2.8l-.4 1.7a5.5 5.5 0 0 0-1.7 1l-1.7-.5L1.6 5.9 3 7a5.5 5.5 0 0 0 0 2L1.6 10.1l1.4 2.4 1.7-.5a5.5 5.5 0 0 0 1.7 1l.4 1.7h2.8l.4-1.7a5.5 5.5 0 0 0 1.7-1l1.7.5 1.4-2.4L13.4 9a5.5 5.5 0 0 0 .1-1z"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PACE DIAGRAM -->
+    <section id="pace-diagram">
+      <div class="section-header">
+        <div>
+          <span class="kicker">10 · Pace-dot diagram</span>
+          <h2>The annotated dual-ring <span class="v2-tag">new in v2</span></h2>
+          <p>Marketing-page-only component used to teach the pace-dot concept. Same ring math as the small widget (outer:inner ratio 0.305:0.23) but scaled up ~3× — outer r=100, inner r=75, stroke 20 — so callout lines and labels can sit cleanly outside the rings. Pace dots are sized to match the thicker stroke (r=9 outer, r=8 inner).</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="pace-diagram" role="img" aria-label="Dual-ring diagram showing 60% used in the 5-hour window and 38% in the 7-day window, with pace dots at 45% on each ring.">
+          <svg viewBox="0 0 460 440" font-family="'DM Sans', system-ui, sans-serif">
+            <!-- Legend -->
+            <g transform="translate(30 22)">
+              <circle cx="8" cy="10" r="7" fill="var(--ring-outer)"/>
+              <text x="24" y="15" font-size="16" fill="currentColor" opacity="0.82">5-Hour Window</text>
+            </g>
+            <g transform="translate(240 22)">
+              <circle cx="8" cy="10" r="7" fill="var(--ring-inner)"/>
+              <text x="24" y="15" font-size="16" fill="currentColor" opacity="0.82">7-Day Window</text>
+            </g>
+
+            <!-- Outer ring (60%) -->
+            <circle cx="200" cy="230" r="100" fill="none" stroke="var(--ring-track)" stroke-width="20"/>
+            <circle cx="200" cy="230" r="100" fill="none" stroke="var(--ring-outer)" stroke-width="20" stroke-linecap="round" stroke-dasharray="628.32" stroke-dashoffset="251.33" transform="rotate(-90 200 230)"/>
+            <!-- Inner ring (38%) -->
+            <circle cx="200" cy="230" r="75" fill="none" stroke="var(--ring-track)" stroke-width="20"/>
+            <circle cx="200" cy="230" r="75" fill="none" stroke="var(--ring-inner)" stroke-width="20" stroke-linecap="round" stroke-dasharray="471.24" stroke-dashoffset="292.17" transform="rotate(-90 200 230)"/>
+
+            <!-- Pace dots @ 45% -->
+            <circle cx="230.9" cy="325.1" r="9" fill="var(--pace-dot)"/>
+            <circle cx="223.2" cy="301.3" r="8" fill="var(--pace-dot)"/>
+
+            <!-- Center % -->
+            <text x="200" y="244" text-anchor="middle" font-family="-apple-system,'SF Pro Text',system-ui,sans-serif" font-size="46" font-weight="700" fill="var(--ring-inner)" style="font-variant-numeric: tabular-nums;">60%</text>
+
+            <!-- Connector lines -->
+            <line x1="296.2" y1="176.7" x2="340" y2="150" stroke="currentColor" stroke-width="1" opacity="0.45"/>
+            <line x1="340" y1="150" x2="372" y2="150" stroke="currentColor" stroke-width="1" opacity="0.45"/>
+            <line x1="240" y1="325.1" x2="340" y2="325" stroke="currentColor" stroke-width="1" opacity="0.45"/>
+            <line x1="340" y1="325" x2="372" y2="325" stroke="currentColor" stroke-width="1" opacity="0.45"/>
+            <line x1="182.8" y1="338.6" x2="182.8" y2="395" stroke="currentColor" stroke-width="1" opacity="0.45"/>
+            <text x="182.8" y="416" text-anchor="middle" font-size="16" font-weight="600" fill="currentColor">Burning <tspan fill="var(--accent)">ahead</tspan> of pace</text>
+          </svg>
+          <div class="pace-label pace-label--top">
+            <div class="pace-label__title">Usage so far</div>
+            <div class="pace-label__sub">What you've used this window</div>
+          </div>
+          <div class="pace-label pace-label--bottom">
+            <div class="pace-label__title">Even-pace mark</div>
+            <div class="pace-label__sub">Where even consumption sits</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSTALL BLOCK (real one — replaces v1's tabbed code block) -->
+    <section id="install">
+      <div class="section-header">
+        <div>
+          <span class="kicker">11 · Install block</span>
+          <h2>Two paths, one decision <span class="v2-tag">replaces v1</span></h2>
+          <p><strong>This replaces the underlined-tab install block from v1.</strong> The real component is a two-column layout: a <strong>segmented pill control</strong> on the left (Download / Homebrew, with the active tab elevated on a white pill via shadow-sm) and a panel on the right that swaps between a visual drag-to-install flow and a <code>$ brew install</code> row with a labeled <strong>Copy</strong> button. The segmented pill matches macOS Settings panes; the drag-flow visual mirrors the DMG mount window users see after downloading.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="install-v2">
+          <div>
+            <p class="eyebrow">Install</p>
+            <h3 class="serif" style="font-family: var(--font-serif); font-size: var(--fs-h2); margin-bottom: var(--s-3);">Install once. Stay <em style="color: var(--accent); font-style: italic;">current</em>.</h3>
+            <p style="color: var(--text-muted); margin-bottom: var(--s-6); max-width: 48ch; font-size: var(--fs-small);">Sparkle handles silent background updates. No re-downloading from GitHub every time there's a new version.</p>
+            <div class="seg-tabs">
+              <button class="seg-tab">Download</button>
+              <button class="seg-tab active">Homebrew</button>
+            </div>
+            <p style="margin-top: var(--s-3); font-size: var(--fs-small); color: var(--text-subtle);">macOS 14 Sonoma or later · Developer ID signed &amp; notarized</p>
+          </div>
+
+          <div>
+            <div class="brew-row">
+              <span class="brew-prompt">$</span>
+              <span class="brew-cmd">brew install rob-stout/tap/tokenomics</span>
+              <button class="copy-btn-v2" aria-label="Copy">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2 0v8h8V2H6zM2 4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2h-2v2H2V6h2V4H2z"/>
+                </svg>
+                Copy
+              </button>
+            </div>
+            <p style="margin-top: var(--s-3); font-size: var(--fs-small); color: var(--text-subtle);">Install <a href="https://brew.sh">Homebrew</a> first, then run this command.</p>
+          </div>
+        </div>
+
+        <hr style="margin: var(--s-7) 0; border:0; border-top:1px solid var(--border);"/>
+
+        <p style="font-size: var(--fs-small); margin-bottom: var(--s-4);"><strong>Download panel</strong> — the alternate state of the right column when "Download" is the active tab. A drag-to-install affordance that mirrors what users see in the mounted DMG. Assets live in <code>assets/brand/</code>: <code>Tokenomics-appicon.svg</code>, <code>install-arrow.svg</code>, <code>app-folder-icon.svg</code>.</p>
+        <div class="install-flow">
+          <div class="install-flow-icon">
+            <div class="install-flow-icon-mask">
+              <img src="assets/brand/Tokenomics-appicon.svg" alt="Tokenomics" />
+            </div>
+            <span class="install-flow-icon-label">Tokenomics</span>
+          </div>
+          <div class="install-flow-arrow-stack">
+            <img class="install-flow-arrow" src="assets/brand/install-arrow.svg" alt="" aria-hidden="true" />
+            <p class="install-flow-caption">Drag to Install…</p>
+          </div>
+          <div class="install-flow-folder">
+            <img src="assets/brand/app-folder-icon.svg" alt="" aria-hidden="true" />
+            <span class="install-flow-icon-label">Applications</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEMANTIC COLORS -->
+    <section id="semantic">
+      <div class="section-header">
+        <div>
+          <span class="kicker">12 · Semantic colors</span>
+          <h2>Success, warning, danger <span class="v3-tag">new in v3</span></h2>
+          <p>Status colors lifted from the in-app onboarding flow (<code>guided-onboarding-mockup.html</code>). The blue accent stays for ambient/informational use; these three carry meaning. Each pair is tuned for cream surfaces (light) and ink-blue surfaces (dark) — the dark variants are softer to keep the cream-style calmness even on a deep background.</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-5);">Light theme</h3>
+      <div class="grid cols-3">
+        <div class="sem-swatch">
+          <div class="chip" style="background:#2F8F4F;"></div>
+          <div class="meta">
+            <span class="name">Success</span>
+            <span class="hex">#2F8F4F</span>
+            <span class="role">"Connected" badges, done-check, OK icons</span>
+          </div>
+        </div>
+        <div class="sem-swatch">
+          <div class="chip" style="background:#C26A1F;"></div>
+          <div class="meta">
+            <span class="name">Warning</span>
+            <span class="hex">#C26A1F</span>
+            <span class="role">Heads-up alerts, soft cautions</span>
+          </div>
+        </div>
+        <div class="sem-swatch">
+          <div class="chip" style="background:#B33A3A;"></div>
+          <div class="meta">
+            <span class="name">Danger</span>
+            <span class="hex">#B33A3A</span>
+            <span class="role">Errors, failed steps, destructive actions</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Dark theme</h3>
+      <div class="grid cols-3">
+        <div class="sem-swatch">
+          <div class="chip" style="background:#6FD18A;"></div>
+          <div class="meta">
+            <span class="name">Success</span>
+            <span class="hex">#6FD18A</span>
+            <span class="role">Softer green for ink backgrounds</span>
+          </div>
+        </div>
+        <div class="sem-swatch">
+          <div class="chip" style="background:#E2A765;"></div>
+          <div class="meta">
+            <span class="name">Warning</span>
+            <span class="hex">#E2A765</span>
+            <span class="role">Warmer amber on dark surfaces</span>
+          </div>
+        </div>
+        <div class="sem-swatch">
+          <div class="chip" style="background:#E27777;"></div>
+          <div class="meta">
+            <span class="name">Danger</span>
+            <span class="hex">#E27777</span>
+            <span class="role">Coral-red, tuned for legibility on ink</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Note on warning</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small); margin: 0;"><strong>The warning color is a burnt amber, not a saturated yellow.</strong> Pure yellow on cream washes out and fights the calm editorial feel. Amber preserves the universal "caution" semantic while harmonizing with navy/cream. If a stronger differentiator from danger is ever needed, alternatives to test: <code>#A87B14</code> (deep mustard, light) / <code>#D9B463</code> (warm gold, dark). For now, the values above are the source of truth — they ship in onboarding.</p>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Badge variants</h3>
+      <div class="card" style="display: flex; flex-wrap: wrap; gap: var(--s-3);">
+        <span class="badge dot">Default · accent</span>
+        <span class="badge success dot">Connected</span>
+        <span class="badge warn dot">Quick setup</span>
+        <span class="badge danger dot">Failed</span>
+      </div>
+      <p style="font-size: var(--fs-small); color: var(--text-muted); margin-top: var(--s-3);">Each variant uses <code>color-mix</code> at 12% bg / 25% border / 100% text — gives a soft tint that reads on cream and ink alike.</p>
+    </section>
+
+    <!-- APP COMPONENTS -->
+    <section id="app-components">
+      <div class="section-header">
+        <div>
+          <span class="kicker">13 · App components</span>
+          <h2>Onboarding &amp; in-app patterns <span class="v3-tag">new in v3</span></h2>
+          <p>These components live inside the macOS app — they don't appear on trytokenomics.com but they share the same tokens, fonts, and tone. Pulled from <code>guided-onboarding-mockup.html</code> so the design system covers both the marketing site and the product.</p>
+        </div>
+      </div>
+
+      <h3>Window chrome</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Every onboarding screen sits inside a chromed window with traffic lights and a centered title. 12px corner radius, navy-tinted shadow, cream body.</p>
+        <div class="mac-window" style="margin-top: var(--s-4);">
+          <div class="titlebar">
+            <div class="traffic"><span class="light"></span><span class="light amber"></span><span class="light green"></span></div>
+            <div class="titlebar-title">Tokenomics — Setup</div>
+          </div>
+          <div class="winbody">
+            <p style="margin: 0; font-size: var(--fs-small); color: var(--text-muted);">Window body — content goes here. Padding is 32px top, 40px sides, 28px bottom.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Stepper</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Labeled stepper for guided flows. Each <code>.step</code> has fixed slot width (110px) and each <code>.step-line</code> is fixed length (36px), so marks always sit at the same horizontal positions regardless of label length or font weight. <strong>States: pending · done · active · error.</strong> Active state adds a soft 4px accent ring; error state recolors the mark and ring red.</p>
+
+        <div class="stepper" style="margin-top: var(--s-4);">
+          <div class="step done"><div class="step-mark">✓</div><div class="step-label">Checking tools</div></div>
+          <div class="step-line done"></div>
+          <div class="step active"><div class="step-mark">2</div><div class="step-label">Installing tools</div></div>
+          <div class="step-line"></div>
+          <div class="step"><div class="step-mark">3</div><div class="step-label">Signing in</div></div>
+          <div class="step-line"></div>
+          <div class="step"><div class="step-mark">4</div><div class="step-label">Connection check</div></div>
+        </div>
+
+        <p style="font-size: var(--fs-small); color: var(--text-muted); margin-top: var(--s-5);">Error state — when a step fails:</p>
+        <div class="stepper">
+          <div class="step done"><div class="step-mark">✓</div><div class="step-label">Checking tools</div></div>
+          <div class="step-line done"></div>
+          <div class="step error"><div class="step-mark">!</div><div class="step-label">Installing tools</div></div>
+          <div class="step-line"></div>
+          <div class="step"><div class="step-mark">3</div><div class="step-label">Signing in</div></div>
+          <div class="step-line"></div>
+          <div class="step"><div class="step-mark">4</div><div class="step-label">Connection check</div></div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Done-check + connected state</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Used at the end of a connection flow. The check sits on a soft success-tinted disc (16% mix), 64×64.</p>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: var(--s-4); margin-top: var(--s-5);">
+          <div class="done-check">
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3.5 3.5L13 5"/></svg>
+          </div>
+          <h3 class="serif" style="font-family: var(--font-serif); font-size: 28px; margin: 0;">OpenAI is connected.</h3>
+          <p style="font-size: var(--fs-small); color: var(--text-muted); margin: 0; max-width: 48ch; text-align: center;">Tokenomics is now reading your Codex CLI usage. Want to add another, or jump to the menu bar?</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Error block</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Inline failure surface — used inside the window body when a specific step fails. Border at 30% danger, fill at 8%, headline in danger, body in <code>--text-muted</code> using monospace for paths.</p>
+        <div class="errblock" style="margin-top: var(--s-4);">
+          <div class="err-h">EACCES: permission denied</div>
+          <div class="err-b">/opt/homebrew/lib/node_modules/@openai</div>
+        </div>
+        <p style="font-size: var(--fs-small); color: var(--text-muted); margin-top: var(--s-4);"><strong>Rule:</strong> every error block ends with a single concrete next-step action button (e.g. "Use per-user install instead"). Never two CTAs of equal weight.</p>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Provider chooser row</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">List item used in the provider chooser screen (image #7). 32px squircle icon (8px radius), name + scope, and an action chip on the right — either a <code>Connected</code> badge or a <code>Quick setup</code> pill button.</p>
+        <div style="margin-top: var(--s-4);">
+          <div class="chooser-row">
+            <div class="picon"><img src="assets/icons/Codex-d.blue.svg" alt=""></div>
+            <div class="pinfo"><span class="pname">OpenAI</span><span class="pscope">Codex CLI</span></div>
+            <div class="pend"><span class="badge success dot">Connected</span></div>
+          </div>
+          <div class="chooser-row">
+            <div class="picon"><img src="assets/icons/Gemini-d.blue.svg" alt=""></div>
+            <div class="pinfo"><span class="pname">Google AI</span><span class="pscope">Gemini CLI</span></div>
+            <div class="pend"><button class="pill-btn">Quick setup <span class="chev">›</span></button></div>
+          </div>
+          <div class="chooser-row">
+            <div class="picon"><img src="assets/icons/Copilot-d.blue.svg" alt=""></div>
+            <div class="pinfo"><span class="pname">GitHub Copilot</span><span class="pscope">VS Code · JetBrains · CLI</span></div>
+            <div class="pend"><button class="pill-btn">Quick setup <span class="chev">›</span></button></div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Detect / check row</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Used in the "Checking tools" step — shows what the app found on the system. Status icon left, label + sublabel center, optional right-side meta.</p>
+        <div style="display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4);">
+          <div class="check-row">
+            <div class="ico ok"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3 3 7-7"/></svg></div>
+            <div><div class="clabel">Node.js detected</div><div class="csub">v20.11.0 · /opt/homebrew/bin/node</div></div>
+            <div class="cright">Required</div>
+          </div>
+          <div class="check-row">
+            <div class="ico pending"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/></svg></div>
+            <div><div class="clabel">Codex CLI</div><div class="csub">Not installed</div></div>
+            <div class="cright">Will install</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Toggle (iOS-style)</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Used in the Providers list (image #5) to enable/disable a connected provider. 40×24 capsule, 20px thumb with 1px shadow, 220ms transition.</p>
+        <div style="display: flex; gap: var(--s-5); align-items: center; margin-top: var(--s-4);">
+          <div style="display:flex;align-items:center;gap:var(--s-3);"><span style="font-size: var(--fs-small);">On</span><button class="ios-toggle"></button></div>
+          <div style="display:flex;align-items:center;gap:var(--s-3);"><span style="font-size: var(--fs-small);">Off</span><button class="ios-toggle off"></button></div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Plan segment (Free / Standard / Enterprise)</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Inline plan selector for Gemini-style providers with multiple tiers (image #5). Reuses the same segmented-pill pattern as the install block but at smaller size.</p>
+        <div class="plan-seg" style="margin-top: var(--s-4);">
+          <button class="tab active">Free</button>
+          <button class="tab">Standard</button>
+          <button class="tab">Enterprise</button>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--s-6);">Help banner</h3>
+      <div class="card">
+        <p style="font-size: var(--fs-small);">Surfaces at the top of the Providers popover (image #5). Calls attention to the guided onboarding without dominating. Uses 8% accent tint.</p>
+        <div class="help-banner" style="margin-top: var(--s-4);">
+          <span>Need help connecting a provider?</span>
+          <a href="#">Open the guided setup →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- MENU-BAR ICON · app addendum -->
+    <section id="menubar-icon">
+      <div class="section-header">
+        <div>
+          <span class="kicker">14 · Menu-bar icon</span>
+          <h2>The 22-point glyph <span class="app-tag">app addendum</span></h2>
+          <p>The most-seen, most-constrained surface: a <strong>template</strong> (tintable) glyph that renders monochrome and adapts to the menu-bar tint. Two concentric rings encode two windows — outer&nbsp;= 7-day, inner&nbsp;= 5-hour — collapsing to a single thicker ring when a provider exposes one window. Rendered as a CGContext snapshot; never animated. The art below is the production SVG.</p>
+        </div>
+      </div>
+      <div class="grid cols-2" style="gap:var(--s-5);">
+        <div class="menubar-art-wrap light"><img class="menubar-art" src="assets/Menu Bar Cropped-lightmode.svg" alt="Menu bar with Tokenomics rings, light"></div>
+        <div class="menubar-art-wrap dark"><img class="menubar-art" src="assets/Menu Bar Cropped-darkmode.svg" alt="Menu bar with Tokenomics rings, dark"></div>
+      </div>
+      <div class="card" style="margin-top:var(--s-5); padding:var(--s-6);">
+        <table class="spec-table">
+          <thead><tr><th>Property</th><th>Dual · outer</th><th>Dual · inner</th><th>Single</th></tr></thead>
+          <tbody>
+            <tr><td>Window</td><td>7-day</td><td>5-hour</td><td>only window</td></tr>
+            <tr><td>Radius</td><td><code>9 pt</code></td><td><code>5.5 pt</code></td><td><code>7.25 pt</code></td></tr>
+            <tr><td>Stroke</td><td><code>3 pt</code></td><td><code>3 pt</code></td><td><code>5 pt</code></td></tr>
+            <tr><td>Track</td><td colspan="3">white @ 15% · butt cap</td></tr>
+            <tr><td>Fill arc</td><td>white @ 40%</td><td>white @ 50%</td><td>white @ 45%</td></tr>
+            <tr><td>Fill cap / start</td><td colspan="3">round cap · 12 o&rsquo;clock, clockwise · fraction clamped 0–1</td></tr>
+            <tr><td>Pace dot</td><td colspan="3"><code>r 1.375 pt</code>, opaque white · hidden when pace ≤ 1% or ≥ 99%</td></tr>
+            <tr><td>Canvas</td><td colspan="3">22 × 22 pt + 6 pt right pad · <code>isTemplate = true</code> · @2x = 44 px</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:var(--fs-small); color:var(--text-muted); margin:var(--s-4) 0 0;"><strong>Locked.</strong> Template mode means colors here are white-alpha values the OS re-tints — the one surface the brand palette deliberately doesn&rsquo;t touch. Source: <code>MenuBarRingsView.swift</code>. The pace-dot rule (render only when 1% &lt; pace &lt; 99%) is shared with every bar and ring in the system.</p>
+      </div>
+    </section>
+
+    <!-- BRAND AGGREGATION · app addendum -->
+    <section id="brand-aggregation">
+      <div class="section-header">
+        <div>
+          <span class="kicker">15 · Brand aggregation</span>
+          <h2>Brands that contain pools <span class="app-tag">app addendum</span></h2>
+          <p>Newer than v3: providers group under a <strong>brand</strong> (Claude, ChatGPT, Gemini), and a brand can hold several <strong>pools</strong> — e.g. ChatGPT = the ChatGPT web app + the Codex CLI. The popover collapses tabs to icons at 4+ brands and adds a pool section header per pool; the large widget renders a brand header with indented pool sub-rows. From <code>feat/popover-brand-collapse</code> and <code>feat/widgets-brand-surfaces</code>.</p>
+        </div>
+      </div>
+
+      <h3>Popover · multi-pool brand</h3>
+      <div class="grid cols-2" style="gap:var(--s-5);">
+        <div class="menubar-scene">
+          <div class="menubar-bar"><span class="mb-token"><span class="mb-ring"></span> 54%</span><span style="opacity:0.5;">Wed Apr 1 9:41 AM</span></div>
+          <div class="menubar-popover">
+            <div class="pop-head"><div class="pop-head-title">Tokenomics</div><div class="pop-head-actions"><span class="pop-plan-pill">Plus</span><button class="pop-iconbtn" type="button" aria-label="Share"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v9M5 5l3-3 3 3M3 11v3h10v-3"/></svg></button></div></div>
+            <div class="pop-tabs">
+              <button class="pop-tab active" type="button"><img src="assets/icons/Codex-white.svg" alt="" width="16" height="16"><span>ChatGPT</span></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Claude-white.svg" alt="" width="16" height="16"></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Gemini-white.svg" alt="" width="16" height="16"></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Copilot-white.svg" alt="" width="16" height="16"></button>
+            </div>
+            <div class="pop-pool-head">ChatGPT</div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">Messages</div><div class="pop-section-pct">54%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:54%"></div><div class="pop-bar-pace" style="left:62%"></div></div>
+              <div class="pop-section-resets">Resets in 1h 10m</div>
+            </div>
+            <div class="pop-pool-head" style="margin-top:14px;">Codex CLI</div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">5-Hour Window</div><div class="pop-section-pct">30%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:30%"></div></div>
+              <div class="pop-section-resets">Resets in 3h 02m</div>
+            </div>
+            <div class="pop-divider"></div>
+            <div class="pop-foot"><div class="pop-foot-left">Updated just now</div><div class="pop-foot-right"><button class="pop-iconbtn" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8a6 6 0 1 1-1.76-4.24M14 2v4h-4"/></svg></button><span class="pop-foot-sep"></span><button class="pop-iconbtn" type="button" aria-label="Settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M13.5 8a5.5 5.5 0 0 0-.1-1l1.4-1.1-1.4-2.4-1.7.5a5.5 5.5 0 0 0-1.7-1l-.4-1.7h-2.8l-.4 1.7a5.5 5.5 0 0 0-1.7 1l-1.7-.5L1.6 5.9 3 7a5.5 5.5 0 0 0 0 2L1.6 10.1l1.4 2.4 1.7-.5a5.5 5.5 0 0 0 1.7 1l.4 1.7h2.8l.4-1.7a5.5 5.5 0 0 0 1.7-1l1.7.5 1.4-2.4L13.4 9a5.5 5.5 0 0 0 .1-1z"/></svg></button></div></div>
+          </div>
+        </div>
+        <div class="menubar-scene" data-theme="dark">
+          <div class="menubar-bar"><span class="mb-token"><span class="mb-ring"></span> 54%</span><span style="opacity:0.5;">Wed Apr 1 9:41 AM</span></div>
+          <div class="menubar-popover">
+            <div class="pop-head"><div class="pop-head-title">Tokenomics</div><div class="pop-head-actions"><span class="pop-plan-pill">Plus</span><button class="pop-iconbtn" type="button" aria-label="Share"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v9M5 5l3-3 3 3M3 11v3h10v-3"/></svg></button></div></div>
+            <div class="pop-tabs">
+              <button class="pop-tab active" type="button"><img src="assets/icons/Codex-white.svg" alt="" width="16" height="16"><span>ChatGPT</span></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Claude-white.svg" alt="" width="16" height="16"></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Gemini-white.svg" alt="" width="16" height="16"></button>
+              <button class="pop-tab" type="button"><img src="assets/icons/Copilot-white.svg" alt="" width="16" height="16"></button>
+            </div>
+            <div class="pop-pool-head">ChatGPT</div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">Messages</div><div class="pop-section-pct">54%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:54%"></div><div class="pop-bar-pace" style="left:62%"></div></div>
+              <div class="pop-section-resets">Resets in 1h 10m</div>
+            </div>
+            <div class="pop-pool-head" style="margin-top:14px;">Codex CLI</div>
+            <div class="pop-section">
+              <div class="pop-section-head"><div class="pop-section-title">5-Hour Window</div><div class="pop-section-pct">30%</div></div>
+              <div class="pop-bar"><div class="pop-bar-fill" style="width:30%"></div></div>
+              <div class="pop-section-resets">Resets in 3h 02m</div>
+            </div>
+            <div class="pop-divider"></div>
+            <div class="pop-foot"><div class="pop-foot-left">Updated just now</div><div class="pop-foot-right"><button class="pop-iconbtn" type="button" aria-label="Refresh"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8a6 6 0 1 1-1.76-4.24M14 2v4h-4"/></svg></button><span class="pop-foot-sep"></span><button class="pop-iconbtn" type="button" aria-label="Settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M13.5 8a5.5 5.5 0 0 0-.1-1l1.4-1.1-1.4-2.4-1.7.5a5.5 5.5 0 0 0-1.7-1l-.4-1.7h-2.8l-.4 1.7a5.5 5.5 0 0 0-1.7 1l-1.7-.5L1.6 5.9 3 7a5.5 5.5 0 0 0 0 2L1.6 10.1l1.4 2.4 1.7-.5a5.5 5.5 0 0 0 1.7 1l.4 1.7h2.8l.4-1.7a5.5 5.5 0 0 0 1.7-1l1.7.5 1.4-2.4L13.4 9a5.5 5.5 0 0 0 .1-1z"/></svg></button></div></div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:var(--fs-small); color:var(--text-muted);"><strong>Pool section header:</strong> 10&nbsp;pt semibold, 0.5 letter-spacing, <code>--pop-subtle</code>, label from <code>pinTrackerLabel</code>. The tab strip collapses inactive tabs to icon-only at ≥&nbsp;4 brands; drag-reorder is removed on the brand strip (still present on the legacy provider strip).</p>
+
+      <h3 style="margin-top:var(--s-7);">Large widget · brand-grouped</h3>
+      <div class="widget-grid">
+        <div class="widget w-large dark">
+          <div class="w-body">
+            <div class="w-head gap-overflow"><span class="title">Tokenomics</span><span class="time">21 sec ago</span></div>
+            <div class="w-rows">
+              <div class="brand-head"><img src="assets/icons/Codex-white.svg" alt=""><span class="bn">ChatGPT</span></div>
+              <div class="row-compact sub">
+                <span class="pico"><img src="assets/icons/Codex-white.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">ChatGPT</span><span class="pct">54%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:54%"></div><div class="pace" style="left:62%"></div></div></div>
+                <div class="col"></div>
+              </div>
+              <div class="row-compact sub">
+                <span class="pico"><img src="assets/icons/Codex-white.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">Codex CLI</span><span class="pct">30%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:30%"></div></div></div>
+                <div class="col"></div>
+              </div>
+              <div class="brand-head"><img src="assets/icons/Claude-white.svg" alt=""><span class="bn">Claude</span></div>
+              <div class="row-compact sub">
+                <span class="pico"><img src="assets/icons/Claude-white.svg" alt=""></span>
+                <div class="col"><div class="head"><span class="lbl">5-Hour</span><span class="pct">68%</span></div><div class="pbar"><div class="track"></div><div class="fill" style="width:68%"></div><div class="pace" style="left:72%"></div></div></div>
+                <div class="col"><div class="head"><span class="lbl">7-Day</span><span class="pct long">41%</span></div><div class="pbar"><div class="track"></div><div class="fill long" style="width:41%"></div></div></div>
+              </div>
+            </div>
+            <div class="w-foot">+2 in app</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:var(--fs-small); color:var(--text-muted);"><strong>BrandGroupRow:</strong> brand header icon 13&nbsp;px, name 9&nbsp;pt semibold at <code>shortColor</code>&nbsp;@&nbsp;0.7; pool sub-rows indent 22&nbsp;px. A single-pool brand collapses to a plain CompactProviderRow (no header). Data-row caps: medium 3, large 6 (brand headers don&rsquo;t count).</p>
+    </section>
+
+    <!-- BROWSER EXTENSION · app addendum -->
+    <section id="extension">
+      <div class="section-header">
+        <div>
+          <span class="kicker">16 · Browser extension</span>
+          <h2>Chrome &amp; Safari companion <span class="app-tag">app addendum</span></h2>
+          <p>The web-companion popup mirrors the menu-bar popover almost line for line — header, tabs, usage bars, sync footer — but renders in the browser with a <strong>widget palette</strong> and the <strong>system font</strong> (not DM&nbsp;Sans), so it reads as the same object as the desktop widget. The options page steps up to the full theme tokens. Verdict: on-brand, by design.</p>
+        </div>
+      </div>
+      <div class="grid cols-2" style="gap:var(--s-5); align-items:start;">
+        <div>
+          <div class="ext">
+            <div class="ext-banner"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v4M8 11h.01"/></svg> Tokenomics desktop app isn&rsquo;t running</div>
+            <div style="padding:10px 16px 6px; display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:13px; font-weight:600; color:var(--text-muted);">Tokenomics</span>
+              <span style="font-size:11px; font-weight:500; color:var(--text-muted); background:color-mix(in srgb,var(--text) 8%,transparent); padding:2px 8px; border-radius:999px;">Plus</span>
+            </div>
+            <div style="display:flex; gap:2px; margin:0 16px 8px; padding:2px; background:color-mix(in srgb,var(--text) 7%,transparent); border-radius:8px;">
+              <button style="flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:6px 10px; border:0; border-radius:6px; background:var(--surface); box-shadow:var(--shadow-sm); font-size:12px; font-weight:500; color:var(--text); cursor:pointer;"><img src="assets/icons/Codex-d.blue.svg" alt="" width="12" height="12">ChatGPT</button>
+              <button style="flex:1; display:flex; align-items:center; justify-content:center; padding:6px 10px; border:0; border-radius:6px; background:transparent; cursor:pointer;"><img src="assets/icons/Gemini-d.blue.svg" alt="" width="12" height="12" style="opacity:0.6;"></button>
+              <button style="flex:1; display:flex; align-items:center; justify-content:center; padding:6px 10px; border:0; border-radius:6px; background:transparent; cursor:pointer;"><img src="assets/icons/Claude-d.blue.svg" alt="" width="12" height="12" style="opacity:0.6;"></button>
+            </div>
+            <div style="padding:4px 16px 10px;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;"><span style="font-size:11px; color:var(--text-muted);">Messages</span><span style="font-size:17px; font-weight:600; color:var(--accent); font-variant-numeric:tabular-nums;">54%</span></div>
+              <div style="position:relative; height:6px; border-radius:999px; background:color-mix(in srgb,var(--accent) 12%,transparent);"><div style="position:absolute; inset:0 auto 0 0; width:54%; border-radius:999px; background:var(--accent);"></div><div style="position:absolute; top:50%; left:62%; width:6px; height:6px; border-radius:50%; background:var(--accent-ink); transform:translate(-50%,-50%);"></div></div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:6px;">Resets in 1h 10m</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 16px; border-top:1px solid var(--border); font-size:10px; color:var(--text-subtle);"><span>Updated 30 sec ago</span><span style="display:flex; gap:8px;"><span aria-hidden="true">⟳</span><span aria-hidden="true">⚙</span></span></div>
+          </div>
+          <p style="font-size:var(--fs-small); color:var(--text-muted); margin-top:var(--s-3);">Popup · widget palette + system font · mirrors the menu-bar popover</p>
+        </div>
+        <div class="card">
+          <p style="font-size:var(--fs-small); margin-top:0;">Options page · full theme tokens (a document surface, so it uses <code>--surface</code> / <code>--accent</code> with real token toggles).</p>
+          <div style="border:1px solid var(--border); border-radius:var(--r-sm); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border);"><img src="assets/icons/Codex-d.blue.svg" alt="" width="20" height="20" style="opacity:0.8;"><div style="flex:1;"><div style="font-size:14px; font-weight:500;">ChatGPT</div><div style="font-size:12px; color:var(--text-subtle);">Read usage from chatgpt.com</div></div><button class="ios-toggle"></button></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 16px;"><img src="assets/icons/Gemini-d.blue.svg" alt="" width="20" height="20" style="opacity:0.8;"><div style="flex:1;"><div style="font-size:14px; font-weight:500;">Gemini</div><div style="font-size:12px; color:var(--text-subtle);">Read usage from gemini.google.com</div></div><button class="ios-toggle off"></button></div>
+          </div>
+          <p style="font-size:var(--fs-micro); color:var(--text-subtle); margin-top:var(--s-3); margin-bottom:0;">One real gap: the extension&rsquo;s <code>tokens.css</code> stops at <code>--r-md</code> / <code>--shadow-md</code> — backport <code>--r-lg/--r-xl/--shadow-lg/--shadow-ring</code> for options-page parity.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CROSS-SURFACE MATRIX · app addendum -->
+    <section id="surface-matrix">
+      <div class="section-header">
+        <div>
+          <span class="kicker">17 · Cross-surface matrix</span>
+          <h2>One recipe, many surfaces <span class="app-tag">app addendum</span></h2>
+          <p>The components that appear on more than one surface, and where each bends. Rows that are ✓ across many columns are the spine that makes the product feel like one thing; the &ldquo;~&rdquo; rows are where a token version and a native version coexist — the highest-leverage targets for unification.</p>
+        </div>
+      </div>
+      <div class="card" style="padding:var(--s-5);">
+        <table class="xmatrix">
+          <thead><tr><th>Component</th><th>Web</th><th>Ext.</th><th>Popover</th><th>Widget</th><th>Onboard</th><th>Settings</th></tr></thead>
+          <tbody>
+            <tr><td>Usage bar + pace dot</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">–</td><td class="n">–</td></tr>
+            <tr><td>Tab strip (icon-collapse)</td><td class="n">–</td><td class="y">✓</td><td class="y">✓</td><td class="n">–</td><td class="n">–</td><td class="n">–</td></tr>
+            <tr><td>Segmented control</td><td class="y">✓</td><td class="n">–</td><td class="n">–</td><td class="n">–</td><td class="v">~</td><td class="y">✓</td></tr>
+            <tr><td>Pill / badge</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">–</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>Icon button</td><td class="n">–</td><td class="y">✓</td><td class="y">✓</td><td class="n">–</td><td class="n">–</td><td class="v">~</td></tr>
+            <tr><td>Card (surface)</td><td class="y">✓</td><td class="y">✓</td><td class="n">–</td><td class="n">–</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>Toggle</td><td class="y">✓</td><td class="y">✓</td><td class="n">–</td><td class="n">–</td><td class="n">–</td><td class="v">~</td></tr>
+            <tr><td>Provider icon</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>Dual ring</td><td class="y">✓</td><td class="n">–</td><td class="n">–</td><td class="y">✓</td><td class="y">✓</td><td class="n">–</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:var(--fs-micro); color:var(--text-subtle); margin:var(--s-3) 0 0;"><span class="y" style="font-weight:700;">✓</span> present &amp; aligned&nbsp;&nbsp;·&nbsp;&nbsp;<span class="v" style="font-weight:600;">~</span> present but native/variant&nbsp;&nbsp;·&nbsp;&nbsp;<span class="n">–</span> n/a on this surface</p>
+      </div>
+    </section>
+
+    <!-- GAPS & PROPOSALS · app addendum -->
+    <section id="proposals">
+      <div class="section-header">
+        <div>
+          <span class="kicker">18 · Gaps &amp; proposals</span>
+          <h2>Named, for review <span class="app-tag">app addendum</span></h2>
+          <p>Every item here is a <strong>proposal flagged for us to decide together</strong> — surfaced by reading each surface against the token spec. Grouped into token additions, component names, drift to resolve, and open questions only you can answer. Nothing here is decided.</p>
+        </div>
+      </div>
+
+      <h3>Token additions</h3>
+      <div class="grid cols-2">
+        <div class="card prop"><div class="prop-h"><span class="pn">--r-icon</span> <span class="tagchip token">token</span> <span class="pw">= 8px</span></div><p>Provider-icon squircles use 8&nbsp;px — between <code>--r-xs</code>&nbsp;(6) and <code>--r-sm</code>&nbsp;(10). Name it, or snap to <code>--r-sm</code>.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">App.superCaption</span> <span class="tagchip token">token</span> <span class="pw">10pt ↑</span></div><p>The popover pool-section header is a real 10&nbsp;pt semibold role with no token. Add it to <code>Typography.App</code>.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">Extension token backport</span> <span class="tagchip token">token</span></div><p>Add <code>--r-lg / --r-xl / --shadow-lg / --shadow-ring</code> to the extension&rsquo;s <code>tokens.css</code> for options-page parity.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">Accent opacity ladder</span> <span class="tagchip token">token</span></div><p>Tints recur at 6 / 8 / 12 / 14 / 18 / 22 / 30% — name the ladder instead of re-deriving per component.</p></div>
+      </div>
+
+      <h3 style="margin-top:var(--s-6);">Component names</h3>
+      <div class="grid cols-2">
+        <div class="card prop"><div class="prop-h"><span class="pn">PoolSectionHeader</span> <span class="tagchip comp">component</span></div><p>Popover multi-pool label row — currently inlined in <code>PopoverView</code>.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">OnboardingLauncherCard</span> <span class="tagchip comp">component</span></div><p>The brand-aware empty-popover state; already token-clean — promote it as the model for the other states.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">TokenCard / TokenBadge</span> <span class="tagchip comp">component</span></div><p>One card + one tinted-badge recipe, re-built across chooser / multi-select / permission steps — extract once.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">BrandGroupRow</span> <span class="tagchip comp">component</span></div><p>Widget brand header + indented sub-rows (icon 13, name 9/semibold@0.7, indent 22) — pin the values.</p></div>
+      </div>
+
+      <h3 style="margin-top:var(--s-6);">Drift to resolve</h3>
+      <div class="grid cols-2">
+        <div class="card prop"><div class="prop-h"><span class="pn">Popover state colors</span> <span class="tagchip fix">fix</span></div><p>Error/auth icons use system <code>.orange</code> → <code>warning</code>; tab selected-bg uses white@10% → <code>surface-2</code>; tab radius 8 → <code>--r-xs</code>.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">accent-ink (dark)</span> <span class="tagchip fix">fix</span></div><p><code>design-system.md</code> says <code>--text</code>; <code>Tokens.swift</code> + mockup say brand-200 (cyan). Cyan is correct — the MD table is stale.</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">Settings native controls</span> <span class="tagchip fix">fix</span></div><p>Adopt token toggle + segmented in Notifications / visibility / Gemini modal — unless we keep Settings deliberately OS-native (see D-2).</p></div>
+        <div class="card prop"><div class="prop-h"><span class="pn">Widget fillColor(for:)</span> <span class="tagchip fix">fix</span></div><p>The worktree added a utilization arg the body ignores — implement utilization-driven color, or revert the signature.</p></div>
+      </div>
+
+      <h3 style="margin-top:var(--s-6);">Open questions</h3>
+      <div class="grid cols-2">
+        <div class="card prop" style="border-left-color:var(--danger);"><div class="prop-h"><span class="pn">D-1 · Onboarding window size</span> <span class="tagchip q">decide</span></div><p>Memory says 680×580; code measures 720×560. Which is authoritative?</p></div>
+        <div class="card prop" style="border-left-color:var(--danger);"><div class="prop-h"><span class="pn">D-2 · Settings: native or branded?</span> <span class="tagchip q">decide</span></div><p>Is the SF-Pro-native feel intentional, or unfinished? Decides whether the drift above is a fix.</p></div>
+        <div class="card prop" style="border-left-color:var(--danger);"><div class="prop-h"><span class="pn">D-3 · One component vocabulary?</span> <span class="tagchip q">decide</span></div><p>Shared component names across Swift + extension + web, or per-runtime?</p></div>
+        <div class="card prop" style="border-left-color:var(--danger);"><div class="prop-h"><span class="pn">D-4 · Keep web catalog inline?</span> <span class="tagchip q">decide</span></div><p>This file is now the full web system (duplicated from v3) plus app surfaces. Keep it as the one combined doc, or trim back to app-only and cross-reference v3?</p></div>
+      </div>
+    </section>
+
+    <!-- TOKENS -->
+    <section id="tokens">
+      <div class="section-header">
+        <div>
+          <span class="kicker">19 · Token reference</span>
+          <h2>CSS custom properties</h2>
+          <p>Copy-paste this table into <code>styles.css</code> — it's already wired into the page above.</p>
+        </div>
+      </div>
+
+      <table class="tokens">
+        <thead>
+          <tr><th>Token</th><th>Value</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>--ink-900</code></td><td><span class="chip-inline" style="background:#051928;"></span>#051928</td><td>Deepest navy · gradient end</td></tr>
+          <tr><td><code>--ink-800</code></td><td><span class="chip-inline" style="background:#0E334D;"></span>#0E334D</td><td>Primary ink · gradient start</td></tr>
+          <tr><td><code>--ink-700</code></td><td><span class="chip-inline" style="background:#286195;"></span>#286195</td><td>Bar track base (light)</td></tr>
+          <tr><td><code>--brand-600</code></td><td><span class="chip-inline" style="background:#2F84BF;"></span>#2F84BF</td><td>Short bar / labels (light)</td></tr>
+          <tr><td><code>--brand-500</code></td><td><span class="chip-inline" style="background:#3389C7;"></span>#3389C7</td><td>Long bar (dark mode)</td></tr>
+          <tr><td><code>--brand-400</code></td><td><span class="chip-inline" style="background:#4BA6D2;"></span>#4BA6D2</td><td>Bar track base (dark)</td></tr>
+          <tr><td><code>--brand-300</code></td><td><span class="chip-inline" style="background:#56A2D6;"></span>#56A2D6</td><td>Long bar (light mode)</td></tr>
+          <tr><td><code>--brand-200</code></td><td><span class="chip-inline" style="background:#75CBF5;"></span>#75CBF5</td><td>Short bar / labels (dark)</td></tr>
+          <tr><td><code>--cream-50</code></td><td><span class="chip-inline" style="background:#F3EFE5;"></span>#F3EFE5</td><td>Page background</td></tr>
+          <tr><td><code>--cream-100</code></td><td><span class="chip-inline" style="background:#E6E0D4;"></span>#E6E0D4</td><td>Secondary surface · gradient end</td></tr>
+          <tr><td><code>--font-serif</code></td><td><code>'Hedvig Letters Serif'</code></td><td>Display, H1–H4, pull-quotes</td></tr>
+          <tr><td><code>--font-sans</code></td><td><code>'DM Sans'</code></td><td>Body, UI, numerics, eyebrow</td></tr>
+          <tr><td><code>--r-md</code></td><td>14px</td><td>Cards, inputs</td></tr>
+          <tr><td><code>--r-lg</code></td><td>20px</td><td>Section cards</td></tr>
+          <tr><td><code>--r-xl</code></td><td>28px</td><td>Hero widgets (app uses 22px)</td></tr>
+          <tr><td><code>--shadow-lg</code></td><td>28/60 navy @ 10%</td><td>Hero widgets, featured art</td></tr>
+          <tr><td><code>--dur</code> / <code>--ease</code></td><td>220ms / cubic-bezier(.2,.7,.2,1)</td><td>Default transition</td></tr>
+          <tr><td><code>--success</code></td><td><span class="chip-inline" style="background:#2F8F4F;"></span>#2F8F4F · #6FD18A</td><td>Connected badges, done-checks</td></tr>
+          <tr><td><code>--warning</code></td><td><span class="chip-inline" style="background:#C26A1F;"></span>#C26A1F · #E2A765</td><td>Soft alerts (amber, not yellow)</td></tr>
+          <tr><td><code>--danger</code></td><td><span class="chip-inline" style="background:#B33A3A;"></span>#B33A3A · #E27777</td><td>Errors, failed steps, destructive</td></tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: var(--s-7);">
+        <h3>Usage notes</h3>
+        <ul style="color: var(--text-muted); line-height: 1.7; font-size: var(--fs-small);">
+          <li><strong>App vs site:</strong> The macOS app uses SF (system). The website uses Hedvig Letters Serif + DM Sans. Widget mockups shown here intentionally keep SF stack to read as <em>product</em>, not marketing.</li>
+          <li><strong>Serif discipline:</strong> Hedvig only for H1–H4 and pull-quotes. Never for CTAs, labels, or numerics.</li>
+          <li><strong>Numerics:</strong> Always <code>font-variant-numeric: tabular-nums;</code> for percentages and counters so rows don't shift.</li>
+          <li><strong>Widget parity:</strong> The light/dark widget gradients on the site must match the app's widget extension exactly — they're the same <code>#0E334D → #051928</code> / <code>#F3EFE5 → #E6E0D4</code> stops.</li>
+          <li><strong>Contrast:</strong> Label color at 50% opacity (dark) / 67% (light) mirrors the Figma spec; preserve this or text loses its editorial calm.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer style="margin-top: var(--s-9); padding-top: var(--s-6); border-top: 1px solid var(--border); color: var(--text-subtle); font-size: var(--fs-micro);">
+      Tokenomics · Website Design System · v1.0 · Source: Figma node 421:440
+    </footer>
+
+    </div>
+  </div>
+</main>
+
+<script>
+  const t = document.getElementById('themeToggle');
+  t.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next === 'light' ? '' : 'dark');
+    t.textContent = next === 'dark' ? 'Light' : 'Dark';
+  });
+</script>
+</body>
+</html>
