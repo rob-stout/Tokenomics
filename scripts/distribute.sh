@@ -175,11 +175,21 @@ if [ ! -x "$BRIDGE_PATH" ]; then
     die "TokenomicsBridge binary missing or not executable at $BRIDGE_PATH"
 fi
 
-codesign -dvvv "$BRIDGE_PATH" 2>&1 | grep -q "flags=.*runtime" \
+# Capture codesign output first, then grep the variable. Piping straight into
+# `grep -q` under `set -o pipefail` is flaky: grep -q exits on the first match
+# and closes the pipe, codesign then dies with SIGPIPE, and pipefail reports
+# the whole pipeline as failed even though the match succeeded.
+BRIDGE_CODESIGN=$(codesign -dvvv "$BRIDGE_PATH" 2>&1)
+
+grep -q "flags=.*runtime" <<<"$BRIDGE_CODESIGN" \
     || die "TokenomicsBridge missing hardened runtime — fix project.yml TokenomicsBridge target"
 
-codesign -d --entitlements - "$BRIDGE_PATH" 2>&1 | grep -q "group.com.robstout.tokenomics" \
-    || die "TokenomicsBridge missing App Group entitlement — fix TokenomicsBridge.entitlements"
+# The bridge intentionally carries NO App Group entitlement — it reads the
+# group container by path (see BridgeCore.containerURL and the project.yml
+# note); a tool target can't be authorized for an App Group under Developer ID.
+# What matters for notarization is that it's Developer ID signed.
+grep -q "Authority=Developer ID Application" <<<"$BRIDGE_CODESIGN" \
+    || die "TokenomicsBridge not Developer ID signed — fix project.yml TokenomicsBridge release config"
 
 echo "  TokenomicsBridge verification passed"
 
