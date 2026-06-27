@@ -3,6 +3,8 @@
 macOS menu bar app that shows AI coding tool usage at a glance.
 Supports Claude Code, Codex CLI, Gemini CLI, GitHub Copilot, and Cursor.
 
+**Platform skill:** native **macOS** (SwiftUI menu-bar) → load `platform-macos` for the app + `TokenomicsWidgets`. For work under `extension/` (MV3 browser extension — `manifest.json`, content scripts, `chrome.*`) load `platform-browser-extension` instead. (The `tokenomics-*` sibling dirs are worktrees of this repo and share this file.)
+
 ## Tech Stack
 - **UI**: SwiftUI (macOS 13+)
 - **Architecture**: MVVM with @Observable
