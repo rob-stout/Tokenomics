@@ -48,10 +48,21 @@
   --r-xs: 6px;
   --r-sm: 10px;
   --r-md: 14px;
+  /* --r-lg / --r-xl / --shadow-lg / --shadow-ring backported from
+     ~/projects/trytokenomics-site/design-system.md ("Quick start: CSS
+     variables", line ~362-369) and cross-checked against
+     Tokens.swift's Radius enum (lg: 20, xl: 28) — options-page parity
+     (brand guidelines flagged these as missing here). No dark-theme
+     override exists for these four in the source — same as the
+     existing --r-* / --shadow-sm / --shadow-md tokens above. */
+  --r-lg: 20px;
+  --r-xl: 28px;
   --r-pill: 999px;
 
   --shadow-sm: 0 1px 2px rgba(14, 51, 77, 0.06), 0 1px 1px rgba(14, 51, 77, 0.04);
   --shadow-md: 0 8px 24px rgba(14, 51, 77, 0.1), 0 2px 6px rgba(14, 51, 77, 0.06);
+  --shadow-lg: 0 28px 60px rgba(14, 51, 77, 0.1), 0 8px 18px rgba(14, 51, 77, 0.05);
+  --shadow-ring: 0 0 0 4px rgba(47, 132, 191, 0.18);
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur-fast: 120ms;

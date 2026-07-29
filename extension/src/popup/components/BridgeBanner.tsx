@@ -1,6 +1,5 @@
 import type { BridgeState } from '../../bridge';
-
-const TRYTOKENOMICS_URL = 'https://trytokenomics.com';
+import { TRYTOKENOMICS_URL } from '../../urls';
 
 /** Five minutes in milliseconds — beyond this threshold the connection is stale. */
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;

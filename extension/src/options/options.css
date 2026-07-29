@@ -111,6 +111,18 @@ body {
   line-height: 1.5;
 }
 
+/* Inline CTA within a section description — e.g. "Get the Mac app →". */
+.options-section__link {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.options-section__link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ── Provider icons (options page, 20px) ────────────────── */
 
 .options-section__icon--providers {

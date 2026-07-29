@@ -6,6 +6,7 @@ import type { ChatGPTPlan } from '../chatgpt';
 import type { ProviderVisibilitySetting } from '../bridge-types';
 import { getChatGPTPlanAuto, getChatGPTPlanOverride } from '../storage';
 import { PROVIDERS, PROVIDER_META, type ProviderId } from '../types';
+import { TRYTOKENOMICS_URL } from '../urls';
 import { applyVisibilityToggle } from './options-logic';
 
 // ── Theme ────────────────────────────────────────────
@@ -283,6 +284,25 @@ function Options() {
             </label>
           ))}
         </div>
+      </section>
+
+      <section class="options-section">
+        <div class="options-section__header">
+          <span class="options-section__icon options-section__icon--providers" aria-hidden="true" />
+          <h2 class="options-section__title">Tokenomics for Mac</h2>
+        </div>
+        <p class="options-section__description">
+          See all your usage — including Claude Code, Codex, Copilot, and Cursor —
+          in your menu bar and desktop widgets.{' '}
+          <a
+            class="options-section__link"
+            href={TRYTOKENOMICS_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Get the Mac app →
+          </a>
+        </p>
       </section>
     </div>
   );
