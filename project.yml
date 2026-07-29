@@ -272,6 +272,10 @@ targets:
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
         ATSApplicationFontsPath: ""
+        # Required by the Mac App Store — a missing or non-UTI value is
+        # rejected at upload (the archive's "No App Category" warning).
+        # Must match the category chosen in App Store Connect.
+        LSApplicationCategoryType: public.app-category.utilities
     entitlements:
       path: TokenomicsSafari/TokenomicsSafari.entitlements
       properties:
