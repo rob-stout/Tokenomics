@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+
+	<key>teamID</key>
+	<string>RPDDQP7KZ5</string>
+
+	<!--
+	  Automatic signing, not manual: no App Store provisioning profiles exist
+	  yet for com.robstout.tokenomics.safari / .safari.extension (the App IDs
+	  aren't even registered in the developer portal — see
+	  scripts/distribute-appstore.sh's preflight checks and error messages).
+	  Automatic + `-allowProvisioningUpdates` (passed on the xcodebuild command
+	  line, not settable in this plist) is the only path that can do anything
+	  useful before that portal work exists, and matches the release configs
+	  for the TokenomicsSafari/TokenomicsSafariExtension targets in project.yml
+	  (see the comments there for why Manual was tried first and rejected).
+	  Once App Store profiles exist, switch this to "manual" + list them in
+	  provisioningProfiles below, mirroring ExportOptions.plist's Developer-ID
+	  setup.
+	-->
+	<key>signingStyle</key>
+	<string>automatic</string>
+
+	<!--
+	  destination defaults to "export" (produce a local .pkg, no network
+	  upload). distribute-appstore.sh always exports first for the VALIDATE
+	  step; UPLOAD is a second, explicit `xcodebuild -exportArchive` invocation
+	  with this same plist but `-exportOptionsPlist` swapped for one where the
+	  script has patched destination to "upload" via PlistBuddy, gated behind
+	  --upload. Keeping this file's default at "export" means running it by
+	  hand (outside the script) can never accidentally upload.
+	-->
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>
