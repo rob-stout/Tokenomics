@@ -43,6 +43,16 @@ final class StubURLOpener: URLOpener, @unchecked Sendable {
     }
 }
 
+/// Stub default-browser detector. Lets tests force the Safari or non-Safari
+/// branch without depending on the machine's actual default browser.
+struct StubDefaultBrowserDetector: DefaultBrowserDetector {
+    let isSafari: Bool
+
+    @MainActor func isSafariDefault() -> Bool {
+        isSafari
+    }
+}
+
 // MARK: - Helpers
 
 extension ExtSideState {
@@ -70,7 +80,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         let step = await connector.currentStep()
@@ -87,7 +98,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         let step = await connector.currentStep()
@@ -104,7 +116,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         let step = await connector.currentStep()
@@ -121,7 +134,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         let step = await connector.currentStep()
@@ -137,7 +151,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: opener
+            opener: opener,
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         await connector.performPrimaryAction()
@@ -153,7 +168,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: opener
+            opener: opener,
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         await connector.performPrimaryAction()
@@ -173,7 +189,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: clock,
-            opener: opener
+            opener: opener,
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         await connector.performPrimaryAction()
@@ -191,7 +208,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         // Open the store — puts connector into .polling
@@ -213,7 +231,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: clock,
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         // Trigger polling — this starts the background poll loop
@@ -240,7 +259,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         await connector.skip()
@@ -255,7 +275,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         await connector.performPrimaryAction() // → polling
@@ -273,7 +294,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         let connector = BrowserExtensionConnector(
             webCompanion: stub,
             clock: StubConnectorClock(),
-            opener: StubURLOpener()
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
         await connector.performPrimaryAction() // → polling
@@ -284,6 +306,111 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         guard case .confirmingInstall = step else {
             return XCTFail("Expected .confirmingInstall after cancel, got \(step)")
         }
+    }
+
+    // MARK: - Safari branch
+
+    /// When Safari is the default browser, the install step should be framed
+    /// around the App Store companion app, not the Chrome Web Store.
+    func testSafariDefault_showsSafariInstallCopy() async {
+        let stub = StubWebCompanionService(state: .stale())
+        let connector = BrowserExtensionConnector(
+            webCompanion: stub,
+            clock: StubConnectorClock(),
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: true)
+        )
+
+        let step = await connector.currentStep()
+        guard case .confirmingInstall(let title, let body, _, _, let skipLabel, let primaryLabel) = step else {
+            return XCTFail("Expected .confirmingInstall, got \(step)")
+        }
+        XCTAssertEqual(title, "Add Tokenomics to Safari")
+        XCTAssertTrue(body.contains("Safari extension from the App Store"))
+        XCTAssertEqual(skipLabel, "Skip for now")
+        XCTAssertEqual(primaryLabel, "Get it on the App Store")
+    }
+
+    /// Non-Safari browsers keep today's Chrome-framed copy.
+    func testOtherBrowser_keepsChromeInstallCopy() async {
+        let stub = StubWebCompanionService(state: .stale())
+        let connector = BrowserExtensionConnector(
+            webCompanion: stub,
+            clock: StubConnectorClock(),
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
+        )
+
+        let step = await connector.currentStep()
+        guard case .confirmingInstall(let title, let body, _, _, let skipLabel, let primaryLabel) = step else {
+            return XCTFail("Expected .confirmingInstall, got \(step)")
+        }
+        XCTAssertEqual(title, "Install the browser extension")
+        XCTAssertTrue(body.contains("lightweight browser extension"))
+        XCTAssertEqual(skipLabel, "Skip for now")
+        XCTAssertEqual(primaryLabel, "Open Chrome Web Store")
+    }
+
+    /// Both branches keep the exact same privacy footnote — it must not diverge
+    /// between the Chrome and Safari copy variants.
+    func testBothBranches_shareIdenticalFootnote() async {
+        let expectedFootnote = "The extension reads only your usage counts — never your prompts, messages, or files. It runs locally and talks only to Tokenomics on your Mac."
+
+        let safariConnector = BrowserExtensionConnector(
+            webCompanion: StubWebCompanionService(state: .stale()),
+            clock: StubConnectorClock(),
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: true)
+        )
+        let otherConnector = BrowserExtensionConnector(
+            webCompanion: StubWebCompanionService(state: .stale()),
+            clock: StubConnectorClock(),
+            opener: StubURLOpener(),
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
+        )
+
+        guard case .confirmingInstall(_, _, _, let safariFootnote, _, _) = await safariConnector.currentStep(),
+              case .confirmingInstall(_, _, _, let otherFootnote, _, _) = await otherConnector.currentStep() else {
+            return XCTFail("Expected .confirmingInstall for both connectors")
+        }
+
+        XCTAssertEqual(safariFootnote, expectedFootnote)
+        XCTAssertEqual(otherFootnote, expectedFootnote)
+    }
+
+    /// Tapping the primary CTA when Safari is the default browser should open
+    /// the App Store URL, not the Chrome Web Store.
+    func testSafariDefault_performPrimaryAction_opensAppStoreURL() async {
+        let stub = StubWebCompanionService(state: .stale())
+        let opener = StubURLOpener()
+        let connector = BrowserExtensionConnector(
+            webCompanion: stub,
+            clock: StubConnectorClock(),
+            opener: opener,
+            browserDetector: StubDefaultBrowserDetector(isSafari: true)
+        )
+
+        await connector.performPrimaryAction()
+
+        XCTAssertEqual(opener.openedURLs.last, BrowserExtensionConnector.appStoreURL)
+    }
+
+    /// Non-Safari browsers should still open the Chrome Web Store when the
+    /// primary CTA is tapped — the branch must not regress the default path.
+    func testOtherBrowser_performPrimaryAction_opensWebStoreURL() async {
+        let stub = StubWebCompanionService(state: .stale())
+        let opener = StubURLOpener()
+        let connector = BrowserExtensionConnector(
+            webCompanion: stub,
+            clock: StubConnectorClock(),
+            opener: opener,
+            browserDetector: StubDefaultBrowserDetector(isSafari: false)
+        )
+
+        await connector.performPrimaryAction()
+
+        let expected = URL(string: "https://chromewebstore.google.com/detail/gcjaebikgcbccgbnbcimccflcgoeefio")!
+        XCTAssertEqual(opener.openedURLs.last, expected)
     }
 
     // MARK: - isFresh helper tests

@@ -31,6 +31,27 @@ struct WorkspaceURLOpener: URLOpener {
     }
 }
 
+// MARK: - DefaultBrowserDetector
+
+/// Detects the user's default browser so the connector can route to the right
+/// install destination. Safari can only get the extension via the Mac App
+/// Store companion app — every other browser uses the Chrome Web Store.
+protocol DefaultBrowserDetector: Sendable {
+    @MainActor func isSafariDefault() -> Bool
+}
+
+/// Production detector — asks Launch Services which app would open an https
+/// URL (the standard way to read the default browser) and checks its bundle
+/// identifier against Safari's.
+struct WorkspaceDefaultBrowserDetector: DefaultBrowserDetector {
+    @MainActor func isSafariDefault() -> Bool {
+        guard let appURL = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://apple.com")!) else {
+            return false
+        }
+        return Bundle(url: appURL)?.bundleIdentifier == "com.apple.Safari"
+    }
+}
+
 // MARK: - BrowserExtensionConnector
 
 /// Connector for the "Install the Tokenomics browser extension" step.
@@ -84,39 +105,86 @@ actor BrowserExtensionConnector: ProviderConnector {
         string: "https://chromewebstore.google.com/detail/gcjaebikgcbccgbnbcimccflcgoeefio"
     )!
 
+    /// App Store listing URL for "Tokenomics for Safari" — the sandboxed Mac
+    /// App Store companion app that hosts the Safari Web Extension. Safari has
+    /// no unpacked/dev-keypair install path (unlike Chrome), so it's the only
+    /// destination for Safari users. Exposed (non-private) so Settings and
+    /// About can link to the same destination without duplicating the URL.
+    ///
+    /// TODO: replace with the real App Store id once the "Tokenomics for
+    /// Safari" listing exists, e.g.
+    /// https://apps.apple.com/app/tokenomics-for-safari/idPLACEHOLDER
+    /// Until then this resolves to the marketing site so the link never 404s.
+    static let appStoreURL = URL(string: "https://trytokenomics.com")!
+
     /// Seconds since `updatedAt` that count as a live heartbeat.
     /// The extension sends heartbeats on every NMH round-trip (~60s); 5 minutes
     /// gives enough headroom for a browser restart or a slow first install.
     private static let freshnessTTL: TimeInterval = 300
 
-    /// How long to wait between polls once the Web Store has been opened.
+    /// How long to wait between polls once the store has been opened.
     private static let pollInterval: TimeInterval = 5
+
+    /// Shared privacy footnote — identical across the Chrome and Safari install
+    /// steps, so it's defined once here.
+    private static let installFootnote = "The extension reads only your usage counts — never your prompts, messages, or files. It runs locally and talks only to Tokenomics on your Mac."
+
+    /// Which store the "install the extension" step should point at. Safari
+    /// only ever gets the extension through its Mac App Store companion app;
+    /// every other browser goes to the Chrome Web Store listing.
+    private enum BrowserKind: Sendable {
+        case safari
+        case other
+    }
 
     /// The "install the extension" step. Rendered with `ConfirmInstallStep`, which
     /// places the stepper on segment 2 ("Install extension") — the correct
     /// position while the extension is not yet installed. (The OAuth `.needsAction`
     /// path put it on segment 3 "Connect", which was wrong for an install.)
     /// No shell command, so the command card is hidden (`commandPreview: nil`).
-    private static let installStep: ConnectorStep = .confirmingInstall(
-        title: "Install the browser extension",
-        body: "Tokenomics reads your web usage — ChatGPT, Gemini, and more — through a lightweight browser extension. Install it and come back; we'll detect it automatically.",
-        commandPreview: nil,
-        footnote: "The extension reads only your usage counts — never your prompts, messages, or files. It runs locally and talks only to Tokenomics on your Mac.",
-        skipLabel: "Skip for now"
-    )
+    ///
+    /// Copy branches by default browser: Safari frames the App Store companion
+    /// app; every other browser keeps the original Chrome Web Store copy.
+    private static func installStep(for browser: BrowserKind) -> ConnectorStep {
+        switch browser {
+        case .safari:
+            return .confirmingInstall(
+                title: "Add Tokenomics to Safari",
+                body: "Tokenomics reads your web usage — ChatGPT, Gemini, and more — through a lightweight Safari extension from the App Store. Install it, switch it on in Safari, and come back; we'll detect it automatically.",
+                commandPreview: nil,
+                footnote: Self.installFootnote,
+                skipLabel: "Skip for now",
+                // The step title is a headline, not what the button does — the
+                // CTA opens the App Store, so say that.
+                primaryLabel: "Get it on the App Store"
+            )
+        case .other:
+            return .confirmingInstall(
+                title: "Install the browser extension",
+                body: "Tokenomics reads your web usage — ChatGPT, Gemini, and more — through a lightweight browser extension. Install it and come back; we'll detect it automatically.",
+                commandPreview: nil,
+                footnote: Self.installFootnote,
+                skipLabel: "Skip for now",
+                // Same reasoning as the Safari branch — the CTA opens the
+                // Chrome Web Store, so the button should say that.
+                primaryLabel: "Open Chrome Web Store"
+            )
+        }
+    }
 
     // MARK: - Dependencies
 
     private let webCompanion: any WebCompanionStateProvider
     private let clock: any ConnectorClock
     private let opener: any URLOpener
+    private let browserDetector: any DefaultBrowserDetector
 
     // MARK: - Internal state machine
 
     private enum ActivePhase {
         /// No action in progress — run the freshness check.
         case none
-        /// Web Store is open; polling for a fresh heartbeat.
+        /// Store is open; polling for a fresh heartbeat.
         case polling
         /// User tapped skip.
         case skipped
@@ -128,16 +196,23 @@ actor BrowserExtensionConnector: ProviderConnector {
     /// the same "now" within a single `currentStep()` call.
     private var lastCheckedAt: Date = .distantPast
 
+    /// Cached default-browser result. Computed once on first use — the user's
+    /// default browser is not expected to change mid-flow, and this avoids a
+    /// Launch Services round-trip on every ~1.5s poll tick.
+    private var cachedBrowserKind: BrowserKind?
+
     // MARK: - Init
 
     init(
         webCompanion: any WebCompanionStateProvider,
         clock: any ConnectorClock = SystemConnectorClock(),
-        opener: any URLOpener = WorkspaceURLOpener()
+        opener: any URLOpener = WorkspaceURLOpener(),
+        browserDetector: any DefaultBrowserDetector = WorkspaceDefaultBrowserDetector()
     ) {
         self.webCompanion = webCompanion
         self.clock = clock
         self.opener = opener
+        self.browserDetector = browserDetector
     }
 
     // MARK: - ProviderConnector
@@ -174,12 +249,13 @@ actor BrowserExtensionConnector: ProviderConnector {
             return .connected(plan: "")
         }
 
-        return Self.installStep
+        return Self.installStep(for: await detectedBrowserKind())
     }
 
-    /// Tapping the primary CTA ("Open Chrome Web Store") opens the store URL
-    /// and starts the polling phase. Subsequent taps while polling are no-ops —
-    /// the polling loop is already watching for the heartbeat.
+    /// Tapping the primary CTA ("Open Chrome Web Store" / "Get it on the App
+    /// Store") opens the store URL and starts the polling phase. Subsequent
+    /// taps while polling are no-ops — the polling loop is already watching
+    /// for the heartbeat.
     func performPrimaryAction() async {
         await confirmInstall()
     }
@@ -192,8 +268,10 @@ actor BrowserExtensionConnector: ProviderConnector {
             // Already polling or skipped — nothing to do.
             return
         }
-        await opener.open(Self.webStoreURL)
-        Self.log.info("Opened Chrome Web Store at \(Self.webStoreURL)")
+        let browser = await detectedBrowserKind()
+        let destinationURL = browser == .safari ? Self.appStoreURL : Self.webStoreURL
+        await opener.open(destinationURL)
+        Self.log.info("Opened install destination for \(browser == .safari ? "Safari" : "other browser"): \(destinationURL)")
         activePhase = .polling
         // Kick off the background poll loop so the connector drives forward
         // without relying solely on the VM's 1.5s general poll cadence.
@@ -244,5 +322,17 @@ actor BrowserExtensionConnector: ProviderConnector {
                 break
             }
         }
+    }
+
+    /// Resolves and caches which install destination to use. See
+    /// `cachedBrowserKind` for why this is cached rather than re-detected
+    /// on every call.
+    private func detectedBrowserKind() async -> BrowserKind {
+        if let cachedBrowserKind {
+            return cachedBrowserKind
+        }
+        let kind: BrowserKind = await browserDetector.isSafariDefault() ? .safari : .other
+        cachedBrowserKind = kind
+        return kind
     }
 }

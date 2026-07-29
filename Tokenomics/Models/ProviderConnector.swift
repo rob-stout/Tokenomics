@@ -65,12 +65,17 @@ enum ConnectorStep: Sendable, Equatable {
     ///   - commandPreview: The exact shell command Tokenomics will run. Nil hides the card.
     ///   - footnote: Source/runtime/disk disclosure shown below the command card.
     ///   - skipLabel: Text for the skip link. E.g. "Already have Homebrew? Skip this step"
+    ///   - primaryLabel: Primary button text. Nil falls back to `title` (today's
+    ///     behavior, unchanged everywhere except connectors that opt in) — e.g.
+    ///     the browser-extension connector uses this to say what the CTA actually
+    ///     does ("Get it on the App Store") instead of restating the step title.
     case confirmingInstall(
         title: String,
         body: String,
         commandPreview: String? = nil,
         footnote: String? = nil,
-        skipLabel: String = "I already have this"
+        skipLabel: String = "I already have this",
+        primaryLabel: String? = nil
     )
 
     /// Tokenomics is installing a prerequisite (Homebrew, Node.js, etc.) — distinct

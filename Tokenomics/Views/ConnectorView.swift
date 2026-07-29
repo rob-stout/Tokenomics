@@ -131,13 +131,14 @@ struct ConnectorView: View {
             DetectStep(items: detectionItems(for: viewModel.providerId),
                        subtitle: detectSubtitle(for: viewModel.providerId),
                        onBack: onBack)
-        case .confirmingInstall(let title, let body, let commandPreview, let footnote, let skipLabel):
+        case .confirmingInstall(let title, let body, let commandPreview, let footnote, let skipLabel, let primaryLabel):
             ConfirmInstallStep(
                 title: title,
                 description: body,
                 commandPreview: commandPreview,
                 footnote: footnote,
                 skipLabel: skipLabel,
+                primaryLabel: primaryLabel,
                 onContinue: { viewModel.tappedConfirmInstall() },
                 onSkip: { viewModel.tappedSkipInstall() },
                 onBack: onBack

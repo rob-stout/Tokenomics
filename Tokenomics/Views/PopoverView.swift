@@ -708,6 +708,16 @@ struct PopoverView: View {
                     viewModel.showAbout = true
                 }
 
+                // ── Browser ── (funnel to the Safari extension's App Store companion)
+                sectionLabel("Browser")
+
+                settingsExternalLinkRow(
+                    icon: "safari",
+                    label: "Tokenomics for Safari",
+                    subtitle: "Track your web AI usage in Safari.",
+                    url: BrowserExtensionConnector.appStoreURL
+                )
+
                 sectionLabel("Extras")
 
                 // Report Bugs — opens external link
@@ -1020,6 +1030,35 @@ struct PopoverView: View {
                 Image(systemName: "chevron.right")
                     .scaledFont(.caption2)
                     .foregroundStyle(.quaternary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+    }
+
+    /// Row for external links that need a subtitle beneath the label — e.g. the
+    /// "Tokenomics for Safari" funnel. Mirrors the Report Bugs row's icon +
+    /// label + `NSWorkspace.shared.open` pattern, with an added secondary line.
+    private func settingsExternalLinkRow(icon: String, label: String, subtitle: String, url: URL) -> some View {
+        let iconSide = 16 * textSize.iconScale
+        return Button {
+            NSWorkspace.shared.open(url)
+        } label: {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: icon)
+                    .scaledFont(.caption)
+                    .frame(width: iconSide, height: iconSide)
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .scaledFont(.caption)
+                    Text(subtitle)
+                        .scaledFont(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
             }
             .contentShape(Rectangle())
         }

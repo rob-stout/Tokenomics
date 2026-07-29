@@ -87,6 +87,14 @@ struct AboutView: View {
                     // Links
                     VStack(spacing: 0) {
                         linkRow(
+                            icon: "safari",
+                            label: "Get Tokenomics for Safari \u{2192}",
+                            url: BrowserExtensionConnector.appStoreURL.absoluteString
+                        )
+
+                        Divider()
+
+                        linkRow(
                             icon: "person.circle",
                             label: "Rob Stout \u{2014} Portfolio",
                             url: "https://robrstout.com"
