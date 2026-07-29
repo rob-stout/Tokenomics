@@ -52,6 +52,18 @@ schemes:
         - name: TokenomicsIntegrationTests
           parallelizable: false
           randomExecutionOrder: false
+
+  TokenomicsSafari:
+    build:
+      targets:
+        TokenomicsSafari: all
+        # TokenomicsSafariExtension is embedded via the app's dependency
+        # (embed: true), so it must NOT also get a standalone scheme product —
+        # same reasoning as TokenomicsBridge above.
+    run:
+      config: Debug
+    archive:
+      config: Release
 targets:
   Tokenomics:
     type: application
@@ -219,6 +231,180 @@ targets:
           # Developer ID signing uses the identity directly. (A specifier here
           # fails the Release archive: "TokenomicsBridge does not support
           # provisioning profiles".)
+
+  # "Tokenomics for Safari" — the Mac App Store companion that hosts the
+  # Safari Web Extension (see docs/plan: Safari + Mac App Store). Sandboxed,
+  # no Sparkle, no network entitlement (the extension does its own fetching;
+  # this app only reads the shared App Group container for status display).
+  TokenomicsSafari:
+    type: application
+    platform: macOS
+    deploymentTarget:
+      macOS: "14.0"
+    dependencies:
+      - target: TokenomicsSafariExtension
+        embed: true
+    sources:
+      - path: TokenomicsSafari
+      - path: TokenomicsBridge/BridgeCore.swift
+        type: file
+      - path: Tokenomics/Models/BridgeWireTypes.swift
+        type: file
+      - path: Tokenomics/Models/ProviderVisibilitySetting.swift
+        type: file
+      - path: Tokenomics/Views/DesignSystem/Tokens.swift
+        type: file
+      - path: Tokenomics/Views/DesignSystem/TokenButtonStyle.swift
+        type: file
+      # Reuses the main app's icon + bundled onboarding fonts so the
+      # shared Tokens.swift button/typography styles render on-brand.
+      # TODO(Phase 5/6): dedicated smaller MAS-only asset catalog.
+      - path: Tokenomics/Resources/Assets.xcassets
+        buildPhase: resources
+      - path: Tokenomics/Resources/Fonts
+        buildPhase: resources
+    info:
+      path: TokenomicsSafari/Info.plist
+      properties:
+        CFBundleDisplayName: Tokenomics for Safari
+        CFBundleIconFile: AppIcon
+        CFBundleIconName: AppIcon
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        ATSApplicationFontsPath: ""
+    entitlements:
+      path: TokenomicsSafari/TokenomicsSafari.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - group.com.robstout.tokenomics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics.safari
+        PRODUCT_NAME: Tokenomics for Safari
+        INFOPLIST_FILE: TokenomicsSafari/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TokenomicsSafari/TokenomicsSafari.entitlements
+        ENABLE_APP_SANDBOX: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+      configs:
+        debug:
+          # Program team for App Group support in debug builds
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
+          CODE_SIGN_IDENTITY: "Apple Development"
+        release:
+          # Automatic signing for Mac App Store distribution (Phase 5).
+          # Manual + no PROVISIONING_PROFILE_SPECIFIER was tried first (it's
+          # what the Developer-ID targets use) and empirically FAILS archiving
+          # outright: "requires a provisioning profile. Select a provisioning
+          # profile in the Signing & Capabilities editor." — Manual signing
+          # needs a real profile name/UUID, and no App Store profile exists
+          # yet for com.robstout.tokenomics.safari (the App ID itself isn't
+          # registered in the developer portal yet). Automatic + xcodebuild's
+          # `-allowProvisioningUpdates` (passed by distribute-appstore.sh) lets
+          # Xcode create the missing App ID/profile via the API key — the
+          # standard MAS-from-CI pattern.
+          #
+          # No CODE_SIGN_IDENTITY here (unlike the Developer-ID release configs
+          # above) — pinning it to "Apple Distribution" alongside
+          # CODE_SIGN_STYLE: Automatic also empirically FAILS: "conflicting
+          # provisioning settings... automatically signed for development, but
+          # a conflicting code signing identity Apple Distribution has been
+          # manually specified." With Automatic signing, Xcode picks the
+          # identity type itself from the archive/export action — no need (and
+          # no room) to pin it. Once App Store profiles exist, this can switch
+          # to Manual + PROVISIONING_PROFILE_SPECIFIER + CODE_SIGN_IDENTITY for
+          # reproducible, portal-independent builds — same as Developer ID.
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
+
+  # The Safari Web Extension appex, embedded in TokenomicsSafari's
+  # Contents/PlugIns. Its bundle id must be a child of the containing app's
+  # (xcodebuild hard-errors otherwise). Hosts the SAME web-extension bundle
+  # (extension/dist-safari) that ships identically-behaving JS to Chrome —
+  # only the native bridge transport differs (in-process handler vs stdio).
+  TokenomicsSafariExtension:
+    type: app-extension
+    platform: macOS
+    deploymentTarget:
+      macOS: "14.0"
+    sources:
+      - path: TokenomicsSafariExtension
+      - path: TokenomicsBridge/BridgeCore.swift
+        type: file
+      - path: Tokenomics/Models/BridgeWireTypes.swift
+        type: file
+      - path: Tokenomics/Models/ProviderVisibilitySetting.swift
+        type: file
+      # extension/dist-safari is a build artifact (produced by
+      # `node build.mjs --safari`, gitignored like dist/) — sources marked
+      # `optional: true` so `xcodegen generate` still succeeds (e.g. via the
+      # post-checkout hook) on a checkout where it hasn't been built yet.
+      # Layout matches SFSafariWebExtensionConverter's convention: manifest +
+      # background.js at the Resources root, subfolders as folder references
+      # (`type: folder`) so their own relative paths (e.g. "content/x.js")
+      # match what manifest.json declares.
+      - path: extension/dist-safari/manifest.json
+        buildPhase: resources
+        optional: true
+      - path: extension/dist-safari/background.js
+        buildPhase: resources
+        optional: true
+      - path: extension/dist-safari/content
+        type: folder
+        buildPhase: resources
+        optional: true
+      - path: extension/dist-safari/options
+        type: folder
+        buildPhase: resources
+        optional: true
+      - path: extension/dist-safari/popup
+        type: folder
+        buildPhase: resources
+        optional: true
+      - path: extension/dist-safari/icons
+        type: folder
+        buildPhase: resources
+        optional: true
+    info:
+      path: TokenomicsSafariExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Tokenomics for Safari
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SafariWebExtensionHandler
+    entitlements:
+      path: TokenomicsSafariExtension/TokenomicsSafariExtension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - group.com.robstout.tokenomics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics.safari.extension
+        PRODUCT_NAME: TokenomicsSafariExtension
+        CODE_SIGN_ENTITLEMENTS: TokenomicsSafariExtension/TokenomicsSafariExtension.entitlements
+        ENABLE_APP_SANDBOX: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
+      configs:
+        debug:
+          # Program team for App Group support in debug builds
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
+          CODE_SIGN_IDENTITY: "Apple Development"
+        release:
+          # Same reasoning as TokenomicsSafari above — Manual-without-profile
+          # empirically fails archiving, and pinning CODE_SIGN_IDENTITY
+          # alongside Automatic style empirically conflicts too. Automatic +
+          # -allowProvisioningUpdates (no identity pin) is used until App
+          # Store provisioning profiles exist for Phase 5.
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: RPDDQP7KZ5
 
   TokenomicsTests:
     type: bundle.unit-test

@@ -250,6 +250,21 @@ enum BridgeFileIO {
         return url
     }
 
+    /// Resolves the App Group container URL for SANDBOXED, entitled processes —
+    /// the Safari extension handler (and the sandboxed companion app that reads
+    /// the container for its status display). Sandboxed code carries the
+    /// `com.apple.security.application-groups` entitlement, which authorizes
+    /// this API directly. Confirmed empirically (Phase-0 spike): a sandboxed
+    /// process signed with the same team resolves to the IDENTICAL container
+    /// path `containerURL()` above computes manually, so all callers — this
+    /// one, the manual one, and the widget/main-app's own use of this same
+    /// API — share one directory. The non-sandboxed stdio bridge tool must
+    /// keep using `containerURL()` instead — it carries no App Group
+    /// entitlement (see that method's doc comment for why).
+    static func sandboxedContainerURL() -> URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupIdentifier)
+    }
+
     /// Opens (or creates) the lock file and acquires an exclusive flock.
     ///
     /// - Returns: The open file descriptor. Caller must `close(fd)` and `flock(fd, LOCK_UN)`.
