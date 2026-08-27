@@ -9,7 +9,10 @@ import os
 /// refresh token (they're single-use) and logs the user out.
 actor ClaudeProvider: UsageProvider {
     let id = ProviderId.claude
-    let pollInterval: TimeInterval = 600 // 10 min — remote API with tight rate limits
+    // 2 min — the endpoint's limiter punishes simultaneous requests, not volume
+    // (historical 429s came with Retry-After: 0). UsageService single-flights
+    // concurrent callers, so steady polling at this cadence is safe.
+    let pollInterval: TimeInterval = 120
 
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "ClaudeProvider")
 

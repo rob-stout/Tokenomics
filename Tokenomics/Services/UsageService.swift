@@ -14,6 +14,13 @@ actor UsageService {
     /// Consecutive 429 count for exponential backoff (resets on success)
     private var consecutive429s: Int = 0
 
+    /// In-flight request shared across concurrent callers. Actors are reentrant
+    /// across `await`, so without this a manual Refresh landing mid-poll (or an
+    /// onboarding connection check colliding with a tick) fires a second
+    /// simultaneous request — the exact burst pattern Anthropic's limiter 429s
+    /// on with Retry-After: 0. Joiners await the same result instead.
+    private var inFlight: Task<UsageData, Error>?
+
     private lazy var decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         // API returns fractional seconds (e.g. "2026-02-25T20:00:00.849139+00:00")
@@ -42,7 +49,24 @@ actor UsageService {
         consecutive429s = 0
     }
 
+    /// Backoff for a 429. Honors a positive server-sent Retry-After; falls back
+    /// to exponential (5 min → 10 min → 20 min → 40 min, capped at 1 hour) when
+    /// the header is absent or 0 — Anthropic sends Retry-After: 0 on momentary
+    /// burst throttles, which is useless as a cooldown.
+    static func backoffInterval(retryAfterHeader: TimeInterval?, consecutive429s: Int) -> TimeInterval {
+        if let retryAfter = retryAfterHeader, retryAfter > 0 {
+            return retryAfter
+        }
+        let baseBackoff: TimeInterval = 300
+        return min(baseBackoff * pow(2, Double(consecutive429s - 1)), 3600)
+    }
+
     func fetchUsage(token: String) async throws -> UsageData {
+        // Join an in-flight request instead of firing a concurrent duplicate
+        if let inFlight {
+            return try await inFlight.value
+        }
+
         // Respect rate-limit backoff — don't hit the API if we're still in a cooldown
         if let until = rateLimitedUntil, Date() < until {
             let remaining = until.timeIntervalSinceNow
@@ -50,6 +74,13 @@ actor UsageService {
             throw AppError.rateLimited(retryAfter: remaining)
         }
 
+        let task = Task { try await performFetch(token: token) }
+        inFlight = task
+        defer { inFlight = nil }
+        return try await task.value
+    }
+
+    private func performFetch(token: String) async throws -> UsageData {
         var request = URLRequest(url: baseURL)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -72,9 +103,12 @@ actor UsageService {
             throw AppError.tokenExpired
         case 429:
             consecutive429s += 1
-            // Exponential backoff: 5 min → 10 min → 20 min → 40 min (capped at 1 hour)
-            let baseBackoff: TimeInterval = 300
-            let backoff = min(baseBackoff * pow(2, Double(consecutive429s - 1)), 3600)
+            let retryAfterHeader = httpResponse.value(forHTTPHeaderField: "Retry-After")
+                .flatMap(TimeInterval.init)
+            let backoff = Self.backoffInterval(
+                retryAfterHeader: retryAfterHeader,
+                consecutive429s: consecutive429s
+            )
             rateLimitedUntil = Date().addingTimeInterval(backoff)
             let body = String(data: data, encoding: .utf8) ?? ""
             Self.log.warning("429 Rate Limited (#\(self.consecutive429s)) — backing off \(Int(backoff))s. Body: \(body, privacy: .public)")

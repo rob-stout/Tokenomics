@@ -35,46 +35,41 @@ final class UsageServiceTests: XCTestCase {
 
     // MARK: - Rate Limit / Backoff
 
-    /// Regression: commit 111540c — retry-after: 0 must still enforce a 5-minute minimum.
-    /// The server-sent value of 0 is meaningless as a cooldown; treat it as "retry ASAP"
-    /// which we cap at the base backoff of 300s.
-    func testRateLimitBackoff_firstHit_enforces5MinMinimum() async throws {
-        let service = UsageService()
+    /// Regression: commit 111540c — Retry-After: 0 must still enforce the exponential
+    /// fallback (5-minute base). The server-sent value of 0 is meaningless as a cooldown.
+    func testRateLimitBackoff_retryAfterZero_fallsBackToExponential() {
+        let computed = UsageService.backoffInterval(retryAfterHeader: 0, consecutive429s: 1)
+        XCTAssertEqual(computed, 300, "Retry-After: 0 must fall back to 300s (5 minutes)")
+    }
 
-        // Simulate the 429 branch by calling resetRateLimit then manually testing backoff math.
-        // We trigger the backoff via a real 429 response through the mock.
-        let url = URL(string: "https://api.anthropic.com/api/oauth/usage")!
-        let response = HTTPURLResponse(url: url, statusCode: 429, httpVersion: nil, headerFields: nil)!
+    func testRateLimitBackoff_missingHeader_fallsBackToExponential() {
+        let computed = UsageService.backoffInterval(retryAfterHeader: nil, consecutive429s: 1)
+        XCTAssertEqual(computed, 300, "Missing Retry-After must fall back to 300s (5 minutes)")
+    }
 
-        MockURLProtocol.handler = { _ in (response, Data()) }
-
-        // We can't inject URLSession into UsageService directly without refactoring.
-        // Instead, test the backoff math the service performs (extracted as pure logic).
-        let baseBackoff: TimeInterval = 300
-        let consecutive = 1
-        let computed = min(baseBackoff * pow(2, Double(consecutive - 1)), 3600)
-
-        // First 429: backoff = 300 * 2^0 = 300s (5 minutes)
-        XCTAssertEqual(computed, 300, "First 429 must back off for exactly 300s (5 minutes)")
+    /// A positive server-sent Retry-After is authoritative — honor it exactly,
+    /// even when shorter than the exponential fallback would be.
+    func testRateLimitBackoff_positiveRetryAfter_isHonored() {
+        let computed = UsageService.backoffInterval(retryAfterHeader: 42, consecutive429s: 3)
+        XCTAssertEqual(computed, 42, "A positive Retry-After must be used verbatim")
     }
 
     func testRateLimitBackoff_exponentialProgression() {
-        let baseBackoff: TimeInterval = 300
         let expected: [TimeInterval] = [300, 600, 1200, 2400, 3600, 3600]
 
         for (index, expectedBackoff) in expected.enumerated() {
-            let consecutive = index + 1
-            let computed = min(baseBackoff * pow(2, Double(consecutive - 1)), 3600)
+            let computed = UsageService.backoffInterval(
+                retryAfterHeader: nil,
+                consecutive429s: index + 1
+            )
             XCTAssertEqual(computed, expectedBackoff,
-                "Consecutive 429 #\(consecutive) should back off \(expectedBackoff)s")
+                "Consecutive 429 #\(index + 1) should back off \(expectedBackoff)s")
         }
     }
 
     func testRateLimitBackoff_cappedAt1Hour() {
-        let baseBackoff: TimeInterval = 300
         // After 4 consecutive 429s: 300 * 2^3 = 2400. After 5: 300 * 2^4 = 4800 → capped at 3600
-        let consecutive = 5
-        let computed = min(baseBackoff * pow(2, Double(consecutive - 1)), 3600)
+        let computed = UsageService.backoffInterval(retryAfterHeader: nil, consecutive429s: 5)
         XCTAssertEqual(computed, 3600, "Backoff must be capped at 3600s (1 hour)")
     }
 
