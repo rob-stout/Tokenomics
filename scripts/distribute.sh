@@ -102,9 +102,12 @@ if [[ -n "$SHIPPED_VERSION" && "$NEW_VERSION" == "$SHIPPED_VERSION" ]]; then
 fi
 
 # Update build number, sync version to Info.plist.
-# /g: bump CFBundleVersion for BOTH targets (main app + widgets) so their
-# build numbers stay in sync — without it, only the first (main) target bumps.
-sed -i '' "s/CFBundleVersion: \".*\"/CFBundleVersion: \"$NEXT_BUILD\"/g" "$YML_PATH"
+# Scope the sed to the CURRENT in-file build value: the main app + widgets
+# targets share it, so both bump together — while the Safari/MAS targets'
+# independent CFBundleVersion entries are left untouched. A bare ".*" match
+# would clobber all four targets.
+CURRENT_YML_BUILD=$(grep -m1 'CFBundleVersion:' "$YML_PATH" | awk '{print $2}' | tr -d '"')
+sed -i '' "s/CFBundleVersion: \"$CURRENT_YML_BUILD\"/CFBundleVersion: \"$NEXT_BUILD\"/g" "$YML_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT_BUILD" "$PLIST_PATH"
 

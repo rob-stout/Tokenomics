@@ -102,10 +102,13 @@ NEXT_BUILD=$((HIGHEST_BUILD + 1))
 echo "  Highest known build: $HIGHEST_BUILD"
 echo "  Building:            $NEW_VERSION (build $NEXT_BUILD)"
 
-# /g: bump CFBundleVersion for BOTH targets (main app + widgets) so their
-# build numbers stay in sync — without it, only the first (main) target bumps.
-sed -i '' "s/CFBundleVersion: \".*\"/CFBundleVersion: \"$NEXT_BUILD\"/g" "$YML_PATH"
-sed -i '' "s/CFBundleShortVersionString: \".*\"/CFBundleShortVersionString: \"$NEW_VERSION\"/g" "$YML_PATH"
+# Scope the sed to the CURRENT in-file build value: the main app + widgets
+# targets share it, so both bump together — while the Safari/MAS targets'
+# independent CFBundleVersion entries are left untouched. A bare ".*" match
+# would clobber all four targets. (No version sed here: NEW_VERSION was read
+# from project.yml itself, so rewriting it is a no-op for the app targets and
+# would only overwrite the Safari targets' independent versions.)
+sed -i '' "s/CFBundleVersion: \"$INFILE_BUILD\"/CFBundleVersion: \"$NEXT_BUILD\"/g" "$YML_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST_PATH"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT_BUILD" "$PLIST_PATH"
 

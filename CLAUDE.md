@@ -52,6 +52,7 @@ Providers support: reordering (drag), show/hide visibility, per-provider poll in
 ## Commands
 ```bash
 xcodegen generate              # Regenerate Xcode project from project.yml (run AFTER version bumps)
+./scripts/release.sh 2.9.1     # ONE-COMMAND stable release: version bump → distribute.sh → publish.sh
 ./scripts/distribute.sh        # Build, sign, notarize, create DMG, upload to GitHub Releases
 node extension/build.mjs --safari    # Build the Safari Web Extension bundle — REQUIRED before
                                       # building the TokenomicsSafari scheme (produces extension/dist-safari/)
@@ -65,12 +66,14 @@ branches. Avoids "Build input files cannot be found" errors when bouncing
 between branches with different source trees.
 
 ## Release Process
-1. Bump version in `project.yml` (both targets: main app + widgets)
-2. `xcodegen generate` — must run AFTER version bump
-3. `./scripts/distribute.sh` — builds, signs, notarizes, creates DMG, uploads to GitHub
-4. Update `Casks/tokenomics.rb` sha256 + version in both repos (app repo + homebrew tap)
-5. Push both repos
-6. Sparkle auto-detects via appcast; Homebrew cask is for first-time installs only (`auto_updates true` defers to Sparkle)
+One command: `./scripts/release.sh <version>` (optionally `<version> notes.md`). It:
+1. Bumps the version in `project.yml` (main app + widgets only — Safari/MAS targets version independently) and commits
+2. Runs `./scripts/distribute.sh` — xcodegen, build, sign, notarize, DMG, appcast
+3. Commits the build-number sync
+4. Runs `./scripts/publish.sh` — GitHub Release, cask sha256/version in both repos, appcast push, site sync
+
+Sparkle auto-detects via appcast; Homebrew cask is for first-time installs only (`auto_updates true` defers to Sparkle).
+If run from a branch other than `main`, fast-forward `main` afterwards (the script reminds you).
 
 ## Distribution
 - **Sparkle**: EdDSA signed, appcast.xml on GitHub main branch, SUFeedURL in Info.plist via project.yml
