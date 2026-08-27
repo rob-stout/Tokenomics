@@ -126,11 +126,29 @@ fi
 # Done
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Step 5: Sync main (when releasing from another branch)
+# ---------------------------------------------------------------------------
+
+# Sparkle reads appcast.xml from main, so the release isn't live until main
+# carries the release commits. Fast-forward without a checkout so concurrent
+# sessions on other branches aren't disrupted.
+if [[ "$BRANCH" != "main" ]]; then
+    step "Fast-forwarding main to $BRANCH"
+    git fetch origin main
+    if git merge-base --is-ancestor origin/main "$BRANCH"; then
+        git push origin "$BRANCH:main"
+        # Keep the local main branch in sync too (no-op if it can't fast-forward)
+        git fetch . "$BRANCH:main" 2>/dev/null \
+            || echo "  (local main not fast-forwarded — it has diverged; origin/main is correct)"
+        echo "main fast-forwarded to $BRANCH ✓"
+    else
+        echo "WARNING: main has diverged from $BRANCH — cannot fast-forward."
+        echo "The release is NOT live for Sparkle until appcast.xml reaches main."
+        echo "Merge manually, then push:"
+        echo "  git checkout main && git merge $BRANCH && git push origin main"
+    fi
+fi
+
 echo ""
 echo "✅ release.sh complete — v$VERSION (build $BUILD)"
-if [[ "$BRANCH" != "main" ]]; then
-    echo ""
-    echo "REMINDER: you released from '$BRANCH'. Fast-forward main so the"
-    echo "release commits (version bump, appcast, cask) reach origin/main:"
-    echo "  git checkout main && git merge --ff-only $BRANCH && git push origin main"
-fi

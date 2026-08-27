@@ -163,7 +163,10 @@ if git diff --cached --quiet; then
     echo "No app-repo changes to commit (cask + appcast already up to date)."
 else
     git commit -m "chore: publish $TAG — appcast + cask sha256"
-    git push origin main
+    # Push the branch we actually committed to. A hardcoded `origin main` fails
+    # (or silently pushes a stale main) when releasing from another branch —
+    # release.sh handles syncing main afterwards.
+    git push origin HEAD
 fi
 
 # ---------------------------------------------------------------------------
