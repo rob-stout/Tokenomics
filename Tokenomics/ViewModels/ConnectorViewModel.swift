@@ -65,8 +65,17 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
             // Steps 1+2 are complete because detection found everything installed.
             return [Item(label: l1, state: c), Item(label: l2, state: c),
                     Item(label: l3, state: a), Item(label: l4, state: u)]
-        case .confirmingInstall, .installingDependency, .installing,
-             .openProviderSite:
+        case .confirmingInstall(_, _, _, _, _, _, let signInFramed):
+            if signInFramed {
+                // Sign-in-framed confirm screen (e.g. Cursor already installed,
+                // just needs sign-in): steps 1+2 are done, step 3 is next.
+                return [Item(label: l1, state: c), Item(label: l2, state: c),
+                        Item(label: l3, state: a), Item(label: l4, state: u)]
+            }
+            // Step 2 active: installing tools.
+            return [Item(label: l1, state: c), Item(label: l2, state: a),
+                    Item(label: l3, state: u), Item(label: l4, state: u)]
+        case .installingDependency, .installing, .openProviderSite:
             // Step 2 active: installing tools / opening provider site for API key.
             return [Item(label: l1, state: c), Item(label: l2, state: a),
                     Item(label: l3, state: u), Item(label: l4, state: u)]

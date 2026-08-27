@@ -131,7 +131,10 @@ struct ConnectorView: View {
             DetectStep(items: detectionItems(for: viewModel.providerId),
                        subtitle: detectSubtitle(for: viewModel.providerId),
                        onBack: onBack)
-        case .confirmingInstall(let title, let body, let commandPreview, let footnote, let skipLabel, let primaryLabel):
+        case .confirmingInstall(let title, let body, let commandPreview, let footnote, let skipLabel, let primaryLabel, _):
+            // Trailing `signInFramed` only affects `ConnectorViewModel.stepperItems`
+            // (which stepper segment lights up) — the confirm-screen chrome itself
+            // is identical for install vs. sign-in framing.
             ConfirmInstallStep(
                 title: title,
                 description: body,
@@ -155,7 +158,7 @@ struct ConnectorView: View {
                 onPrimary: { viewModel.tappedAdvancePreview() },
                 onBack: onBack
             )
-        case .awaitingExternalAuth(let headline, let body):
+        case .awaitingExternalAuth(let headline, let body, let caption, let showsTerminalArt):
             // The browser-extension connector (id == .chatgpt) reuses this step for
             // its "connecting" phase, but needs the provider-agnostic view — not the
             // Claude-specific terminal illustration.
@@ -172,6 +175,8 @@ struct ConnectorView: View {
                 AwaitExternalAuthView(
                     headline: headline,
                     instructionText: body,
+                    caption: caption,
+                    showsTerminalArt: showsTerminalArt,
                     onCheckNow: { viewModel.tappedRecheck() },
                     onBack: onBack
                 )

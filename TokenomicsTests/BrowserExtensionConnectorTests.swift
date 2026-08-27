@@ -322,7 +322,7 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         )
 
         let step = await connector.currentStep()
-        guard case .confirmingInstall(let title, let body, _, _, let skipLabel, let primaryLabel) = step else {
+        guard case .confirmingInstall(let title, let body, _, _, let skipLabel, let primaryLabel, _) = step else {
             return XCTFail("Expected .confirmingInstall, got \(step)")
         }
         XCTAssertEqual(title, "Add Tokenomics to Safari")
@@ -342,7 +342,7 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         )
 
         let step = await connector.currentStep()
-        guard case .confirmingInstall(let title, let body, _, _, let skipLabel, let primaryLabel) = step else {
+        guard case .confirmingInstall(let title, let body, _, _, let skipLabel, let primaryLabel, _) = step else {
             return XCTFail("Expected .confirmingInstall, got \(step)")
         }
         XCTAssertEqual(title, "Install the browser extension")
@@ -369,8 +369,8 @@ final class BrowserExtensionConnectorTests: XCTestCase {
             browserDetector: StubDefaultBrowserDetector(isSafari: false)
         )
 
-        guard case .confirmingInstall(_, _, _, let safariFootnote, _, _) = await safariConnector.currentStep(),
-              case .confirmingInstall(_, _, _, let otherFootnote, _, _) = await otherConnector.currentStep() else {
+        guard case .confirmingInstall(_, _, _, let safariFootnote, _, _, _) = await safariConnector.currentStep(),
+              case .confirmingInstall(_, _, _, let otherFootnote, _, _, _) = await otherConnector.currentStep() else {
             return XCTFail("Expected .confirmingInstall for both connectors")
         }
 

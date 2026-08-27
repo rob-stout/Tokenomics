@@ -69,13 +69,20 @@ enum ConnectorStep: Sendable, Equatable {
     ///     behavior, unchanged everywhere except connectors that opt in) — e.g.
     ///     the browser-extension connector uses this to say what the CTA actually
     ///     does ("Get it on the App Store") instead of restating the step title.
+    ///   - signInFramed: True when this confirm screen is asking the user to sign
+    ///     in (prerequisite already installed) rather than install something.
+    ///     `ConnectorViewModel.stepperItems` uses this to highlight step 3
+    ///     ("Signing in") instead of step 2 — e.g. Cursor's "Sign in to Cursor"
+    ///     screen, shown when the app is already present. Defaults to false so
+    ///     every existing install-confirm call site keeps today's step-2 highlight.
     case confirmingInstall(
         title: String,
         body: String,
         commandPreview: String? = nil,
         footnote: String? = nil,
         skipLabel: String = "I already have this",
-        primaryLabel: String? = nil
+        primaryLabel: String? = nil,
+        signInFramed: Bool = false
     )
 
     /// Tokenomics is installing a prerequisite (Homebrew, Node.js, etc.) — distinct
@@ -107,7 +114,23 @@ enum ConnectorStep: Sendable, Equatable {
 
     /// Tokenomics has handed off to an external CLI auth flow and is polling
     /// for the credentials file to appear. Used for Window 5 of the Anthropic flow.
-    case awaitingExternalAuth(headline: String, body: String)
+    ///
+    /// - Parameters:
+    ///   - caption: Polling-pill message. Nil keeps `AwaitExternalAuthView`'s
+    ///     current hardcoded Claude copy ("Watching ~/.claude for
+    ///     authentication…") — the default preserves the Claude connector's
+    ///     rendering exactly. Non-nil connectors (e.g. Cursor) override it since
+    ///     the Claude-specific wording doesn't apply to them.
+    ///   - showsTerminalArt: Whether to render the Terminal-window illustration.
+    ///     Defaults to true (Claude's existing rendering). Cursor's sign-in isn't
+    ///     a terminal flow, so it sets this false rather than showing a
+    ///     misleading Terminal metaphor.
+    case awaitingExternalAuth(
+        headline: String,
+        body: String,
+        caption: String? = nil,
+        showsTerminalArt: Bool = true
+    )
 
     /// Opens the provider's website so the user can get an API key (Pattern E step 1).
     /// Rendered identically to `.confirmingInstall` — same confirm-screen chrome —

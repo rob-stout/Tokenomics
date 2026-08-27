@@ -9,6 +9,13 @@ import SwiftUI
 ///   - Pinned .winfoot: "← Back" ghost | "I'm all set" secondary
 struct ProviderChooserView: View {
     @ObservedObject var viewModel: UsageViewModel
+    /// Extension-fed providers (.chatgpt, .geminiConsumer, .midjourney, etc.)
+    /// currently feeding usage over the NMH bridge. `viewModel.providerStates`
+    /// has no entry for these — they're not native `UsageProvider`s — so this
+    /// is the only signal the chooser has for "connected" on those rows.
+    /// Populated by `ConnectorContainer` from `WebCompanionService`; defaults
+    /// to empty for previews and any other caller that doesn't track it.
+    var bridgeConnected: Set<ProviderId> = []
     var onPick: (ProviderId) -> Void
     var onAllSet: () -> Void
     /// Called when the user taps ← Back; nil if there is no back destination.
@@ -95,7 +102,11 @@ struct ProviderChooserView: View {
     @ViewBuilder
     private func providerRow(_ provider: ProviderId) -> some View {
         let state = viewModel.providerStates[provider]
-        let isConnected = state?.connection.isConnected ?? false
+        // Extension-fed providers never get a `providerStates` entry (see
+        // `bridgeConnected` doc comment), so a fresh bridge heartbeat is an
+        // equally valid "connected" signal — without it these rows would show
+        // "Guided setup" forever even once the extension is actively feeding them.
+        let isConnected = (state?.connection.isConnected ?? false) || bridgeConnected.contains(provider)
         let isAvailable = provider.hasAPI
 
         Button { onPick(provider) } label: {
@@ -201,17 +212,23 @@ struct ProviderChooserView: View {
         } else {
             // Setup badge + chevron
             // mockup .badge: accent@12% bg, accent text, accent@25% border, 11px weight 500
+            let badgeLabel = setupBadgeLabel(for: provider)
+
             HStack(spacing: Tokens.Spacing.s2 + 2) {
-                Text(setupBadgeLabel(for: provider))
-                    .font(Tokens.Typography.Onboarding.micro.weight(.medium))
-                    .foregroundStyle(Tokens.Color.accent(scheme))
-                    .padding(.horizontal, Tokens.Spacing.s2 + 2) // 10pt
-                    .padding(.vertical, Tokens.Spacing.s1 - 1)   // 3pt
-                    .background(Tokens.Color.accent(scheme).opacity(0.12))
-                    .overlay(
-                        Capsule().strokeBorder(Tokens.Color.accent(scheme).opacity(0.25), lineWidth: 1)
-                    )
-                    .clipShape(Capsule())
+                // Guard against an empty capsule: if a provider ever ships with
+                // no badge label, show only the chevron rather than a blank pill.
+                if !badgeLabel.isEmpty {
+                    Text(badgeLabel)
+                        .font(Tokens.Typography.Onboarding.micro.weight(.medium))
+                        .foregroundStyle(Tokens.Color.accent(scheme))
+                        .padding(.horizontal, Tokens.Spacing.s2 + 2) // 10pt
+                        .padding(.vertical, Tokens.Spacing.s1 - 1)   // 3pt
+                        .background(Tokens.Color.accent(scheme).opacity(0.12))
+                        .overlay(
+                            Capsule().strokeBorder(Tokens.Color.accent(scheme).opacity(0.25), lineWidth: 1)
+                        )
+                        .clipShape(Capsule())
+                }
 
                 // Chevron ›
                 Text("›")
@@ -282,10 +299,13 @@ struct ProviderChooserView: View {
         switch provider {
         case .codex, .gemini, .cursor, .copilot:
             return "Quick setup"
-        case .claude, .stableDiffusion, .runway, .elevenlabs:
+        case .claude, .stableDiffusion, .runway, .elevenlabs,
+             .chatgpt, .geminiConsumer, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
+            // Web-session providers (chatgpt...udio) all route through
+            // BrowserExtensionConnector's multi-screen walk-through — "Guided"
+            // per the legend's promise, even though the pipeline (extension
+            // install) differs from Claude/Runway's guided flows.
             return "Guided setup"
-        case .chatgpt, .geminiConsumer, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio:
-            return ""
         }
     }
 }
@@ -299,6 +319,7 @@ struct ProviderChooserView: View {
 private func chooserPreview() -> some View {
     ProviderChooserView(
         viewModel: UsageViewModel(),
+        bridgeConnected: [],
         onPick: { _ in },
         onAllSet: {},
         onBack: {}

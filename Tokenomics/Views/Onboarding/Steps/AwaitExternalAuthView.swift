@@ -22,6 +22,18 @@ struct AwaitExternalAuthView: View {
     /// inline emphasis (e.g. `**You'll know you're done…**`).
     var instructionText: String
 
+    /// Polling-pill message. Nil keeps the original Claude-specific copy
+    /// ("Watching ~/.claude for authentication…") so the Claude connector's
+    /// rendering is unchanged. Non-Claude connectors (e.g. Cursor) pass their
+    /// own wording since "make sure you're logged in to Claude Code" doesn't apply.
+    var caption: String? = nil
+
+    /// Whether to render the Terminal-window illustration + "When your Terminal
+    /// looks like this…" caption. Defaults to true (Claude's existing
+    /// rendering) — false for connectors whose sign-in isn't a terminal flow
+    /// (e.g. Cursor signs in inside its own app window).
+    var showsTerminalArt: Bool = true
+
     /// Called when the user taps "I'm signed in — check now".
     var onCheckNow: () -> Void
 
@@ -44,21 +56,25 @@ struct AwaitExternalAuthView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, Tokens.Spacing.s2)
 
-            // Centered terminal preview + caption
-            VStack(spacing: Tokens.Spacing.s2 + 2) { // 10pt — mockup caption margin-top
-                terminalMiniPreview
-                Text("When your Terminal looks like this, you're signed in.")
-                    .font(.custom("DM Sans", size: 11.5))
-                    .foregroundStyle(Tokens.Color.textMuted(scheme))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 380)
+            if showsTerminalArt {
+                // Centered terminal preview + caption
+                VStack(spacing: Tokens.Spacing.s2 + 2) { // 10pt — mockup caption margin-top
+                    terminalMiniPreview
+                    Text("When your Terminal looks like this, you're signed in.")
+                        .font(.custom("DM Sans", size: 11.5))
+                        .foregroundStyle(Tokens.Color.textMuted(scheme))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 380)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, Tokens.Spacing.s4) // 16pt — mockup terminal-mini margin-top
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, Tokens.Spacing.s4) // 16pt — mockup terminal-mini margin-top
 
             // Polling pill — dashed border, mockup line 2600
+            // A touch more top padding when the terminal illustration is
+            // absent — the pill otherwise sits too close under the lede.
             pollingPill
-                .padding(.top, Tokens.Spacing.s4 - 2) // 14pt — mockup margin-top
+                .padding(.top, showsTerminalArt ? Tokens.Spacing.s4 - 2 : Tokens.Spacing.s5) // 14pt / 24pt
 
             Spacer(minLength: Tokens.Spacing.s5)
 
@@ -179,17 +195,25 @@ struct AwaitExternalAuthView: View {
 
     // MARK: - Polling pill
 
+    /// Claude's default keeps the inline mono `~/.claude` chip (mockup line
+    /// 2602); a caller-supplied `caption` renders as plain text since it has
+    /// no filesystem path to monospace.
+    private var pollingMessage: Text {
+        if let caption {
+            return Text(caption)
+        }
+        return Text("Watching ")
+            + Text("~/.claude").font(.custom("DM Sans", size: 12).monospaced())
+            + Text(" for authentication — make sure you're logged in to Claude Code.")
+    }
+
     /// Mockup .polling lines 989–998: dashed border-strong, surface-2 bg, r-sm,
     /// padding 14×16, accent spinner + 13px textMuted message.
     private var pollingPill: some View {
         HStack(alignment: .center, spacing: Tokens.Spacing.s2 + 2) { // 10pt
             CircularSpinner(size: 14, color: Tokens.Color.accent(scheme))
 
-            // Inline mono `~/.claude` chip — mockup line 2602
-            (Text("Watching ")
-             + Text("~/.claude")
-                .font(.custom("DM Sans", size: 12).monospaced())
-             + Text(" for authentication — make sure you're logged in to Claude Code."))
+            pollingMessage
                 .font(Tokens.Typography.Onboarding.small)
                 .foregroundStyle(Tokens.Color.textMuted(scheme))
                 .fixedSize(horizontal: false, vertical: true)

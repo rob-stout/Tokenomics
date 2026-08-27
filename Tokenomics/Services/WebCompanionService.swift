@@ -202,4 +202,21 @@ extension ExtSideState {
     func isFresh(at now: Date = Date(), within window: TimeInterval = 300) -> Bool {
         now.timeIntervalSince(updatedAt) <= window
     }
+
+    /// Provider IDs with a snapshot captured within `window` seconds of `now`.
+    ///
+    /// Deliberately checks each snapshot's own `capturedAt`, not the whole-state
+    /// `updatedAt` that `isFresh` uses — the bridge heartbeats every ~60s
+    /// regardless of which provider's usage it last saw, so a stale provider's
+    /// snapshot can sit alongside a fresh `updatedAt`. Mirrors
+    /// `DetectionService.bridgeHeartbeat(for:)`'s per-provider freshness rule
+    /// (same 5-minute default window) — used by `ProviderChooserView` to show
+    /// "Connected" for extension-fed providers actively feeding usage.
+    func freshlyConnectedProviderIds(at now: Date = Date(), within window: TimeInterval = 300) -> Set<ProviderId> {
+        Set(snapshots.compactMap { rawId, snapshot -> ProviderId? in
+            guard let id = ProviderId(rawValue: rawId) else { return nil }
+            guard now.timeIntervalSince(snapshot.capturedAt) <= window else { return nil }
+            return id
+        })
+    }
 }

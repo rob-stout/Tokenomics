@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import os
 
@@ -18,6 +19,11 @@ actor CursorProvider: UsageProvider {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         return "\(home)/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
     }()
+
+    /// Cursor's app bundle identifier — shared with `CursorConnector`, which
+    /// uses the same lookup to locate and launch the installed app for its
+    /// "Open Cursor" sign-in CTA. Defined once here to avoid drift.
+    static let bundleIdentifier = "com.todesktop.230313mzl4w4u92"
 
     /// Cached user ID extracted from JWT to avoid re-parsing every poll
     private var cachedUserId: String?
@@ -115,7 +121,15 @@ actor CursorProvider: UsageProvider {
             "/Applications/Cursor.app",
             Self.stateDBPath
         ]
-        return paths.contains { FileManager.default.fileExists(atPath: $0) }
+        if paths.contains(where: { FileManager.default.fileExists(atPath: $0) }) {
+            return true
+        }
+
+        // Fast-path checks above miss a Cursor install outside /Applications
+        // (e.g. ~/Applications) that has never been launched — state.vscdb
+        // doesn't exist yet either in that case. Launch Services still knows
+        // about it once it's been installed, so ask it directly.
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.bundleIdentifier) != nil
     }
 
     // MARK: - Cursor API

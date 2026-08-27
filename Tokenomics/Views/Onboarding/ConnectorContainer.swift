@@ -47,6 +47,13 @@ struct ConnectorContainer: View {
     /// by MultiSelectStep to show "already detected" sub-labels under each row.
     @State private var detectionAnnotations: [ProviderId: String] = [:]
 
+    /// Extension-fed providers (.chatgpt, .geminiConsumer, .midjourney, etc.)
+    /// with a fresh bridge heartbeat — refreshed each time the chooser appears.
+    /// `UsageViewModel.providerStates` has no entries for these (they're not
+    /// native `UsageProvider`s), so the chooser can't tell "connected" from
+    /// "never set up" without this. See `refreshBridgeConnectedProviders()`.
+    @State private var bridgeConnectedProviders: Set<ProviderId> = []
+
     // MARK: Hub-and-spoke execution state
     //
     // "Your shortest path" (setupPlan) is the hub the user returns to between
@@ -137,6 +144,7 @@ struct ConnectorContainer: View {
             case .chooser:
                 ProviderChooserView(
                     viewModel: viewModel,
+                    bridgeConnected: bridgeConnectedProviders,
                     onPick: open(provider:),
                     onAllSet: completeOnboarding,
                     // Back only when there's a real previous step (reached via
@@ -151,6 +159,13 @@ struct ConnectorContainer: View {
                 .padding(.top, Tokens.Spacing.s6)        // 32pt
                 .padding(.horizontal, 40)                // 40pt — mockup literal
                 .padding(.bottom, Tokens.Spacing.s5 + 4) // 28pt
+                // Re-read the bridge heartbeat every time the chooser appears —
+                // mirrors multiSelect's `.task(id: "detection")` pattern below.
+                // `.id(screen)` on the outer Group gives this a fresh identity
+                // each visit, so the task reruns rather than staying cached.
+                .task(id: "chooser-bridge-connected") {
+                    await refreshBridgeConnectedProviders()
+                }
             case .connector:
                 if let active = activeConnector {
                     ConnectorView(
@@ -232,6 +247,19 @@ struct ConnectorContainer: View {
                 Set(MultiSelectStep.selectableProviderIds)
             )
         }
+    }
+
+    /// Refreshes `bridgeConnectedProviders` from the same `webCompanion`
+    /// singleton BrowserExtensionConnector uses — reusing its live FSEvents-fed
+    /// cache rather than a fresh disk read (which is what a new
+    /// `DetectionService()` would do, and which also only covers 3 of the 8
+    /// extension-fed providers since its per-brand detectors predate most of
+    /// them). Every provider with a fresh snapshot counts, so this stays
+    /// correct as new web-session providers are added.
+    @MainActor
+    private func refreshBridgeConnectedProviders() async {
+        let state = await webCompanion.currentState()
+        bridgeConnectedProviders = state.freshlyConnectedProviderIds()
     }
 
     // MARK: - Plan
