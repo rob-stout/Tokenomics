@@ -185,11 +185,14 @@ actor CodexProvider: UsageProvider {
                 windowDuration: Double(primary.windowMinutes) * 60
             )
         } else {
+            // No session data yet — .distantFuture is only a pace sentinel; without
+            // an override timeUntilReset would format it as a real calendar date.
             shortWindow = WindowUsage(
                 label: "5-Hour Window",
                 utilization: 0,
                 resetsAt: Date.distantFuture,
-                windowDuration: 300 * 60
+                windowDuration: 300 * 60,
+                sublabelOverride: "No active session"
             )
         }
 

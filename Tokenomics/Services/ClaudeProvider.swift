@@ -9,10 +9,12 @@ import os
 /// refresh token (they're single-use) and logs the user out.
 actor ClaudeProvider: UsageProvider {
     let id = ProviderId.claude
-    // 2 min — the endpoint's limiter punishes simultaneous requests, not volume
-    // (historical 429s came with Retry-After: 0). UsageService single-flights
-    // concurrent callers, so steady polling at this cadence is safe.
-    let pollInterval: TimeInterval = 120
+    // 3 min — the community-verified safe polling floor for /api/oauth/usage
+    // when the claude-code User-Agent is sent (without that header the endpoint
+    // uses a hostile rate-limit bucket; see Claude-Code-Usage-Monitor#202).
+    // The limiter also punishes simultaneous requests — UsageService
+    // single-flights concurrent callers.
+    let pollInterval: TimeInterval = 180
 
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "ClaudeProvider")
 
@@ -120,18 +122,24 @@ actor ClaudeProvider: UsageProvider {
     }
 
     private func mapToSnapshot(_ data: UsageData) -> ProviderUsageSnapshot {
+        // Anthropic returns `resets_at: null` when a window has no active
+        // reset cycle yet (e.g. zero usage). `.distantFuture` is only a pace
+        // sentinel here — without an override, timeUntilReset would format it
+        // as a real calendar date ("Resets Sunday"), so we say so plainly instead.
         ProviderUsageSnapshot(
             shortWindow: WindowUsage(
                 label: "5-Hour Window",
                 utilization: data.fiveHour.utilization,
                 resetsAt: data.fiveHour.resetsAt ?? .distantFuture,
-                windowDuration: 5 * 3600
+                windowDuration: 5 * 3600,
+                sublabelOverride: data.fiveHour.resetsAt == nil ? "No active session" : nil
             ),
             longWindow: WindowUsage(
                 label: "7-Day Window",
                 utilization: data.sevenDay.utilization,
                 resetsAt: data.sevenDay.resetsAt ?? .distantFuture,
-                windowDuration: 7 * 24 * 3600
+                windowDuration: 7 * 24 * 3600,
+                sublabelOverride: data.sevenDay.resetsAt == nil ? "No usage yet" : nil
             ),
             planLabel: data.inferredPlan.rawValue,
             extraUsage: data.extraUsage,
