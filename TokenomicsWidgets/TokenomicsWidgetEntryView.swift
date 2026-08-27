@@ -263,8 +263,12 @@ struct SmallWidgetView: View {
                     .offset(y: size * 0.024)
 
                     Spacer(minLength: 0)
-                    // Reset countdown — pinned to bottom
-                    Text("Resets in \(provider.shortWindow.shortTimeUntilReset)")
+                    // Reset countdown — pinned to bottom. sublabelOverride (e.g.
+                    // "No session") replaces the whole line — it's not a countdown
+                    // fragment, so it must not get the "Resets in" prefix.
+                    Text(provider.shortWindow.sublabelOverride != nil
+                        ? provider.shortWindow.shortTimeUntilReset
+                        : "Resets in \(provider.shortWindow.shortTimeUntilReset)")
                         .font(.system(size: size * 0.052))
                         .foregroundStyle(theme.labelColor)
                         .padding(.bottom, size * 0.06)

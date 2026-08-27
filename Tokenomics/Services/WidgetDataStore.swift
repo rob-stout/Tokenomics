@@ -104,9 +104,35 @@ enum WidgetDataStore {
             let utilization: Double
             let resetsAt: Date
             let windowDuration: TimeInterval
+            /// Neutral text for windows with no active reset cycle (nil `resetsAt`
+            /// from the API, mapped to `.distantFuture` upstream as a pace sentinel).
+            /// Mirrors `WindowUsage.sublabelOverride` — see ClaudeProvider/CodexProvider.
+            /// Nil in legacy snapshots so existing widgets decode cleanly (no migration
+            /// needed), same pattern as `brandId`/`iconBaseName`/`surfaceSymbol` above.
+            let sublabelOverride: String?
 
-            /// Abbreviated reset time for widget display (e.g. "2h 30m", "Tomorrow")
+            // Backward-compatible memberwise init so existing call sites that omit
+            // sublabelOverride (tests, legacy decode) keep compiling without changes.
+            init(
+                label: String,
+                utilization: Double,
+                resetsAt: Date,
+                windowDuration: TimeInterval,
+                sublabelOverride: String? = nil
+            ) {
+                self.label = label
+                self.utilization = utilization
+                self.resetsAt = resetsAt
+                self.windowDuration = windowDuration
+                self.sublabelOverride = sublabelOverride
+            }
+
+            /// Abbreviated reset time for widget display (e.g. "2h 30m", "Tomorrow").
+            /// Returns `sublabelOverride` verbatim when set — callers must not wrap
+            /// it in their own "Resets in ..." phrasing (see SmallWidgetView).
             var shortTimeUntilReset: String {
+                if let sublabelOverride { return sublabelOverride }
+
                 let interval = resetsAt.timeIntervalSinceNow
                 guard interval > 0 else { return "Now" }
 
@@ -167,14 +193,16 @@ enum WidgetDataStore {
                     label: widgetLabel(snapshot.shortWindow.label),
                     utilization: snapshot.shortWindow.utilization,
                     resetsAt: snapshot.shortWindow.resetsAt,
-                    windowDuration: snapshot.shortWindow.windowDuration
+                    windowDuration: snapshot.shortWindow.windowDuration,
+                    sublabelOverride: widgetSublabel(snapshot.shortWindow.sublabelOverride)
                 ),
                 longWindow: snapshot.longWindow.map { long in
                     .init(
                         label: widgetLabel(long.label),
                         utilization: long.utilization,
                         resetsAt: long.resetsAt,
-                        windowDuration: long.windowDuration
+                        windowDuration: long.windowDuration,
+                        sublabelOverride: widgetSublabel(long.sublabelOverride)
                     )
                 },
                 planLabel: snapshot.planLabel,
@@ -221,6 +249,14 @@ enum WidgetDataStore {
         label
             .replacingOccurrences(of: " Window", with: "")
             .replacingOccurrences(of: " Today", with: "")
+    }
+
+    /// Shortens sublabel overrides that are too wide for the small widget's
+    /// countdown line (e.g. ClaudeProvider/CodexProvider's "No active session").
+    /// Other overrides (usage counts like "120 / 500 used") already fit and
+    /// pass through unchanged.
+    private static func widgetSublabel(_ override: String?) -> String? {
+        override?.replacingOccurrences(of: "No active session", with: "No session")
     }
     #endif
 
