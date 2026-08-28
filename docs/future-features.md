@@ -92,6 +92,25 @@ Hybrid, not full replacement:
 Phase 2 onboarding ships with Path C unchanged. This is purely additive when
 upstream cooperates.
 
+### Status check 2026-06-22
+
+**openai/codex#15281** ("Feature: Expose full usage/limits data in CLI") — still **open**, zero
+comments, no linked PR. Opened 2026-03-20. Request covers a new `codex usage --json` subcommand
+and/or expanded `/status` output. No upstream signal of intent to implement. Codex Path B remains
+fully blocked.
+
+**google-gemini/gemini-cli#13842** — closed as duplicate of #13415 (also closed). The related
+**PR #13843** ("Add usage limit remaining in /stats") was **merged 2025-11-27** and has shipped in
+subsequent stable releases (latest: v0.47.0, 2026-06-18). However, the PR enhanced the *TUI*
+`/stats` panel only — quota remaining and reset times now display interactively, but no
+non-interactive `--json` flag or subprocess-parseable output was added. Subprocessing `/stats`
+still produces TUI-formatted output, not machine-readable JSON. Gemini Path B remains blocked
+pending a non-interactive output mode.
+
+**Overall:** Both blockers are still active as of 2026-06-22. Gemini made meaningful partial
+progress (the data now exists in the UI layer), but neither CLI exposes usage as a parseable
+non-interactive subcommand. Path B is not yet actionable; no action needed on `docs/roadmap.md`.
+
 ---
 
 ## Consumer AI Chat Usage Tracking
