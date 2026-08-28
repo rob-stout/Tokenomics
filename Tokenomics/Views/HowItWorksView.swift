@@ -64,7 +64,7 @@ struct HowItWorksView: View {
                     legendRow(
                         customIcon: "Outer Ring",
                         title: "Outer Ring",
-                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests. Not all providers have two rings \u{2014} Copilot shows a single ring for premium requests."
+                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests. Not all providers have two rings \u{2014} Copilot shows a single ring for AI credits."
                     )
                     legendRow(
                         customIcon: "Inner Ring",

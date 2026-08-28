@@ -266,78 +266,111 @@ final class CursorProviderParsingTests: XCTestCase {
 private struct CopilotUserMirror: Decodable {
     let accessTypeSku: String?
     let copilotPlan: String?
-    let limitedUserQuotas: Quotas?
-    let limitedUserResetDate: String?
-    let monthlyQuotas: Quotas?
+    let quotaSnapshots: QuotaSnapshots?
+    let quotaResetDate: String?
+    let quotaResetDateUtc: String?
 
-    struct Quotas: Decodable {
-        let chat: Int?
-        let completions: Int?
+    struct QuotaSnapshots: Decodable {
+        let premiumInteractions: QuotaSnapshot?
+
+        enum CodingKeys: String, CodingKey {
+            case premiumInteractions = "premium_interactions"
+        }
+    }
+
+    struct QuotaSnapshot: Decodable {
+        let entitlement: Int?
+        let remaining: Int?
+        let percentRemaining: Double?
+        let unlimited: Bool?
+        let overageCount: Int?
+        let overagePermitted: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case entitlement
+            case remaining
+            case percentRemaining = "percent_remaining"
+            case unlimited
+            case overageCount = "overage_count"
+            case overagePermitted = "overage_permitted"
+        }
     }
 
     var planLabel: String {
-        guard let sku = accessTypeSku else { return "Free" }
-        switch sku {
-        case "free_limited_copilot": return "Free"
-        case "copilot_for_individual", "copilot_individual": return "Individual"
-        case "copilot_for_business", "copilot_business": return "Business"
-        case "copilot_enterprise": return "Enterprise"
-        default:
-            if let plan = copilotPlan {
-                return plan.prefix(1).uppercased() + plan.dropFirst()
-            }
-            return "Free"
+        if let sku = accessTypeSku?.lowercased() {
+            if sku.contains("free") { return "Free" }
+            if sku.contains("enterprise") { return "Enterprise" }
+            if sku.contains("business") { return "Business" }
+            if sku.contains("individual") { return "Individual" }
         }
+        if let plan = copilotPlan, !plan.isEmpty {
+            return plan.prefix(1).uppercased() + plan.dropFirst()
+        }
+        return "Free"
     }
 
     enum CodingKeys: String, CodingKey {
         case accessTypeSku = "access_type_sku"
         case copilotPlan = "copilot_plan"
-        case limitedUserQuotas = "limited_user_quotas"
-        case limitedUserResetDate = "limited_user_reset_date"
-        case monthlyQuotas = "monthly_quotas"
+        case quotaSnapshots = "quota_snapshots"
+        case quotaResetDate = "quota_reset_date"
+        case quotaResetDateUtc = "quota_reset_date_utc"
     }
 }
 
 final class CopilotProviderParsingTests: XCTestCase {
 
-    func testCopilotFree_decodesCorrectly() throws {
-        let data = try loadFixture("copilot_user_free.json")
+    func testCopilotPremium_decodesCorrectly() throws {
+        let data = try loadFixture("copilot_user_premium.json")
         let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
-        XCTAssertEqual(user.planLabel, "Free")
-        XCTAssertEqual(user.limitedUserQuotas?.chat, 35)
-        XCTAssertEqual(user.monthlyQuotas?.chat, 50)
+        let premium = try XCTUnwrap(user.quotaSnapshots?.premiumInteractions)
+        XCTAssertEqual(premium.entitlement, 40000)
+        XCTAssertEqual(premium.remaining, 22499)
+        XCTAssertEqual(premium.percentRemaining ?? 0, 56.2, accuracy: 0.001)
+        XCTAssertEqual(premium.unlimited, false)
     }
 
-    func testCopilotFree_utilizationCalc_isCorrect() throws {
-        let data = try loadFixture("copilot_user_free.json")
+    func testCopilotPremium_planLabel_isEnterprise() throws {
+        let data = try loadFixture("copilot_user_premium.json")
         let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
-        let chatQuota = user.limitedUserQuotas?.chat ?? 0
-        let chatLimit = user.monthlyQuotas?.chat ?? 0
-        let chatUsed = chatLimit - chatQuota
-        let utilization = chatLimit > 0 ? Double(chatUsed) / Double(chatLimit) * 100 : 0
-        XCTAssertEqual(utilization, 30.0, accuracy: 0.001) // 15 used / 50 total = 30%
+        // Newer multi-quota SKU maps via contains-matching.
+        XCTAssertEqual(user.planLabel, "Enterprise")
     }
 
-    func testCopilotIndividual_decodesCorrectly() throws {
-        let data = try loadFixture("copilot_user_individual.json")
+    func testCopilotPremium_usedCount_isCorrect() throws {
+        let data = try loadFixture("copilot_user_premium.json")
         let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
+        let premium = try XCTUnwrap(user.quotaSnapshots?.premiumInteractions)
+        let entitlement = premium.entitlement ?? 0
+        let remaining = premium.remaining ?? entitlement
+        let used = max(entitlement - remaining, 0)
+        XCTAssertEqual(used, 17501) // 40000 - 22499
+    }
+
+    func testCopilotPremium_utilizationCalc_isCorrect() throws {
+        let data = try loadFixture("copilot_user_premium.json")
+        let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
+        let premium = try XCTUnwrap(user.quotaSnapshots?.premiumInteractions)
+        let utilization = max(0, 100 - (premium.percentRemaining ?? 100))
+        XCTAssertEqual(utilization, 43.8, accuracy: 0.001) // 100 - 56.2
+    }
+
+    func testCopilotPremium_resetDate_parsesFromUtc() throws {
+        let data = try loadFixture("copilot_user_premium.json")
+        let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
+        XCTAssertEqual(user.quotaResetDateUtc, "2026-07-01T00:00:00.000Z")
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        XCTAssertNotNil(formatter.date(from: try XCTUnwrap(user.quotaResetDateUtc)))
+    }
+
+    func testCopilotUnlimited_decodesAsUnlimited() throws {
+        let data = try loadFixture("copilot_user_unlimited.json")
+        let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
+        let premium = try XCTUnwrap(user.quotaSnapshots?.premiumInteractions)
+        XCTAssertEqual(premium.unlimited, true)
         XCTAssertEqual(user.planLabel, "Individual")
-        XCTAssertNil(user.limitedUserQuotas)
-    }
-
-    func testCopilotUnknownSku_fallsBackToCopilotPlan() throws {
-        let data = try loadFixture("copilot_user_unknown_sku.json")
-        let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
-        // Unknown SKU falls back to copilotPlan field: "enterprise_plus" → "Enterprise_plus"
-        // Mirror matches production planLabel logic exactly
-        XCTAssertEqual(user.planLabel, "Enterprise_plus")
-    }
-
-    func testCopilotResetDate_parsesAsString() throws {
-        let data = try loadFixture("copilot_user_free.json")
-        let user = try JSONDecoder().decode(CopilotUserMirror.self, from: data)
-        XCTAssertEqual(user.limitedUserResetDate, "2026-05-01")
     }
 }
 

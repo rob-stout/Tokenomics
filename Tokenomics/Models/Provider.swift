@@ -524,7 +524,7 @@ enum ProviderConnectionState: Sendable, Equatable {
 /// Provider-agnostic usage data that the UI renders
 struct ProviderUsageSnapshot: Codable, Sendable {
     let shortWindow: WindowUsage
-    /// Nil for providers that only expose a single usage metric (e.g. Copilot premium requests).
+    /// Nil for providers that only expose a single usage metric (e.g. Copilot AI credits).
     let longWindow: WindowUsage?
     let planLabel: String
     let extraUsage: ExtraUsage?

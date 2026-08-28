@@ -1,0 +1,18 @@
+{
+  "login": "individualuser",
+  "access_type_sku": "copilot_for_individual",
+  "copilot_plan": "individual",
+  "chat_enabled": true,
+  "quota_reset_date": "2026-07-01",
+  "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
+  "quota_snapshots": {
+    "premium_interactions": {
+      "entitlement": 0,
+      "remaining": 0,
+      "percent_remaining": 100.0,
+      "unlimited": true,
+      "overage_count": 0,
+      "overage_permitted": false
+    }
+  }
+}
