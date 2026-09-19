@@ -119,12 +119,20 @@ targets:
         SUPublicEDKey: iykVNFpnZUJU85Quy7sBGwDg9zJHawXUt2OX6FxdyjE=
         SUEnableAutomaticChecks: true
         ATSApplicationFontsPath: ""
+        # Shown in macOS's "Tokenomics wants to control Terminal" prompt. Onboarding
+        # opens Terminal to install Homebrew and to run Claude Code's sign-in.
+        NSAppleEventsUsageDescription: "Tokenomics opens Terminal to run installers and sign-in steps for your AI tools."
     entitlements:
       path: Tokenomics/Resources/Tokenomics.entitlements
       properties:
         com.apple.security.network.client: true
         com.apple.security.application-groups:
           - group.com.robstout.tokenomics
+        # Required under the hardened runtime (notarized builds) to send Apple
+        # Events to Terminal. Without it macOS rejects with -1743 and never shows
+        # the Automation prompt — debug builds don't use the hardened runtime, so
+        # they hide the problem.
+        com.apple.security.automation.apple-events: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.robstout.tokenomics

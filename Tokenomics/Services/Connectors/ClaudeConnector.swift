@@ -5,15 +5,15 @@ import os
 /// Guided connector for Anthropic's Claude Code.
 ///
 /// Flow (Pattern B — "we start it, you finish it"):
-///   1. `.detecting` — checks for Homebrew and the `claude` binary.
-///   2. If Homebrew missing: `.confirmingInstall(.homebrew)` → install → re-detect.
-///   3. If `claude` missing: `.confirmingInstall(.claudeCode)` → install via
-///      `brew install --cask claude-code` → re-detect.
-///   4. `.previewingSignIn` (Window 3) — numbered checklist of Claude Code's OAuth wizard.
-///   5. `.previewingSetup` (Window 4) — folder + permissions steps, "Open Terminal" CTA.
-///   6. When user taps "Open Terminal": launches Terminal with `claude` via AppleScript
+///   1. `.detecting` — checks for the `claude` binary.
+///   2. If `claude` missing: `.confirmingInstall` → install via Anthropic's
+///      native installer (`curl -fsSL https://claude.ai/install.sh | bash`).
+///      No Homebrew and no admin prompt — it installs under `$HOME`.
+///   3. `.previewingSignIn` (Window 3) — numbered checklist of Claude Code's OAuth wizard.
+///   4. `.previewingSetup` (Window 4) — folder + permissions steps, "Open Terminal" CTA.
+///   5. When user taps "Open Terminal": launches Terminal with `claude` via AppleScript
 ///      and transitions to `.awaitingExternalAuth` (Window 5).
-///   7. Polling loop re-calls `currentStep()` every 1.5s. When `ClaudeProvider`
+///   6. Polling loop re-calls `currentStep()` every 1.5s. When `ClaudeProvider`
 ///      reports `.connected`, the flow ends.
 ///
 /// **Policy note:** Anthropic's OpenClaw policy prohibits third-party apps from
@@ -38,11 +38,9 @@ actor ClaudeConnector: ProviderConnector {
 
     private enum ActivePhase {
         case none
-        /// Waiting for explicit user consent before starting an install.
-        case confirmingInstall(PrerequisiteKind)
-        /// Running `brew install` for a dependency (Homebrew itself via its script).
-        case installingDependency(name: String, progress: Double?)
-        /// Running `brew install --cask claude-code`.
+        /// Waiting for explicit user consent before installing Claude Code.
+        case confirmingInstall
+        /// Running Anthropic's native installer.
         case installingCLI(progress: Double?)
         /// Window 3 — numbered preview of Claude Code's sign-in wizard.
         case previewingSignIn
@@ -50,10 +48,6 @@ actor ClaudeConnector: ProviderConnector {
         case previewingSetup
         /// Window 5 — Terminal is open, polling for credentials file.
         case awaitingExternalAuth
-    }
-
-    private enum PrerequisiteKind {
-        case homebrew, claudeCode
     }
 
     private var activePhase: ActivePhase = .none
@@ -80,11 +74,8 @@ actor ClaudeConnector: ProviderConnector {
         }
 
         switch activePhase {
-        case .confirmingInstall(let kind):
-            return confirmStep(for: kind)
-
-        case .installingDependency(let name, let progress):
-            return .installingDependency(name: name, progress: progress)
+        case .confirmingInstall:
+            return confirmStep()
 
         case .installingCLI(let progress):
             return .installing(progress: progress)
@@ -193,19 +184,16 @@ actor ClaudeConnector: ProviderConnector {
     }
 
     func confirmInstall() async {
-        guard case .confirmingInstall(let kind) = activePhase else { return }
-        switch kind {
-        case .homebrew:
-            await installHomebrew()
-        case .claudeCode:
-            await installClaudeCode()
-        }
+        guard case .confirmingInstall = activePhase else { return }
+        await installClaudeCode()
     }
 
+    /// "Already have Claude Code?" — trust the user and go to sign-in. Re-running
+    /// detection here would just land back on the same confirm screen when their
+    /// install lives somewhere we don't look.
     func skipInstall() async {
-        activePhase = .none
         failedState = nil
-        await startPrerequisiteChain()
+        activePhase = .previewingSignIn
     }
 
     /// Called when the user taps the primary button on a `.previewExternalSteps` screen.
@@ -233,76 +221,42 @@ actor ClaudeConnector: ProviderConnector {
     // MARK: - Prerequisite chain
 
     private func startPrerequisiteChain() async {
-        if SystemPrerequisiteDetector.homebrewPath() == nil {
-            activePhase = .confirmingInstall(.homebrew)
+        if SystemPrerequisiteDetector.claudePath() == nil {
+            activePhase = .confirmingInstall
             return
         }
-        if claudeBinaryURL() == nil {
-            activePhase = .confirmingInstall(.claudeCode)
-            return
-        }
-        // Both present — advance to sign-in preview.
         activePhase = .previewingSignIn
     }
 
-    // MARK: - Install steps
-
-    private func installHomebrew() async {
-        activePhase = .installingDependency(name: "Homebrew", progress: nil)
-        do {
-            let events = try await runner.installHomebrew()
-            for await event in events {
-                switch event {
-                case .progress(let p):
-                    activePhase = .installingDependency(name: "Homebrew", progress: p)
-                case .log(let line):
-                    Self.log.debug("[brew] \(line)")
-                case .completed:
-                    Self.log.info("Homebrew installed successfully")
-                    activePhase = .none
-                    await startPrerequisiteChain()
-                    return
-                case .failed(let reason):
-                    Self.log.error("Homebrew install failed: \(reason)")
-                    activePhase = .none
-                    failedState = classifyHomebrewFailure(reason)
-                }
-            }
-        } catch {
-            Self.log.error("Homebrew install error: \(error.localizedDescription)")
-            activePhase = .none
-            failedState = .cliInstallFailed(error.localizedDescription)
-        }
-    }
+    // MARK: - Install step
 
     private func installClaudeCode() async {
-        guard let brewPath = SystemPrerequisiteDetector.homebrewPath() else {
-            Self.log.error("brew not found — cannot install Claude Code cask")
-            activePhase = .none
-            failedState = .missingPrerequisite("Homebrew")
-            return
-        }
         activePhase = .installingCLI(progress: nil)
         do {
-            let events = try await runner.installViaHomebrew(
-                brewPath: brewPath,
-                formula: "claude-code",
-                isCask: true
-            )
+            let events = try await runner.installClaudeCodeNative()
             for await event in events {
                 switch event {
                 case .progress(let p):
                     activePhase = .installingCLI(progress: p)
                 case .log(let line):
-                    Self.log.debug("[claude-code install] \(line)")
+                    Self.log.debug("[claude install] \(line)")
                 case .completed:
-                    Self.log.info("Claude Code installed successfully via Homebrew cask")
+                    // The installer can exit 0 without leaving a binary behind
+                    // (e.g. a partial download) — confirm before moving on.
+                    guard SystemPrerequisiteDetector.claudePath() != nil else {
+                        Self.log.error("Native installer exited 0 but no claude binary was found")
+                        activePhase = .none
+                        failedState = .missingPrerequisite("Claude Code")
+                        return
+                    }
+                    Self.log.info("Claude Code installed successfully via native installer")
+                    addLocalBinToShellPath()
                     activePhase = .previewingSignIn
                     return
                 case .failed(let reason):
                     Self.log.error("Claude Code install failed: \(reason)")
                     activePhase = .none
-                    failedState = classifyCaskFailure(reason)
+                    failedState = classifyInstallFailure(reason)
                 }
             }
         } catch {
@@ -312,100 +266,94 @@ actor ClaudeConnector: ProviderConnector {
         }
     }
 
-    // MARK: - Failure classification
+    // MARK: - Shell PATH
 
-    /// Maps a raw runner failure string to the most specific `ConnectorError`.
-    private func classifyHomebrewFailure(_ reason: String) -> ConnectorError {
-        let lower = reason.lowercased()
-        if lower.contains("user canceled") || lower.contains("errAEEventNotPermitted".lowercased())
-            || lower.contains("not allowed to send apple events") {
-            return .homebrewInstallCancelled
+    /// Adds `~/.local/bin` to the user's login-shell PATH so `claude` works when
+    /// they type it in Terminal later. Anthropic's installer puts the binary there
+    /// but only *prints* a note about PATH — it doesn't edit shell files.
+    ///
+    /// Best-effort and idempotent: skipped if the shell file already mentions
+    /// `.local/bin`. Writes `~/.zprofile` for zsh (the macOS default) or
+    /// `~/.bash_profile` for bash; other shells are left alone.
+    private func addLocalBinToShellPath() {
+        let home = NSHomeDirectory()
+        let loginShell = getpwuid(getuid()).map { String(cString: $0.pointee.pw_shell) } ?? "/bin/zsh"
+        let fileName: String
+        switch URL(fileURLWithPath: loginShell).lastPathComponent {
+        case "zsh": fileName = ".zprofile"
+        case "bash": fileName = ".bash_profile"
+        default:
+            Self.log.info("Login shell \(loginShell) not handled — leaving PATH alone")
+            return
         }
-        if lower.contains("curl") || lower.contains("network") || lower.contains("connection refused")
-            || lower.contains("could not resolve host") {
-            return .homebrewNotReachable
+        let profile = URL(fileURLWithPath: home).appendingPathComponent(fileName)
+        let existing = (try? String(contentsOf: profile, encoding: .utf8)) ?? ""
+        guard !existing.contains(".local/bin") else { return }
+
+        let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
+        let addition = separator + """
+
+        # Added by Tokenomics — Claude Code's installer puts `claude` here.
+        export PATH="$HOME/.local/bin:$PATH"
+
+        """
+        do {
+            if FileManager.default.fileExists(atPath: profile.path) {
+                let handle = try FileHandle(forWritingTo: profile)
+                defer { try? handle.close() }
+                try handle.seekToEnd()
+                try handle.write(contentsOf: Data(addition.utf8))
+            } else {
+                try addition.write(to: profile, atomically: true, encoding: .utf8)
+            }
+            Self.log.info("Added ~/.local/bin to PATH in ~/\(fileName)")
+        } catch {
+            Self.log.error("Couldn't update ~/\(fileName): \(error.localizedDescription)")
         }
-        return .cliInstallFailed(reason)
     }
 
-    private func classifyCaskFailure(_ reason: String) -> ConnectorError {
+    // MARK: - Failure classification
+
+    /// Maps the installer's last stderr line to a user-facing error. Network and
+    /// region failures get plain copy; anything else passes the installer's own
+    /// message through (it's written for humans).
+    private func classifyInstallFailure(_ reason: String) -> ConnectorError {
         if reason.hasPrefix("EACCES:") {
             let path = String(reason.dropFirst("EACCES:".count))
             return .permissionDenied(path: path)
         }
         let lower = reason.lowercased()
-        if lower.contains("network") || lower.contains("curl") || lower.contains("connection refused") {
-            return .homebrewNotReachable
+        if lower.contains("could not resolve host") || lower.contains("connection refused")
+            || lower.contains("curl") || lower.contains("download failed") {
+            return .cliInstallFailed("Claude Code couldn't download. Check your internet connection and try again.")
         }
-        return .caskInstallFailed(reason)
-    }
-
-    // MARK: - Binary detection
-
-    /// Resolves the `claude` binary. Covers the Homebrew cask symlink
-    /// (`/opt/homebrew/bin/claude`), the legacy Intel path, and a user-local bin.
-    ///
-    /// The Homebrew cask `claude-code` installs the binary to
-    /// `/opt/homebrew/bin/claude` on Apple Silicon (symlinked from the cask's
-    /// actual prefix). `ClaudeProvider.isClaudeCodeInstalled()` checks the same
-    /// set of paths — keep them in sync if either changes.
-    private func claudeBinaryURL() -> URL? {
-        let candidates = [
-            "/opt/homebrew/bin/claude",
-            "/usr/local/bin/claude",
-            "\(NSHomeDirectory())/.claude/bin/claude",
-            "\(NSHomeDirectory())/.local/bin/claude",
-        ]
-        let fm = FileManager.default
-        for path in candidates where fm.isExecutableFile(atPath: path) {
-            return URL(fileURLWithPath: path)
-        }
-        return nil
+        return .cliInstallFailed(reason)
     }
 
     // MARK: - Terminal handoff
 
     /// Opens Terminal.app and runs `claude` in a new window.
     ///
-    /// Uses AppleScript because it's the simplest way to launch a specific command
-    /// in a visible Terminal window without managing PTYs ourselves. The TCC
-    /// Automation dialog appears the first time — this is expected macOS behaviour
-    /// for any app that controls Terminal via AppleScript.
+    /// Launches by full path: Anthropic's native installer puts `claude` in
+    /// `~/.local/bin`, which is usually not on the user's shell PATH yet, so a
+    /// bare `claude` would fail with "command not found". Falls back to the bare
+    /// name only when we can't find the binary (user tapped "Already have it").
     ///
-    /// If macOS denies the Automation permission (error -1743 or a message containing
-    /// "not authorized to send Apple events"), surfaces `.failed(.automationPermissionDenied)`
-    /// instead of silently swallowing the error.
+    /// If macOS denies the Automation permission, surfaces
+    /// `.failed(.automationPermissionDenied)` instead of silently swallowing it.
     private func openTerminalWithClaude() async {
-        let script = """
-        tell application "Terminal"
-            do script "claude"
-            activate
-        end tell
-        """
-        // AppleScript execution can block; run it in a detached task to avoid
-        // holding the connector actor for the TCC prompt duration.
-        let denied = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                var error: NSDictionary?
-                let appleScript = NSAppleScript(source: script)
-                appleScript?.executeAndReturnError(&error)
-                if let err = error {
-                    Self.log.error("AppleScript Terminal launch error: \(err)")
-                    let code = err[NSAppleScript.errorNumber] as? Int ?? 0
-                    let message = (err[NSAppleScript.errorMessage] as? String ?? "").lowercased()
-                    let isPermissionDenied = code == -1743
-                        || message.contains("not authorized")
-                        || message.contains("automation")
-                    continuation.resume(returning: isPermissionDenied)
-                } else {
-                    continuation.resume(returning: false)
-                }
-            }
-        }
-
-        if denied {
+        let command = SystemPrerequisiteDetector.claudePath()
+            .map { GuidedInstallRunner.shellQuoted($0.path) } ?? "claude"
+        switch await GuidedInstallRunner.openInTerminal(command) {
+        case .opened:
+            break
+        case .automationDenied:
             activePhase = .none
             failedState = .automationPermissionDenied
+        case .failed(let message):
+            // Matches prior behavior: a non-permission launch error doesn't block
+            // the flow — the user can still open Terminal and run `claude` themselves.
+            Self.log.error("Terminal launch failed: \(message)")
         }
     }
 
@@ -416,26 +364,15 @@ actor ClaudeConnector: ProviderConnector {
     /// `ConnectorViewModel.tappedRecovery()`).
     private var failedState: ConnectorError?
 
-    // MARK: - Confirm step copy (mockup-exact)
+    // MARK: - Confirm step copy
 
-    private func confirmStep(for kind: PrerequisiteKind) -> ConnectorStep {
-        switch kind {
-        case .homebrew:
-            return .confirmingInstall(
-                title: "Install Homebrew",
-                body: "Tokenomics needs Homebrew to install Claude Code. Homebrew is the standard Mac package manager — about 2 minutes to install.",
-                commandPreview: "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"",
-                footnote: "We'll open Terminal and install Homebrew with your permission. You'll be asked for your password once. This is Homebrew's official installer, straight from brew.sh.",
-                skipLabel: "Already have Homebrew? Skip this step"
-            )
-        case .claudeCode:
-            return .confirmingInstall(
-                title: "Install Claude Code",
-                body: "Now we'll install Claude Code using Homebrew. About 1 minute, no extra permissions needed.",
-                commandPreview: "brew install --cask claude-code",
-                footnote: "We'll run this in the same Terminal window. This is Anthropic's official Mac install — same command on claude.com's setup docs. Tokenomics doesn't add anything; we just run it for you.",
-                skipLabel: "Already have Claude Code? Skip this step"
-            )
-        }
+    private func confirmStep() -> ConnectorStep {
+        .confirmingInstall(
+            title: "Install Claude Code",
+            body: "Tokenomics will install Claude Code for you. About 1 minute, no password needed.",
+            commandPreview: "curl -fsSL https://claude.ai/install.sh | bash",
+            footnote: "This is Anthropic's official installer, straight from claude.com's setup docs. It installs into your home folder — Tokenomics doesn't add anything; we just run it for you.",
+            skipLabel: "Already have Claude Code? Skip this step"
+        )
     }
 }

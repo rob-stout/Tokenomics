@@ -77,6 +77,35 @@ enum SystemPrerequisiteDetector {
         return firstExecutable(among: candidates)
     }
 
+    // MARK: - Claude Code
+
+    /// Returns the path to the `claude` binary if Claude Code is installed, otherwise `nil`.
+    ///
+    /// Single source of truth for Claude Code detection — `ClaudeConnector`,
+    /// `ClaudeProvider`, and the connector's detect checklist all call this.
+    ///
+    /// Checks, in order:
+    /// - `~/.local/bin/claude`      — Anthropic's native installer (what Tokenomics uses)
+    /// - `/opt/homebrew/bin/claude` — Homebrew cask, Apple Silicon
+    /// - `/usr/local/bin/claude`    — Homebrew cask on Intel, or a global npm install
+    /// - `~/.claude/local/claude`, `~/.claude/bin/claude` — older Anthropic local installs
+    /// - nvm / fnm / Volta bins     — `npm install -g @anthropic-ai/claude-code`
+    static func claudePath() -> URL? {
+        let home = NSHomeDirectory()
+        let staticCandidates = [
+            "\(home)/.local/bin/claude",
+            "/opt/homebrew/bin/claude",
+            "/usr/local/bin/claude",
+            "\(home)/.claude/local/claude",
+            "\(home)/.claude/bin/claude",
+        ]
+        if let found = firstExecutable(among: staticCandidates) {
+            return found
+        }
+
+        return firstExecutable(among: versionManagerPaths(binary: "claude"))
+    }
+
     // MARK: - Tokenomics per-user npm bin
 
     /// Returns the path to a binary installed in Tokenomics' per-user npm prefix,
