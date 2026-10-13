@@ -120,7 +120,7 @@ actor GeminiConnector: ProviderConnector {
                 Task { await self.startPrerequisiteChain() }
             }
             return .detecting
-        case .installedNoAuth, .authExpired:
+        case .installedNoAuth, .authExpired, .needsKeychainAccess:
             // Prereqs are all there — only sign-in remains. Still show the
             // "Checking your Mac" interstitial once so the user gets the
             // same coherent flow regardless of what was already installed
@@ -160,7 +160,7 @@ actor GeminiConnector: ProviderConnector {
             return
         case .notInstalled:
             await startPrerequisiteChain()
-        case .installedNoAuth, .authExpired:
+        case .installedNoAuth, .authExpired, .needsKeychainAccess:
             await launchLogin()
         case .unavailable:
             return

@@ -24,7 +24,7 @@ already been confronted with raw macOS prompts they have no context for.
   `!hasCompletedOnboarding`, then calls `startPolling()`.
 - `UsageViewModel.startPolling()` (line 263) short-circuits when
   `!hasCompletedOnboarding`.
-- All `KeychainService.readAccessToken()` callers (ClaudeProvider.swift
+- All `ClaudeCredentialStore.currentToken()` callers (ClaudeProvider.swift
   lines 22, 61) are only reachable via `provider.checkConnection()` →
   through polling → gated.
 - Widgets and `WidgetDataStore` don't touch keychain.
@@ -231,7 +231,7 @@ and `tappedPermissionDeniedRecovery()` route through it.
 **Root cause:** `ClaudeProvider.checkConnection()` at `Tokenomics/Services/ClaudeProvider.swift:22` only checks whether a token *exists* in Keychain, not whether it *works*:
 
 ```swift
-if KeychainService.readAccessToken() != nil {
+if case .found = await ClaudeCredentialStore.shared.currentToken() {
     let plan = SettingsService.cachedUsage(for: .claude)?.snapshot.planLabel ?? "Pro"
     return .connected(plan: plan)
 }

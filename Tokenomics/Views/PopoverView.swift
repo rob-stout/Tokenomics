@@ -7,6 +7,10 @@ struct PopoverView: View {
     @ObservedObject var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
+    @State private var isRequestingKeychainAccess = false
+    /// Set only after an attempt in this view session fails, so the note never
+    /// shows before the user has tried.
+    @State private var didKeychainAttemptFail = false
     @State private var showingGeminiPlanSetup = false
     /// Reveals the consumer Gemini (app) plan picker when its badge is tapped.
     @State private var showingGeminiConsumerPlanSetup = false
@@ -179,7 +183,7 @@ struct PopoverView: View {
         }
 
         // Body: stack one usage section per pool for the selected brand.
-        if !viewModel.isAuthenticated {
+        if showsLoginInsteadOfContent {
             LoginView(viewModel: viewModel)
         } else {
             let activeBrand = selectedBrand ?? brands.first
@@ -273,7 +277,7 @@ struct PopoverView: View {
         // Content for selected provider (keyed on tab to reset animation state).
         // When nothing is connected, skip straight to LoginView — otherwise the
         // not-installed provider state falls through to an infinite spinner.
-        if !viewModel.isAuthenticated {
+        if showsLoginInsteadOfContent {
             LoginView(viewModel: viewModel)
         } else if let state = viewModel.currentProviderState {
             providerContent(state, providerId: viewModel.selectedTab ?? .claude)
@@ -368,6 +372,8 @@ struct PopoverView: View {
             loadingView
         } else if case .authExpired = state.connection {
             authExpiredView(for: providerId)
+        } else if case .needsKeychainAccess = state.connection {
+            keychainAccessView
         } else if providerId == .gemini && (SettingsService.geminiPlan == nil || showingGeminiPlanSetup) {
             GeminiPlanSetupView(
                 currentPlan: SettingsService.geminiPlan,
@@ -474,6 +480,83 @@ struct PopoverView: View {
                 }
             }
             .frame(height: 6)
+        }
+    }
+
+    // MARK: - Keychain Access
+
+    /// A provider waiting on keychain permission isn't "connected", but it must still
+    /// reach its Allow Access prompt rather than the generic sign-in LoginView.
+    private var showsLoginInsteadOfContent: Bool {
+        !viewModel.isAuthenticated && !isAwaitingKeychainAccess
+    }
+
+    private var isAwaitingKeychainAccess: Bool {
+        guard viewModel.visibleProviders.contains(.claude) else { return false }
+        if case .needsKeychainAccess = viewModel.providerStates[.claude]?.connection { return true }
+        return false
+    }
+
+    /// Shown instead of usage when macOS hasn't yet let Tokenomics read Claude Code's
+    /// sign-in. The button is the only place the macOS dialog is ever triggered.
+    private var keychainAccessView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "key.fill")
+                .scaledFont(.title2)
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+
+            Text("Tokenomics needs permission to read your Claude Code sign-in")
+                .scaledFont(.caption)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.center)
+
+            Button(isRequestingKeychainAccess ? "Waiting…" : "Allow Access") {
+                isRequestingKeychainAccess = true
+                didKeychainAttemptFail = false
+                Task {
+                    await viewModel.requestClaudeKeychainAccess()
+                    // Only a genuine denial (still needs access) earns the note; an
+                    // expired token moves to the re-login view instead.
+                    if case .needsKeychainAccess = viewModel.providerStates[.claude]?.connection {
+                        didKeychainAttemptFail = true
+                    }
+                    isRequestingKeychainAccess = false
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(isRequestingKeychainAccess)
+
+            Text("macOS may ask twice. Enter your Mac password and choose \"Always Allow\" each time.")
+                .scaledFont(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            if didKeychainAttemptFail {
+                Text("macOS didn't allow access. Try again.")
+                    .scaledFont(.caption)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(24)
+        // @State outlives the view appearing/disappearing, so clear the stale note.
+        .onDisappear { didKeychainAttemptFail = false }
+        .onChange(of: viewModel.providerStates[.claude]?.connection.statusText) { _, _ in
+            didKeychainAttemptFail = false
+        }
+        // VoiceOver users otherwise get no signal that the attempt failed.
+        .onChange(of: didKeychainAttemptFail) { _, failed in
+            guard failed else { return }
+            NSAccessibility.post(
+                element: NSApplication.shared,
+                notification: .announcementRequested,
+                userInfo: [
+                    .announcement: "macOS didn't allow access. Try again.",
+                    .priority: NSAccessibilityPriorityLevel.high.rawValue
+                ]
+            )
         }
     }
 

@@ -2,9 +2,40 @@ import Foundation
 import Security
 import os
 
-/// Reads the OAuth credentials stored by Claude Code, preferring the credentials
-/// file (~/.claude/.credentials.json) over the macOS Keychain to avoid
-/// repeated keychain access prompts during development.
+/// Outcome of looking for Claude Code's OAuth access token.
+enum ClaudeCredentialRead: Sendable, Equatable {
+    case found(accessToken: String)
+    /// No credentials file and no keychain item — Claude Code isn't signed in here.
+    case notFound
+    /// A keychain item exists but macOS hasn't authorized Tokenomics to read it.
+    /// Reading it would show a password dialog, so background callers stop here.
+    case needsAuthorization
+    /// The only token available is one the API already rejected (an OAuth access token
+    /// never becomes valid again). Claude Code must run to refresh it.
+    case staleToken
+}
+
+extension ClaudeCredentialRead {
+    /// Case name only — safe to log (never the token).
+    var logLabel: String {
+        switch self {
+        case .found: return "found"
+        case .notFound: return "notFound"
+        case .needsAuthorization: return "needsAuthorization"
+        case .staleToken: return "staleToken"
+        }
+    }
+}
+
+/// Reads the OAuth credentials stored by Claude Code: the credentials file
+/// (~/.claude/.credentials.json) first, then the legacy-keychain item
+/// "Claude Code-credentials".
+///
+/// Why the keychain read is careful: when Claude Code re-logs in it rewrites that
+/// item, and its access-control list no longer matches us (also true after a
+/// rebuild with a different code signature). Every read then pops a macOS password
+/// dialog. So background reads must be *silent*, and the one interactive read only
+/// happens when the user explicitly asks for it.
 enum KeychainService {
     private static let serviceName = "Claude Code-credentials"
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "KeychainService")
@@ -14,159 +45,91 @@ enum KeychainService {
             .appendingPathComponent(".claude/.credentials.json")
     }()
 
-    /// Full OAuth credentials needed for token refresh
-    struct OAuthCredentials {
-        let accessToken: String
-        let refreshToken: String?
-        let expiresAt: Date?
-    }
+    /// `SecKeychainSetUserInteractionAllowed` is process-global, so every Claude
+    /// keychain read (silent and interactive) runs on this one serial queue. That
+    /// guarantees the flag is never flipped while another read is in flight, and
+    /// keeps a blocking password dialog off the cooperative thread pool.
+    private static let keychainQueue = DispatchQueue(
+        label: "com.robstout.tokenomics.claude-keychain",
+        qos: .userInitiated
+    )
 
-    static func readAccessToken() -> String? {
-        readCredentials()?.accessToken
-    }
+    // MARK: - Public API
 
-    /// Read full OAuth credentials (token + refresh token + expiry).
-    /// Prefers file → security CLI → Security framework (last resort, may prompt).
-    static func readCredentials() -> OAuthCredentials? {
-        if let creds = readCredentialsFromFile() { return creds }
-        if let creds = readCredentialsViaCLI() { return creds }
-        return readCredentialsFromKeychain()
-    }
-
-    // MARK: - Permission probe (used by onboarding)
-
-    /// Result of a one-shot permission probe used by `PermissionsStep`.
-    enum AccessProbeResult: Sendable {
-        /// Read worked, OR there's no keychain item to ask about (user hasn't
-        /// run Claude Code on this machine yet). Either way, onboarding can
-        /// safely advance — there's nothing the user has refused.
-        case ok
-        /// A keychain item exists but the data read was rejected — typically
-        /// the user clicked "Don't Allow" on the macOS keychain or cross-app
-        /// TCC prompt. Onboarding should pause and ask them to retry.
-        case denied
-    }
-
-    /// Probes whether Tokenomics is allowed to read the Claude Code OAuth
-    /// keychain item. Used by `PermissionsStep` to detect denial and surface
-    /// a hard-stop error instead of silently sailing forward.
+    /// Never shows UI. Credentials file, then the keychain with interaction disabled.
     ///
-    /// Implementation: attempts the actual data read first (which is what
-    /// triggers the macOS prompt(s) at a known UI moment). If that fails, a
-    /// metadata-only lookup distinguishes "no item exists" from "item exists
-    /// but access denied" — the latter is the only case we treat as denial.
-    static func probeAccess() -> AccessProbeResult {
-        // Trivially OK if the file path returned creds (no prompt fired).
-        if readCredentialsFromFile() != nil { return .ok }
-
-        // Data read — this is the prompt-triggering call.
-        let dataExit = runSecurityCLI(args: ["find-generic-password", "-s", serviceName, "-w"])
-        if dataExit == 0 { return .ok }
-
-        // Distinguish missing item from denied access. Metadata-only lookup
-        // (no -w) doesn't request the password content, so it doesn't trip
-        // the keychain ACL prompt. If it succeeds, the item exists and the
-        // earlier -w failure means the user denied access.
-        let metaExit = runSecurityCLI(args: ["find-generic-password", "-s", serviceName])
-        return metaExit == 0 ? .denied : .ok
+    /// `excluding`: every token the API has rejected. If the credentials file still holds
+    /// one of them it would shadow a fresher keychain item, so skip it.
+    static func readSilently(excluding rejectedTokens: Set<String> = []) async -> ClaudeCredentialRead {
+        if let token = readTokenFromFile(), !rejectedTokens.contains(token) {
+            log.debug("silent read satisfied by credentials file")
+            return .found(accessToken: token)
+        }
+        return await onKeychainQueue { readKeychainItem(interactionAllowed: false) }
     }
 
-    /// Runs `/usr/bin/security` with the given args, discarding stdout/stderr,
-    /// and returns the process exit status. -1 if the process couldn't launch.
-    private static func runSecurityCLI(args: [String]) -> Int32 {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = args
-        process.standardOutput = Pipe()
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            return -1
+    /// May show ONE macOS authorization dialog. Call only in response to a user action.
+    ///
+    /// `excluding`: same as `readSilently` — a rejected file token must not stop us from
+    /// reaching the keychain, otherwise "Allow Access" would never show its dialog.
+    static func readInteractively(excluding rejectedTokens: Set<String> = []) async -> ClaudeCredentialRead {
+        if let token = readTokenFromFile(), !rejectedTokens.contains(token) { return .found(accessToken: token) }
+        return await onKeychainQueue { readKeychainItem(interactionAllowed: true) }
+    }
+
+    /// True if `token` is what the credentials file currently holds. The store uses it
+    /// to avoid pinning a file-sourced token to the keychain item's version.
+    static func isTokenFromFile(_ token: String) -> Bool {
+        readTokenFromFile() == token
+    }
+
+    /// When Claude Code last wrote the keychain item, or nil if unknown/absent. The
+    /// store uses it as the item's "version" to tell "same dead token" from "Claude
+    /// Code re-logged in". Metadata-only queries never prompt (verified), so unlike the
+    /// data read this doesn't need the interaction-disabled window; it still shares the
+    /// serial queue so it can't interleave with a read that flips that global flag.
+    static func itemModificationDate() async -> Date? {
+        await withCheckedContinuation { continuation in
+            keychainQueue.async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: serviceName,
+                    kSecReturnAttributes as String: true,
+                    kSecMatchLimit as String: kSecMatchLimitOne
+                ]
+                var result: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &result)
+                let attributes = result as? [String: Any]
+                continuation.resume(returning: status == errSecSuccess
+                    ? attributes?[kSecAttrModificationDate as String] as? Date : nil)
+            }
         }
-        return process.terminationStatus
+    }
+
+    // MARK: - Queue bridge
+
+    private static func onKeychainQueue(
+        _ work: @escaping @Sendable () -> ClaudeCredentialRead
+    ) async -> ClaudeCredentialRead {
+        await withCheckedContinuation { continuation in
+            keychainQueue.async { continuation.resume(returning: work()) }
+        }
     }
 
     // MARK: - Credentials File
 
-    private static func readCredentialsFromFile() -> OAuthCredentials? {
+    private static func readTokenFromFile() -> String? {
         guard let data = try? Data(contentsOf: credentialsFileURL) else { return nil }
-
-        // Claude Code 2.1.x stopped writing `claudeAiOauth` to this file (it now
-        // lives in the keychain only — the file holds `mcpOAuth` instead). Missing
-        // key is expected on current Claude Code; fall through silently to the
-        // keychain CLI path. Only log when the file is actually malformed JSON.
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            log.info("credentials file is not valid JSON — falling back to keychain")
-            return nil
-        }
-        guard let oauth = json["claudeAiOauth"] as? [String: Any],
-              let token = oauth["accessToken"] as? String,
-              token.hasPrefix("sk-ant-") else {
-            return nil
-        }
-        let refreshToken = oauth["refreshToken"] as? String
-        let expiresAt: Date? = {
-            guard let ms = oauth["expiresAt"] as? Double else { return nil }
-            return Date(timeIntervalSince1970: ms / 1000)
-        }()
-        return OAuthCredentials(accessToken: token, refreshToken: refreshToken, expiresAt: expiresAt)
+        // Claude Code 2.1.x stopped writing `claudeAiOauth` to this file (it lives
+        // in the keychain only — the file holds `mcpOAuth` instead), so a missing
+        // key is normal; we just fall through to the keychain.
+        return parseAccessToken(from: data)
     }
 
-    // MARK: - Security CLI (avoids keychain prompt)
+    // MARK: - Keychain
 
-    /// Reads credentials via /usr/bin/security, which is permanently trusted in the
-    /// keychain ACL. This avoids the password prompt that occurs when Tokenomics's own
-    /// binary signature changes between builds or when Claude Code rewrites the item.
-    private static func readCredentialsViaCLI() -> OAuthCredentials? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = ["find-generic-password", "-s", serviceName, "-w"]
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            log.info("security CLI failed to launch: \(error.localizedDescription)")
-            return nil
-        }
-
-        guard process.terminationStatus == 0 else {
-            log.info("security CLI exited with status \(process.terminationStatus)")
-            return nil
-        }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let raw = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !raw.isEmpty else {
-            return nil
-        }
-
-        // The password value is JSON — parse it the same way as the keychain path
-        guard let jsonData = raw.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-              let oauth = json["claudeAiOauth"] as? [String: Any],
-              let token = oauth["accessToken"] as? String,
-              token.hasPrefix("sk-ant-") else {
-            return nil
-        }
-
-        let refreshToken = oauth["refreshToken"] as? String
-        let expiresAt: Date? = {
-            guard let ms = oauth["expiresAt"] as? Double else { return nil }
-            return Date(timeIntervalSince1970: ms / 1000)
-        }()
-        return OAuthCredentials(accessToken: token, refreshToken: refreshToken, expiresAt: expiresAt)
-    }
-
-    // MARK: - Keychain (last resort, may prompt)
-
-    private static func readCredentialsFromKeychain() -> OAuthCredentials? {
+    /// Must run on `keychainQueue`.
+    private static func readKeychainItem(interactionAllowed: Bool) -> ClaudeCredentialRead {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -175,37 +138,66 @@ enum KeychainService {
         ]
 
         var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let raw = String(data: data, encoding: .utf8) else {
-            return nil
+        var status: OSStatus
+        if interactionAllowed {
+            status = SecItemCopyMatching(query as CFDictionary, &result)
+        } else {
+            // The only mechanism that actually suppresses the legacy-keychain ACL
+            // dialog (verified on macOS 26): LAContext.interactionNotAllowed and
+            // kSecUseAuthenticationUIFail both still show it. The API is deprecated
+            // and process-global, hence the serial queue, the minimal window, and
+            // the deferred restore.
+            var previous = DarwinBoolean(true)
+            SecKeychainGetUserInteractionAllowed(&previous)
+            SecKeychainSetUserInteractionAllowed(false)
+            defer { SecKeychainSetUserInteractionAllowed(previous.boolValue) }
+            status = SecItemCopyMatching(query as CFDictionary, &result)
         }
+        let read = map(status: status, data: result as? Data)
+        log.info("keychain read (\(interactionAllowed ? "interactive" : "silent", privacy: .public)) OSStatus \(status) → \(read.logLabel, privacy: .public)")
+        return read
+    }
 
-        // Parse as JSON for full credential access
+    /// Pure status → result mapping, separated so it's unit-testable without a keychain.
+    static func map(status: OSStatus, data: Data?) -> ClaudeCredentialRead {
+        switch status {
+        case errSecSuccess:
+            guard let data, let token = parseAccessToken(from: data) else {
+                log.info("keychain item present but contains no usable access token")
+                return .notFound
+            }
+            return .found(accessToken: token)
+        case errSecItemNotFound:
+            return .notFound
+        case errSecAuthFailed, errSecInteractionNotAllowed, errSecUserCanceled:
+            return .needsAuthorization
+        default:
+            // Unknown failure: treat as "needs authorization" — a tap shows at most one
+            // dialog, whereas .notFound would send the user through a needless re-login.
+            log.error("keychain read failed with unexpected status \(status)")
+            return .needsAuthorization
+        }
+    }
+
+    // MARK: - Parsing
+
+    /// Accepts the JSON blob Claude Code stores, with a legacy string-scan fallback
+    /// for older item formats. Only the access token is kept — we never hold
+    /// Claude Code's refresh token.
+    static func parseAccessToken(from data: Data) -> String? {
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let oauth = json["claudeAiOauth"] as? [String: Any],
            let token = oauth["accessToken"] as? String,
            token.hasPrefix("sk-ant-") {
-            let refreshToken = oauth["refreshToken"] as? String
-            let expiresAt: Date? = {
-                guard let ms = oauth["expiresAt"] as? Double else { return nil }
-                return Date(timeIntervalSince1970: ms / 1000)
-            }()
-            return OAuthCredentials(accessToken: token, refreshToken: refreshToken, expiresAt: expiresAt)
+            return token
         }
 
-        // Legacy string-parsing fallback
-        guard let startRange = raw.range(of: "\"accessToken\":\"") else {
+        guard let raw = String(data: data, encoding: .utf8),
+              let startRange = raw.range(of: "\"accessToken\":\""),
+              let endQuote = raw[startRange.upperBound...].firstIndex(of: "\"") else {
             return nil
         }
-        let tokenStart = startRange.upperBound
-        guard let endQuote = raw[tokenStart...].firstIndex(of: "\"") else {
-            return nil
-        }
-        let token = String(raw[tokenStart..<endQuote])
-        guard token.hasPrefix("sk-ant-") else { return nil }
-        return OAuthCredentials(accessToken: token, refreshToken: nil, expiresAt: nil)
+        let token = String(raw[startRange.upperBound..<endQuote])
+        return token.hasPrefix("sk-ant-") ? token : nil
     }
 }

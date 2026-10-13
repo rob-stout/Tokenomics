@@ -102,7 +102,7 @@ actor CopilotConnector: ProviderConnector {
         switch state {
         case .connected(let plan):
             return .connected(plan: plan)
-        case .notInstalled, .installedNoAuth, .authExpired:
+        case .notInstalled, .installedNoAuth, .authExpired, .needsKeychainAccess:
             // Show "Checking your Mac" interstitial once before the
             // needsAction CTA — keeps the onboarding flow visually
             // consistent across providers (Bug B).
@@ -141,7 +141,7 @@ actor CopilotConnector: ProviderConnector {
             return
         case .notInstalled:
             await startPrerequisiteChain()
-        case .installedNoAuth, .authExpired:
+        case .installedNoAuth, .authExpired, .needsKeychainAccess:
             await launchLogin()
         case .unavailable:
             return

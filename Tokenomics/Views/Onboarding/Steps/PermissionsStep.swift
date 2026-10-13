@@ -1,45 +1,78 @@
 import SwiftUI
+import AppKit
 
-/// Explainer step that primes the two macOS permission prompts triggered by
-/// reading Claude Code's session token from the keychain. Sits between Welcome
-/// and ProviderChooser so users know what's coming before macOS interrupts.
+/// Explainer step that primes the ONE macOS prompt triggered by reading Claude
+/// Code's session token from the keychain. Sits between Welcome and ProviderChooser
+/// so users know what's coming before macOS interrupts.
 ///
-/// On Continue, calls `KeychainService.probeAccess()` — that triggers the
-/// keychain ACL prompt and (on macOS 15+) the "data from another app" prompt
-/// at a known UI moment. The probe distinguishes three outcomes:
+/// (The macOS 15 "access data from other apps" prompt is NOT ours to prime: reading
+/// the keychain or credentials file can't cause it. It comes from App Group container
+/// access, which the release provisioning profile authorizes.)
+///
+/// On Continue, calls `ClaudeCredentialStore.requestAccess()` — that triggers the
+/// keychain ACL prompt at a known UI moment. The probe distinguishes:
 ///   - granted (or no item exists yet) → advance to chooser
-///   - denied → each surface card switches to an inline failure treatment
-///     with its own deep link into the relevant Privacy pane
+///   - denied → the keychain card switches to an inline failure treatment;
+///     "Try again" re-fires the read so macOS can re-prompt
 ///
 /// Per the design system "inline failure surface" pattern: 30% danger border,
-/// 8% danger fill, headline in danger, body in text-muted, single concrete
-/// next-step CTA per block. Two CTAs total intentionally breaks the "one CTA
-/// per block" rule because the two permissions are independent — a single
-/// global link would force users to re-orient between two unrelated panes.
+/// 8% danger fill, headline in danger, body in text-muted.
 struct PermissionsStep: View {
     var onContinue: () -> Void
     var onBack: () -> Void
 
     @State private var didDeny = false
+    /// Identifies the in-flight attempt. Back clears it, so a dialog result that lands
+    /// after Back (even after returning to this step) can't advance — only the latest
+    /// attempt may.
+    @State private var attemptID: UUID?
 
     var body: some View {
         PermissionsStepBody(
             didDeny: didDeny,
+            isRequesting: attemptID != nil,
             onContinue: triggerPromptsAndContinue,
-            onBack: onBack
+            onSkip: skipKeychainAccess,
+            onBack: {
+                attemptID = nil
+                onBack()
+            }
         )
     }
 
-    /// Probes keychain access and either advances or surfaces the denied state.
+    /// Continues without Claude keychain access. Claude can be connected later from the
+    /// popover or Settings "Allow Access", so users who don't use Claude aren't stranded
+    /// here. Clearing `attemptID` invalidates any in-flight dialog result. Nothing
+    /// downstream reads the keychain interactively on its own, so no dialog follows.
+    private func skipKeychainAccess() {
+        attemptID = nil
+        didDeny = false
+        onContinue()
+    }
+
+    /// Asks for keychain access and either advances or surfaces the denied state.
     /// "Try again" routes through here too — re-firing the read so macOS can
     /// re-prompt (it does, unless the user resolved it in System Settings).
+    /// The read runs off the main thread (the store's private queue), so the UI
+    /// stays responsive while the dialog is up; a non-nil `attemptID` blocks double-taps.
     private func triggerPromptsAndContinue() {
-        switch KeychainService.probeAccess() {
-        case .ok:
-            didDeny = false
-            onContinue()
-        case .denied:
-            didDeny = true
+        guard attemptID == nil else { return }
+        let id = UUID()
+        attemptID = id
+        Task {
+            let result = await ClaudeCredentialStore.shared.requestAccess()
+            // The user may have navigated Back while the macOS dialog was up.
+            guard attemptID == id else { return }
+            attemptID = nil
+            // No keychain item yet (Claude Code not signed in) is fine — nothing to deny.
+            switch result {
+            case .found, .notFound, .staleToken:
+                // A stale token isn't a denial; the connector's re-login path handles it.
+                didDeny = false
+                onContinue()
+            case .needsAuthorization:
+                didDeny = true
+            }
         }
     }
 }
@@ -52,7 +85,9 @@ struct PermissionsStep: View {
 
 private struct PermissionsStepBody: View {
     let didDeny: Bool
+    var isRequesting = false
     let onContinue: () -> Void
+    var onSkip: () -> Void = {}
     let onBack: () -> Void
 
     @Environment(\.colorScheme) private var scheme
@@ -70,31 +105,23 @@ private struct PermissionsStepBody: View {
         let fixURL: URL
     }
 
+    /// Keychain Access moved to /System/Library/CoreServices/Applications on macOS 26.
+    /// Resolve by bundle id so we follow it wherever the OS puts it; the file:// URL
+    /// routes through Launch Services and opens the app.
+    private static var keychainAccessURL: URL {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.keychainaccess")
+            ?? URL(fileURLWithPath: "/System/Library/CoreServices/Applications/Keychain Access.app")
+    }
+
     private var keychainRow: RowSpec {
         RowSpec(
             icon: "key.fill",
             title: "Keychain access",
-            detail: "Lets Tokenomics read your AI provider's sign-in. Choose Always Allow so it doesn't ask again.",
+            detail: "Lets Tokenomics read your Claude Code sign-in. macOS may ask twice. Enter your Mac password and choose \"Always Allow\" each time.",
             deniedTitle: "Keychain access denied",
-            deniedDetail: "Tokenomics couldn't read your AI provider's session. Approve the keychain item in Keychain Access.",
-            fixLabel: "Fix permission",
-            // file:// URL routes through Launch Services and opens the app.
-            fixURL: URL(fileURLWithPath: "/System/Applications/Utilities/Keychain Access.app")
-        )
-    }
-
-    private var crossAppRow: RowSpec {
-        RowSpec(
-            icon: "rectangle.on.rectangle",
-            title: "Information from another app",
-            detail: "macOS treats your AI provider's keychain entry as cross-app data. One tap to allow.",
-            deniedTitle: "Cross-app access denied",
-            deniedDetail: "macOS blocked Tokenomics from reading another app's data. Re-enable it under App Management.",
-            fixLabel: "Fix permission",
-            // Privacy_AppBundles is the Privacy & Security pane that governs
-            // cross-app data access on macOS 15+. Falls back gracefully on
-            // older macOS — the URL still routes to Privacy & Security.
-            fixURL: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AppBundles")!
+            deniedDetail: "Tokenomics couldn't read your Claude Code sign-in. Click Try again and choose \"Always Allow\" when macOS asks.",
+            fixLabel: "Open Keychain Access",
+            fixURL: Self.keychainAccessURL
         )
     }
 
@@ -106,8 +133,8 @@ private struct PermissionsStepBody: View {
                     .foregroundStyle(Tokens.Color.text(scheme))
 
                 Text(didDeny
-                     ? "Tokenomics can't function without these. We only use them to coordinate your computer with the AI providers for usage tracking — your information never leaves your Mac."
-                     : "Tokenomics reads where your AI tools store their session info so it can show usage. The first time, macOS will pull up two separate system prompts to get your permission.")
+                     ? "Tokenomics needs this to show your Claude usage. We only use it to coordinate your computer with the AI providers for usage tracking — your information never leaves your Mac."
+                     : "Tokenomics reads where your AI tools store their session info so it can show usage. The first time, macOS may ask twice. Enter your Mac password and choose \"Always Allow\" each time.")
                     .font(Tokens.Typography.Onboarding.lede)
                     .foregroundStyle(Tokens.Color.textMuted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
@@ -115,7 +142,6 @@ private struct PermissionsStepBody: View {
 
             VStack(spacing: Tokens.Spacing.s2) {
                 permissionCard(spec: keychainRow, didDeny: didDeny)
-                permissionCard(spec: crossAppRow, didDeny: didDeny)
             }
             .padding(.top, Tokens.Spacing.s5)
 
@@ -124,8 +150,22 @@ private struct PermissionsStepBody: View {
             WindowFooter {
                 BackLink(action: onBack)
             } trailing: {
-                Button(didDeny ? "Try again" : "Continue", action: onContinue)
-                    .buttonStyle(.tokenPrimary)
+                HStack(spacing: Tokens.Spacing.s3) {
+                    if didDeny {
+                        Button(action: onSkip) {
+                            Text("Skip for now")
+                                .font(Tokens.Typography.Onboarding.small)
+                                .foregroundStyle(Tokens.Color.textMuted(scheme))
+                                .padding(.horizontal, Tokens.Spacing.s3)
+                                .padding(.vertical, Tokens.Spacing.s2)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Button(didDeny ? "Try again" : "Continue", action: onContinue)
+                        .buttonStyle(.tokenPrimary)
+                        .disabled(isRequesting)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

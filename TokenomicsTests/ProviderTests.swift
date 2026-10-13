@@ -56,6 +56,11 @@ final class ProviderTests: XCTestCase {
         XCTAssertFalse(ProviderConnectionState.notInstalled.isConnected)
     }
 
+    func testConnectionState_needsKeychainAccess_isNotConnected() {
+        XCTAssertFalse(ProviderConnectionState.needsKeychainAccess.isConnected)
+        XCTAssertEqual(ProviderConnectionState.needsKeychainAccess.statusText, "Keychain access needed")
+    }
+
     func testConnectionState_authExpired_isNotConnected() {
         XCTAssertFalse(ProviderConnectionState.authExpired.isConnected)
     }

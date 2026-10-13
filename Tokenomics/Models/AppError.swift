@@ -3,6 +3,8 @@ import Foundation
 enum AppError: Error, LocalizedError {
     case notAuthenticated
     case tokenExpired
+    /// Claude's keychain item exists but the user hasn't allowed Tokenomics to read it.
+    case keychainAccessNeeded
     case rateLimited(retryAfter: TimeInterval?)
     case networkUnavailable
     case decodingFailed(underlying: Error)
@@ -12,6 +14,11 @@ enum AppError: Error, LocalizedError {
     /// True only for the token-expired case, used to tailor recovery UI.
     var isTokenExpired: Bool {
         if case .tokenExpired = self { return true }
+        return false
+    }
+
+    var needsKeychainAccess: Bool {
+        if case .keychainAccessNeeded = self { return true }
         return false
     }
 
@@ -27,6 +34,8 @@ enum AppError: Error, LocalizedError {
             return "Not signed in"
         case .tokenExpired:
             return "Session expired — re-authenticate in your terminal, then click Refresh."
+        case .keychainAccessNeeded:
+            return "Keychain access needed — click Allow Access to let Tokenomics read Claude Code's sign-in."
         case .rateLimited:
             return "Couldn't load usage data — check back in a few minutes"
         case .networkUnavailable:

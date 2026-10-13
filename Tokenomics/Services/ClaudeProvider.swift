@@ -1,12 +1,13 @@
 import Foundation
 import os
 
-/// Claude Code usage provider — wraps the existing UsageService + KeychainService
+/// Claude Code usage provider — wraps UsageService; tokens come from `ClaudeCredentialStore`.
 ///
-/// Token strategy: always re-read from the Keychain on each fetch. Claude Code
-/// refreshes its own token during normal use, so we piggyback on that. We never
-/// call the refresh endpoint ourselves because doing so invalidates Claude Code's
-/// refresh token (they're single-use) and logs the user out.
+/// Token strategy: the shared store caches the token Claude Code wrote and we reuse
+/// it until the usage API returns 401. Only then do we silently re-read, piggybacking
+/// on Claude Code's own refresh. We never call the refresh endpoint ourselves because
+/// doing so invalidates Claude Code's refresh token (they're single-use) and logs the
+/// user out.
 actor ClaudeProvider: UsageProvider {
     let id = ProviderId.claude
     // 3 min — the community-verified safe polling floor for /api/oauth/usage
@@ -19,6 +20,11 @@ actor ClaudeProvider: UsageProvider {
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "ClaudeProvider")
 
     private let usageService = UsageService()
+    private let credentials: ClaudeCredentialStore
+
+    init(credentials: ClaudeCredentialStore = .shared) {
+        self.credentials = credentials
+    }
 
     /// Track the last token we used so we can detect when Claude Code has refreshed
     private var lastUsedToken: String?
@@ -33,13 +39,27 @@ actor ClaudeProvider: UsageProvider {
     private static let connectionCacheTTL: TimeInterval = 5.0
 
     func checkConnection() async -> ProviderConnectionState {
-        // No token in Keychain at all — drop any stale cache and report the
-        // installation state. A fresh sign-in attempt should re-validate
-        // from scratch, not see a remembered "expired" verdict.
-        guard KeychainService.readAccessToken() != nil else {
+        // One store lookup per call; the token is passed down so validation
+        // below doesn't trigger a second read.
+        let token: String
+        switch await credentials.currentToken() {
+        case .found(let found):
+            token = found
+        case .notFound:
+            // No token anywhere — drop any stale cache and report the
+            // installation state. A fresh sign-in attempt should re-validate
+            // from scratch, not see a remembered "expired" verdict.
             cachedConnectionState = nil
-            if isClaudeCodeInstalled() { return .installedNoAuth }
-            return .notInstalled
+            return notSignedInState()
+        case .needsAuthorization:
+            Self.log.info("checkConnection → needsKeychainAccess (silent read not authorized)")
+            cachedConnectionState = nil
+            return .needsKeychainAccess
+        case .staleToken:
+            // Only a rejected token is available; Claude Code must refresh it.
+            Self.log.info("checkConnection → authExpired (only a rejected token exists)")
+            cachedConnectionState = nil
+            return .authExpired
         }
 
         // Token exists — but is it still valid? Reuse the cached validation
@@ -57,10 +77,19 @@ actor ClaudeProvider: UsageProvider {
         // so the connector routes back to the Terminal re-auth path.
         let state: ProviderConnectionState
         do {
-            let snapshot = try await fetchUsage()
+            let snapshot = try await fetchUsage(using: token)
             state = .connected(plan: snapshot.planLabel)
         } catch let error as AppError where error.isTokenExpired {
+            Self.log.info("checkConnection → authExpired (token rejected, Claude Code must re-login)")
             state = .authExpired
+        } catch let error as AppError where error.needsKeychainAccess {
+            Self.log.info("checkConnection → needsKeychainAccess (after 401 re-read)")
+            cachedConnectionState = nil
+            return .needsKeychainAccess
+        } catch AppError.notAuthenticated {
+            // Token vanished during the 401 re-read.
+            cachedConnectionState = nil
+            return notSignedInState()
         } catch {
             // Network blip or transient failure — don't lock the user out of
             // onboarding. Fall back to cached usage's plan label if any,
@@ -75,8 +104,17 @@ actor ClaudeProvider: UsageProvider {
     }
 
     func fetchUsage() async throws -> ProviderUsageSnapshot {
-        let token = try readToken()
+        switch await credentials.currentToken() {
+        case .found(let token): return try await fetchUsage(using: token)
+        case .notFound: throw AppError.notAuthenticated
+        case .needsAuthorization: throw AppError.keychainAccessNeeded
+        case .staleToken: throw AppError.tokenExpired
+        }
+    }
 
+    // MARK: - Private
+
+    private func fetchUsage(using token: String) async throws -> ProviderUsageSnapshot {
         // If Claude Code refreshed since our last fetch, we have a fresh token
         // which also means a fresh rate-limit window — clear any backoff state
         if let previous = lastUsedToken, token != previous {
@@ -89,26 +127,30 @@ actor ClaudeProvider: UsageProvider {
             let data = try await usageService.fetchUsage(token: token)
             return mapToSnapshot(data)
         } catch let error as AppError where error.isTokenExpired {
-            // Claude Code may have refreshed — re-read from Keychain and retry once
-            Self.log.info("Token expired — re-reading from Keychain")
-            let freshToken = try readToken()
-            if freshToken != token {
+            // Claude Code may have refreshed — silently re-read and retry once
+            Self.log.info("Token rejected — re-reading silently")
+            switch await credentials.tokenAfterUnauthorized(previous: token) {
+            case .found(let freshToken) where freshToken != token:
                 lastUsedToken = freshToken
                 await usageService.resetRateLimit()
                 let data = try await usageService.fetchUsage(token: freshToken)
                 return mapToSnapshot(data)
+            case .found, .staleToken:
+                // Same (or an already-rejected) token: Claude Code hasn't re-authenticated,
+                // so the user must. Also covers a one-time "Allow" token that has since expired.
+                Self.log.info("fetchUsage: 401 and no newer token → authExpired")
+                throw error
+            case .needsAuthorization:
+                Self.log.info("fetchUsage: 401 re-read needs keychain authorization")
+                throw AppError.keychainAccessNeeded
+            case .notFound:
+                throw AppError.notAuthenticated
             }
-            throw error
         }
     }
 
-    // MARK: - Private
-
-    private func readToken() throws -> String {
-        guard let token = KeychainService.readAccessToken() else {
-            throw AppError.notAuthenticated
-        }
-        return token
+    private func notSignedInState() -> ProviderConnectionState {
+        isClaudeCodeInstalled() ? .installedNoAuth : .notInstalled
     }
 
     private func isClaudeCodeInstalled() -> Bool {

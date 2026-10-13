@@ -64,6 +64,18 @@ actor ClaudeConnector: ProviderConnector {
     /// whether Claude Code was already installed (Bug B).
     private var didStartDetection = false
 
+    /// Set when the last check reported `.needsKeychainAccess`, so the confirm
+    /// screen's button routes to the keychain request instead of the install chain.
+    private var isAwaitingKeychainAccess = false
+
+    /// The last "Allow Access" tap ended without access (user denied or cancelled).
+    /// Without this the step would look unchanged and the tap would seem to do nothing.
+    private var didDenyKeychainAccess = false
+
+    /// Sign-in preview is for a user who already has Claude Code installed (expired
+    /// session or unreadable keychain), so it shouldn't say "Finish installing".
+    private var isReloginFlow = false
+
     // MARK: - Init
 
     init(provider: ClaudeProvider = ClaudeProvider()) {
@@ -91,8 +103,10 @@ actor ClaudeConnector: ProviderConnector {
 
         case .previewingSignIn:
             return .previewExternalSteps(
-                headline: "Finish installing Claude Code",
-                body: "We've started the install for Claude Code. You'll need to finish it by walking through the steps Anthropic has laid out — we're here to guide you. Here's what's going to happen:",
+                headline: isReloginFlow ? "Sign in to Claude Code again" : "Finish installing Claude Code",
+                body: isReloginFlow
+                    ? "Claude Code needs you to sign in again before Tokenomics can read your usage. Walk through the steps Anthropic has laid out — we're here to guide you. Here's what's going to happen:"
+                    : "We've started the install for Claude Code. You'll need to finish it by walking through the steps Anthropic has laid out — we're here to guide you. Here's what's going to happen:",
                 groupLabel: "In Claude Code, you'll:",
                 startingNumber: 1,
                 items: [
@@ -101,7 +115,7 @@ actor ClaudeConnector: ProviderConnector {
                     "**Authorize** Claude Code to connect to your account",
                     "**Accept** Anthropic's security notes",
                 ],
-                primaryLabel: "Continue"
+                primaryLabel: isReloginFlow ? "Open Terminal" : "Continue"
             )
 
         case .previewingSetup:
@@ -125,6 +139,12 @@ actor ClaudeConnector: ProviderConnector {
                 activePhase = .none
                 return .connected(plan: plan)
             }
+            // A Terminal (re)login rewrites the keychain item, so our read now needs
+            // the user's approval. Leave the waiting screen for the Allow Access step.
+            if case .needsKeychainAccess = state {
+                activePhase = .none
+                return keychainAccessStep()
+            }
             return .awaitingExternalAuth(
                 headline: "Confirm login",
                 body: "We're waiting for your successful login. **You'll know you're done when you see Claude's chat prompt** — close Terminal then and come back here."
@@ -136,9 +156,25 @@ actor ClaudeConnector: ProviderConnector {
 
         // No active phase — delegate to provider for terminal states.
         let state = await provider.checkConnection()
+        // Reentrancy: a tap (skip, install) may have moved the phase while we awaited;
+        // answer for the new phase instead of overwriting it with a stale verdict.
+        guard case .none = activePhase else { return await currentStep() }
+        isAwaitingKeychainAccess = false
+        // A different state means the denial is history; clear its note.
+        if case .needsKeychainAccess = state {
+            // keep the note
+        } else {
+            didDenyKeychainAccess = false
+        }
         switch state {
         case .connected(let plan):
             return .connected(plan: plan)
+        case .needsKeychainAccess:
+            // Claude Code is signed in; macOS just hasn't let us read it. Not the
+            // Terminal sign-in path. The polling loop only re-checks silently —
+            // the macOS dialog fires solely from the user's tap on "Allow Access"
+            // (confirmInstall).
+            return keychainAccessStep()
         case .notInstalled, .installedNoAuth, .authExpired:
             // Show "Checking your Mac" interstitial once before the
             // needsAction CTA — keeps the onboarding flow visually
@@ -170,9 +206,16 @@ actor ClaudeConnector: ProviderConnector {
             return
         case .notInstalled:
             await startPrerequisiteChain()
-        case .installedNoAuth, .authExpired:
+        case .installedNoAuth:
             // Binary is present, skip installs, go straight to preview.
             activePhase = .previewingSignIn
+        case .authExpired:
+            isReloginFlow = true
+            activePhase = .previewingSignIn
+        case .needsKeychainAccess:
+            // Nothing to do: the next tick shows the "Allow Access" step. The macOS
+            // dialog must only come from that button, never a sign-in-labelled CTA.
+            return
         case .unavailable:
             return
         }
@@ -181,6 +224,9 @@ actor ClaudeConnector: ProviderConnector {
     func cancel() async {
         await runner.cancel()
         activePhase = .none
+        isAwaitingKeychainAccess = false
+        didDenyKeychainAccess = false
+        isReloginFlow = false
         failedState = nil
         didStartDetection = false
     }
@@ -188,11 +234,19 @@ actor ClaudeConnector: ProviderConnector {
     func clearFailure() async {
         failedState = nil
         activePhase = .none
+        isAwaitingKeychainAccess = false
+        didDenyKeychainAccess = false
+        isReloginFlow = false
         // Re-arm so retry replays the detect intro.
         didStartDetection = false
     }
 
     func confirmInstall() async {
+        // activePhase check: a stale flag must never hijack an install confirm step.
+        if isAwaitingKeychainAccess, case .none = activePhase {
+            await requestKeychainAccess()
+            return
+        }
         guard case .confirmingInstall(let kind) = activePhase else { return }
         switch kind {
         case .homebrew:
@@ -203,9 +257,28 @@ actor ClaudeConnector: ProviderConnector {
     }
 
     func skipInstall() async {
-        activePhase = .none
         failedState = nil
+        if isAwaitingKeychainAccess {
+            // "Sign in again" from the keychain step: the binary is already installed,
+            // so skip the Homebrew/CLI prerequisite chain.
+            isAwaitingKeychainAccess = false
+            didDenyKeychainAccess = false
+            isReloginFlow = true
+            activePhase = .previewingSignIn
+            return
+        }
+        activePhase = .none
         await startPrerequisiteChain()
+    }
+
+    /// Open Terminal with `claude` before transitioning so the hand-off is synchronous
+    /// from the user's perspective. AppleScript blocks briefly — run off the main actor
+    /// (we're already on the connector actor). Only advances if it didn't surface an error.
+    private func openTerminalAndAwaitAuth() async {
+        await openTerminalWithClaude()
+        if failedState == nil {
+            activePhase = .awaitingExternalAuth
+        }
     }
 
     /// Called when the user taps the primary button on a `.previewExternalSteps` screen.
@@ -213,20 +286,45 @@ actor ClaudeConnector: ProviderConnector {
     func advancePreview() async {
         switch activePhase {
         case .previewingSignIn:
-            activePhase = .previewingSetup
+            // A re-login already did first-run setup (folder, macOS permissions), so skip
+            // that preview and go straight to Terminal.
+            if isReloginFlow {
+                await openTerminalAndAwaitAuth()
+            } else {
+                activePhase = .previewingSetup
+            }
 
         case .previewingSetup:
-            // Open Terminal with `claude` before transitioning so the hand-off is
-            // synchronous from the user's perspective. AppleScript blocks briefly —
-            // run it off the main actor (we're already on the connector actor).
-            await openTerminalWithClaude()
-            // Only advance if openTerminalWithClaude didn't surface an error.
-            if failedState == nil {
-                activePhase = .awaitingExternalAuth
-            }
+            await openTerminalAndAwaitAuth()
 
         default:
             break
+        }
+    }
+
+    /// The "Allow Access" confirm step. Also arms `isAwaitingKeychainAccess` so the
+    /// button routes to the keychain request rather than the install chain.
+    private func keychainAccessStep() -> ConnectorStep {
+        isAwaitingKeychainAccess = true
+        return .confirmingInstall(
+            title: "Allow keychain access",
+            body: "Tokenomics needs permission to read your Claude Code sign-in. macOS may ask twice. Enter your Mac password and choose \"Always Allow\" each time."
+                + (didDenyKeychainAccess ? "\n\nmacOS didn't allow access. Try again." : ""),
+            skipLabel: "Signed out of Claude Code? Sign in again",
+            primaryLabel: "Allow Access",
+            signInFramed: true
+        )
+    }
+
+    /// The one place onboarding triggers the macOS keychain dialog. The next poll
+    /// tick re-checks the connection, which now hits the shared cache.
+    private func requestKeychainAccess() async {
+        switch await ClaudeCredentialStore.shared.requestAccess() {
+        case .needsAuthorization:
+            didDenyKeychainAccess = true
+        case .found, .notFound, .staleToken:
+            // A stale token isn't a denial: the next tick routes to the re-login path.
+            didDenyKeychainAccess = false
         }
     }
 
@@ -297,6 +395,7 @@ actor ClaudeConnector: ProviderConnector {
                     Self.log.debug("[claude-code install] \(line)")
                 case .completed:
                     Self.log.info("Claude Code installed successfully via Homebrew cask")
+                    isReloginFlow = false
                     activePhase = .previewingSignIn
                     return
                 case .failed(let reason):

@@ -189,7 +189,7 @@ final class UsageViewModel: ObservableObject {
             guard !hiddenProviders.contains(id) else { return false }
             guard let state = providerStates[id] else { return false }
             switch state.connection {
-            case .connected, .authExpired, .unavailable:
+            case .connected, .authExpired, .needsKeychainAccess, .unavailable:
                 return true
             case .notInstalled, .installedNoAuth:
                 return false
@@ -269,7 +269,7 @@ final class UsageViewModel: ObservableObject {
             // Check if any provider has a token
             let hasAnyAuth = providerStates.values.contains { state in
                 switch state.connection {
-                case .connected, .authExpired:
+                case .connected, .authExpired, .needsKeychainAccess:
                     return true
                 default:
                     return false
@@ -280,9 +280,21 @@ final class UsageViewModel: ObservableObject {
 
         // Use the worst (highest) utilization across connected providers
         guard let worstUsage = worstOfNUsage() else {
+            // Every visible provider needs the user to act: that's an error, not
+            // "loading" — otherwise the ring spins forever with no hint to open the popover.
+            if visibleProviders.allSatisfy({ needsReauthorization(providerStates[$0]?.connection) }) {
+                return .error
+            }
             return .loading
         }
         return UsageState(utilization: worstUsage.shortWindow.utilization)
+    }
+
+    private func needsReauthorization(_ connection: ProviderConnectionState?) -> Bool {
+        switch connection {
+        case .needsKeychainAccess, .authExpired: return true
+        default: return false
+        }
     }
 
     /// Menu bar data for Smart mode (worst-of-N), respects visibility settings
@@ -686,7 +698,7 @@ final class UsageViewModel: ObservableObject {
                 let existing = providerStates[id] ?? .empty
                 providerStates[id] = ProviderState(
                     connection: connection,
-                    usage: existing.usage,
+                    usage: usageToKeep(existing.usage, for: connection),
                     error: existing.error,
                     lastSynced: existing.lastSynced,
                     isLoading: false
@@ -714,7 +726,7 @@ final class UsageViewModel: ObservableObject {
                     let existing = providerStates[id] ?? .empty
                     providerStates[id] = ProviderState(
                         connection: connection,
-                        usage: existing.usage,
+                        usage: usageToKeep(existing.usage, for: connection),
                         error: existing.error,
                         lastSynced: existing.lastSynced,
                         isLoading: false
@@ -768,6 +780,68 @@ final class UsageViewModel: ObservableObject {
         return connected
     }
 
+    /// User-initiated recovery from `.needsKeychainAccess`: the one place a macOS
+    /// keychain dialog may appear. On success the token is cached app-wide, so even a
+    /// one-time "Allow" works until the API next rejects it.
+    ///
+    /// Returns whether Claude is connected afterwards (the popover uses it to explain a denial).
+    @MainActor
+    @discardableResult
+    func requestClaudeKeychainAccess() async -> Bool {
+        guard let provider = providers[.claude] else { return false }
+        let existing = providerStates[.claude] ?? .empty
+        switch await ClaudeCredentialStore.shared.requestAccess() {
+        case .found:
+            // Mark connected and let fetchProvider make the ONE usage call —
+            // checkConnection() would add a second validation fetch against the
+            // 3-minute rate-limit floor. fetchSingleProvider maps any failure
+            // (expired, keychain, network) back onto the right state.
+            let plan = SettingsService.cachedUsage(for: .claude)?.snapshot.planLabel ?? ""
+            providerStates[.claude] = ProviderState(
+                connection: .connected(plan: plan),
+                usage: existing.usage,
+                error: nil,
+                lastSynced: existing.lastSynced,
+                isLoading: false
+            )
+            await fetchProvider(.claude)
+        case .notFound, .needsAuthorization, .staleToken:
+            // No network involved: checkConnection() has no token to validate.
+            let connection = await provider.checkConnection()
+            providerStates[.claude] = ProviderState(
+                connection: connection,
+                usage: usageToKeep(existing.usage, for: connection),
+                error: nil,
+                lastSynced: existing.lastSynced,
+                isLoading: false
+            )
+        }
+        return providerStates[.claude]?.connection.isConnected == true
+    }
+
+    /// Frozen numbers must not read as live: once a provider needs re-authorization
+    /// its old usage would otherwise keep driving the menu bar ring, widgets and badge.
+    private func usageToKeep(
+        _ usage: ProviderUsageSnapshot?,
+        for connection: ProviderConnectionState
+    ) -> ProviderUsageSnapshot? {
+        switch connection {
+        case .needsKeychainAccess, .authExpired: return nil
+        default: return usage
+        }
+    }
+
+    /// Actor reentrancy guard: a "not connected" result computed from a stale snapshot
+    /// must not overwrite a connection that was granted while we were awaiting.
+    private func applyFetched(_ newState: ProviderState, id: ProviderId, startedFrom start: ProviderState) {
+        if !start.connection.isConnected,
+           !newState.connection.isConnected,
+           providerStates[id]?.connection.isConnected == true {
+            return
+        }
+        providerStates[id] = newState
+    }
+
     /// Fetch a single provider by ID (called by the per-provider polling loop)
     private func fetchProvider(_ id: ProviderId) async {
         guard let provider = providers[id] else { return }
@@ -784,7 +858,7 @@ final class UsageViewModel: ObservableObject {
         let newState = await fetchSingleProvider(
             id: id, provider: provider, currentState: currentState
         )
-        providerStates[id] = newState
+        applyFetched(newState, id: id, startedFrom: currentState)
         pushToWidgets()
     }
 
@@ -802,6 +876,7 @@ final class UsageViewModel: ObservableObject {
                 )
             }
         }
+        let starts = Dictionary(uniqueKeysWithValues: providerPairs.map { ($0.0, providerStates[$0.0] ?? .empty) })
         await withTaskGroup(of: (ProviderId, ProviderState).self) { group in
             for (id, provider) in providerPairs {
                 let currentState = providerStates[id] ?? .empty
@@ -814,7 +889,7 @@ final class UsageViewModel: ObservableObject {
             }
 
             for await (id, newState) in group {
-                providerStates[id] = newState
+                applyFetched(newState, id: id, startedFrom: starts[id] ?? .empty)
             }
         }
         pushToWidgets()
@@ -857,7 +932,10 @@ final class UsageViewModel: ObservableObject {
             guard let usage = providerStates[id]?.usage else { return nil }
             return (id, usage)
         }
-        guard !entries.isEmpty else { return }
+        // An empty write is normally startup noise that would blank the widgets, but when
+        // a visible provider needs re-auth its frozen numbers must not keep looking live.
+        let needsReauth = visibleProviders.contains { needsReauthorization(providerStates[$0]?.connection) }
+        guard !entries.isEmpty || needsReauth else { return }
         WidgetDataStore.write(providers: entries)
     }
 
@@ -872,7 +950,7 @@ final class UsageViewModel: ObservableObject {
             if newConnection != currentState.connection {
                 return ProviderState(
                     connection: newConnection,
-                    usage: currentState.usage,
+                    usage: usageToKeep(currentState.usage, for: newConnection),
                     error: currentState.error,
                     lastSynced: currentState.lastSynced,
                     isLoading: false
@@ -906,6 +984,28 @@ final class UsageViewModel: ObservableObject {
                 isLoading: false
             )
         } catch let error as AppError {
+            if error.needsKeychainAccess {
+                // Usage is dropped (like authExpired) so stale numbers aren't
+                // shown as live in the popover and menu bar while we wait for the user.
+                return ProviderState(
+                    connection: .needsKeychainAccess,
+                    usage: nil,
+                    error: nil,
+                    lastSynced: currentState.lastSynced,
+                    isLoading: false
+                )
+            }
+            if id == .claude, case .notAuthenticated = error {
+                // Token disappeared (signed out / item removed): re-derive the real
+                // state (.installedNoAuth / .notInstalled) instead of staying "connected".
+                return ProviderState(
+                    connection: await provider.checkConnection(),
+                    usage: nil,
+                    error: nil,
+                    lastSynced: currentState.lastSynced,
+                    isLoading: false
+                )
+            }
             if error.isTokenExpired {
                 return ProviderState(
                     connection: .authExpired,

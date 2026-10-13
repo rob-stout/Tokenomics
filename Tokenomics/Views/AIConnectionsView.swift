@@ -8,6 +8,10 @@ import SwiftUI
 struct AIConnectionsView: View {
     @ObservedObject var viewModel: UsageViewModel
     @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
+    /// Disables the Allow Access button while the macOS dialog is up.
+    @State private var isRequestingKeychainAccess = false
+    /// Last "Allow Access" tap ended without access; cleared when the state moves on.
+    @State private var didKeychainAttemptFail = false
     @State private var patText = ""
     @State private var apiKeyText = ""
     @Environment(\.colorScheme) private var colorScheme
@@ -244,9 +248,15 @@ struct AIConnectionsView: View {
                         .scaledFont(.caption2)
                         .foregroundStyle(.green)
                 } else if provider.hasAPI {
-                    Text(connection.statusText)
-                        .scaledFont(.caption2)
-                        .foregroundStyle(.secondary)
+                    if didKeychainAttemptFail, case .needsKeychainAccess = connection {
+                        Text("macOS didn't allow access. Try again.")
+                            .scaledFont(.caption2)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(connection.statusText)
+                            .scaledFont(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 if let scope = provider.scopeDescription, scope != labelOverride {
@@ -317,6 +327,11 @@ struct AIConnectionsView: View {
             }
         }
         .opacity(isHidden ? 0.7 : 1)
+        // @State outlives state changes, so a past denial note must not linger once
+        // the connection moves on (e.g. Claude Code re-logged in, or access granted).
+        .onChange(of: connection) { _, _ in
+            didKeychainAttemptFail = false
+        }
         .sheet(isPresented: $viewModel.copilotPATEntryRequested) {
             patEntrySheet
         }
@@ -349,6 +364,22 @@ struct AIConnectionsView: View {
                     OnboardingTarget.shared.preselected = provider
                     openWindow(id: "onboarding")
                 }
+            case .needsKeychainAccess:
+                // Interactive keychain read runs only from this tap, never from polling.
+                smallActionButton(isRequestingKeychainAccess ? "Waiting…" : "Allow Access") {
+                    guard !isRequestingKeychainAccess else { return }
+                    isRequestingKeychainAccess = true
+                    didKeychainAttemptFail = false
+                    Task {
+                        await viewModel.requestClaudeKeychainAccess()
+                        // Only a genuine denial (still needs access) earns the note.
+                        if case .needsKeychainAccess = viewModel.providerStates[.claude]?.connection {
+                            didKeychainAttemptFail = true
+                        }
+                        isRequestingKeychainAccess = false
+                    }
+                }
+                .disabled(isRequestingKeychainAccess)
             default:
                 EmptyView()
             }

@@ -381,6 +381,8 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
         switch step {
         case .awaitingOAuth, .awaitingExternalAuth, .awaitingUserConfirm:
             return 600  // 10 min — user is in their browser
+        case .confirmingInstall(_, _, _, _, _, _, true):
+            return 600  // sign-in-framed confirm (e.g. keychain Allow Access) — user is deciding, not a stuck install
         default:
             return 180  // 3 min — install/detection should be much faster
         }

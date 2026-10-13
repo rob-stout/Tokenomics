@@ -501,6 +501,9 @@ enum ProviderConnectionState: Sendable, Equatable {
     case installedNoAuth
     case connected(plan: String)
     case authExpired
+    /// Claude Code's keychain item exists but macOS hasn't authorized Tokenomics to
+    /// read it. Recoverable with one user-initiated "Allow Access" prompt.
+    case needsKeychainAccess
     case unavailable(reason: String)
 
     var isConnected: Bool {
@@ -512,8 +515,9 @@ enum ProviderConnectionState: Sendable, Equatable {
         switch self {
         case .notInstalled: return "Not installed"
         case .installedNoAuth: return "Not signed in"
-        case .connected(let plan): return "\(plan) — Connected"
+        case .connected(let plan): return plan.isEmpty ? "Connected" : "\(plan) — Connected"
         case .authExpired: return "Auth expired"
+        case .needsKeychainAccess: return "Keychain access needed"
         case .unavailable(let reason): return reason
         }
     }

@@ -127,7 +127,7 @@ These tests were written to catch specific past bugs. If any of these fail, do n
 | Module | Reason |
 |---|---|
 | `UpdaterService.swift` | Sparkle delegate — integration-level, depends on `SPUStandardUserDriverDelegate` lifecycle that doesn't run headlessly. Test via manual TestFlight builds. |
-| `KeychainService.swift` | Wraps Apple's Security framework. Mocking `SecItemCopyMatching` via swizzling isn't worth the fragility at this scale. ClaudeProvider's token-rotation logic is covered by logic-level tests instead. |
+| `KeychainService.swift` | Wraps Apple's Security framework. Mocking `SecItemCopyMatching` via swizzling isn't worth the fragility at this scale. Instead, `ClaudeCredentialStore` takes an injected reader (cache + 401 semantics are unit-tested with a scripted reader) and `KeychainService.map(status:data:)` / `parseAccessToken` are tested as pure functions. No test touches the real keychain. |
 | `Widget extension rendering` | `TokenomicsWidgetEntryView` is visual — correctness is tested by eyeballing on a real device. |
 | `ActivityMonitor.swift` | Wraps `NSWorkspace` event observation — no testable pure logic surface. |
 | `LaunchAtLoginService.swift` | Thin wrapper over `SMAppService`. Tested at the OS level during QA. |

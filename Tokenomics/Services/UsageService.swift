@@ -19,7 +19,9 @@ actor UsageService {
     /// onboarding connection check colliding with a tick) fires a second
     /// simultaneous request — the exact burst pattern Anthropic's limiter 429s
     /// on with Retry-After: 0. Joiners await the same result instead.
-    private var inFlight: Task<UsageData, Error>?
+    /// Keyed by token: a caller holding a *newer* token must not inherit an
+    /// old-token 401 (it would wrongly drop its own good cache).
+    private var inFlight: (token: String, task: Task<UsageData, Error>)?
 
     private lazy var decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -62,9 +64,13 @@ actor UsageService {
     }
 
     func fetchUsage(token: String) async throws -> UsageData {
-        // Join an in-flight request instead of firing a concurrent duplicate
-        if let inFlight {
-            return try await inFlight.value
+        // Join an in-flight request for the same token instead of firing a duplicate.
+        // For a different token, wait for it to finish (no concurrent burst) and go on.
+        while let existing = inFlight {
+            if existing.token == token { return try await existing.task.value }
+            _ = try? await existing.task.value
+            // Task identity, not token: a newer request may share this token.
+            if inFlight?.task == existing.task { inFlight = nil }
         }
 
         // Respect rate-limit backoff — don't hit the API if we're still in a cooldown
@@ -75,8 +81,8 @@ actor UsageService {
         }
 
         let task = Task { try await performFetch(token: token) }
-        inFlight = task
-        defer { inFlight = nil }
+        inFlight = (token, task)
+        defer { if inFlight?.task == task { inFlight = nil } }
         return try await task.value
     }
 
@@ -99,7 +105,10 @@ actor UsageService {
             rateLimitedUntil = nil
             consecutive429s = 0
             Self.log.info("Usage fetch succeeded")
-        case 401, 403:
+        case 401:
+            // Only 401 means "token dead" (it feeds the credential store's rejected set,
+            // permanently). A 403 is usually a transient Cloudflare/edge block, so it
+            // falls through to httpError: shown as an error, retried next poll.
             throw AppError.tokenExpired
         case 429:
             consecutive429s += 1

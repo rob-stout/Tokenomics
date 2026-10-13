@@ -114,7 +114,7 @@ actor CursorConnector: ProviderConnector {
             // sign-in confirm screen — installing is not the missing step here.
             activePhase = .confirmingSignIn
             return Self.signInConfirmStep
-        case .authExpired:
+        case .authExpired, .needsKeychainAccess:
             return .needsAction
         case .unavailable(let reason):
             return .failed(.unknown(reason))

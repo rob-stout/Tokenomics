@@ -3,7 +3,8 @@ import XCTest
 
 // MARK: - ClaudeProvider Token Rotation Tests
 //
-// ClaudeProvider reads from KeychainService (Security framework). To avoid real
+// ClaudeProvider reads tokens via ClaudeCredentialStore (cache semantics are covered
+// in ClaudeCredentialStoreTests with an injected reader). To avoid real
 // keychain access in tests we verify the token-rotation detection logic through
 // the observable side-effects: resetRateLimit() is called when the token changes.
 //
