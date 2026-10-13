@@ -206,7 +206,7 @@ extension ProviderId {
     /// read API).
     var scopeDescription: String? {
         switch self {
-        case .claude: return "Claude Chat · Cowork · Code"
+        case .claude: return "Claude · Claude Code"
         case .chatgpt: return "ChatGPT · via browser session"
         case .geminiConsumer: return "Gemini · via browser session"
         case .codex: return "Codex CLI"
@@ -250,7 +250,8 @@ extension ProviderId {
 
     /// THE per-pool label — the single source of truth for how a pool is named
     /// to the user. Every surface that shows a pool must use this and only this:
-    /// the Connections toggles, usage notifications, the popover pool section
+    /// the Connections toggles (except Anthropic's row, titled by company — see
+    /// AIConnectionsView.brandGroup), usage notifications, the popover pool section
     /// headers, the widget (baked into the snapshot by `WidgetDataStore.write`),
     /// the Pin Tracker, and the display-mode menu.
     ///
@@ -260,7 +261,7 @@ extension ProviderId {
     /// "Google AI") and collides across a brand's pools. See `PoolLabelAlignmentTests`.
     var poolLabel: String {
         switch self {
-        case .claude:          return "Anthropic"
+        case .claude:          return "Claude"
         case .chatgpt:         return "ChatGPT"
         case .geminiConsumer:  return "Gemini (app)"
         case .codex:           return "Codex CLI"

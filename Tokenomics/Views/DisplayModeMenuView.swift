@@ -26,7 +26,7 @@ struct DisplayModeMenuView: View {
             // Pin a specific provider (pool).
             //
             // Flag on: flat list of per-pool entries using poolLabel —
-            //   e.g. "Anthropic / ChatGPT / Codex CLI / GitHub Copilot / Cursor / Gemini CLI"
+            //   e.g. "Claude / ChatGPT / Codex CLI / GitHub Copilot / Cursor / Gemini CLI"
             //   Pin storage stays at ProviderId granularity so old pins survive the upgrade.
             //
             // Flag off: per-ProviderId entries using displayName (today's behavior).

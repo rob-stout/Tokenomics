@@ -20,7 +20,7 @@ final class PoolLabelAlignmentTests: XCTestCase {
     /// `poolLabel`. If it changes by accident, this fails loudly.
     func testPoolLabel_pinnedValues() {
         let expected: [ProviderId: String] = [
-            .claude: "Anthropic",
+            .claude: "Claude",
             .chatgpt: "ChatGPT",
             .codex: "Codex CLI",
             .geminiConsumer: "Gemini (app)",

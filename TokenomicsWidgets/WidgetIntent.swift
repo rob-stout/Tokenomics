@@ -41,7 +41,7 @@ enum WidgetProviderSelection: String, AppEnum {
     // PoolLabelAlignmentTests). "Best of All (Smart)" is the only non-pool entry.
     static var caseDisplayRepresentations: [WidgetProviderSelection: DisplayRepresentation] = [
         .smart:           "Best of All (Smart)",
-        .claude:          "Anthropic",
+        .claude:          "Claude",
         .chatgpt:         "ChatGPT",
         .codex:           "Codex CLI",
         .geminiConsumer:  "Gemini (app)",

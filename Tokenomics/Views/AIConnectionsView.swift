@@ -166,7 +166,14 @@ struct AIConnectionsView: View {
                 )
             }
         } else {
-            connectionRow(for: brand.primaryPool, isLast: isLast)
+            // Anthropic is the one single-pool row titled by company: the
+            // connection is the Anthropic account (Claude + Claude Code share one
+            // pool), while every other surface calls that pool "Claude".
+            connectionRow(
+                for: brand.primaryPool,
+                isLast: isLast,
+                labelOverride: brand == .anthropic ? brand.companyAttribution : nil
+            )
         }
     }
 

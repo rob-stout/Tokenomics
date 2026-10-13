@@ -180,7 +180,7 @@ final class PopoverBrandAggregationTests: XCTestCase {
 
     /// Flag on: Pin Tracker uses `poolLabel` which shows pool-specific names.
     func testDuring_poolLabel_showsPoolSpecificNames() {
-        XCTAssertEqual(ProviderId.claude.poolLabel,          "Anthropic")
+        XCTAssertEqual(ProviderId.claude.poolLabel,          "Claude")
         XCTAssertEqual(ProviderId.chatgpt.poolLabel,         "ChatGPT")
         XCTAssertEqual(ProviderId.codex.poolLabel,           "Codex CLI")
         XCTAssertEqual(ProviderId.gemini.poolLabel,          "Gemini CLI")

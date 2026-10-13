@@ -19,7 +19,7 @@ final class NotificationContentTests: XCTestCase {
     func testNotificationTitle_usesPoolLabel() {
         XCTAssertEqual(
             NotificationService.usageAlertTitle(for: .claude, utilization: 85),
-            "Anthropic at 85%"
+            "Claude at 85%"
         )
     }
 
@@ -53,7 +53,7 @@ final class NotificationContentTests: XCTestCase {
     func testNotificationTitle_atExactly100_shows100Percent() {
         XCTAssertEqual(
             NotificationService.usageAlertTitle(for: .claude, utilization: 100.0),
-            "Anthropic at 100%"
+            "Claude at 100%"
         )
     }
 
@@ -61,7 +61,7 @@ final class NotificationContentTests: XCTestCase {
         // 120% usage — Int() truncates, title shows 120%
         XCTAssertEqual(
             NotificationService.usageAlertTitle(for: .claude, utilization: 120.0),
-            "Anthropic at 120%"
+            "Claude at 120%"
         )
     }
 
