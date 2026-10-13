@@ -54,8 +54,8 @@ jobs:
             -destination 'platform=macOS' \
             $XCODEBUILD_FLAGS
 
-      # Widget-sync tests skip themselves in CI (no App Group entitlement),
-      # but NotificationPostingTests still run. Set repository variable
+      # Widget-sync tests use a temp file (no App Group entitlement needed),
+      # so they run in CI alongside NotificationPostingTests. Set repository variable
       # SKIP_INTEGRATION=1 to bypass entirely if it gets noisy.
       - name: Integration tests (TokenomicsIntegration)
         if: ${{ vars.SKIP_INTEGRATION != '1' }}

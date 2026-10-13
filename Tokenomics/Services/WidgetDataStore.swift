@@ -218,7 +218,10 @@ enum WidgetDataStore {
         }
     }
 
-    static func write(providers: [(ProviderId, ProviderUsageSnapshot)]) {
+    /// `fileURL` is a test seam: tests pass a temp file so they never touch the
+    /// real App Group container (which would overwrite the user's live widget
+    /// data, and on macOS 15+ blocks unentitled ad-hoc builds anyway).
+    static func write(providers: [(ProviderId, ProviderUsageSnapshot)], to fileURL: URL? = nil) {
         let entries = makeEntries(providers: providers)
 
         let widgetSnapshot = WidgetSnapshot(
@@ -229,7 +232,7 @@ enum WidgetDataStore {
             brandAggregationEnabled: FeatureFlags.brandAggregation
         )
 
-        guard let url = sharedFileURL,
+        guard let url = fileURL ?? sharedFileURL,
               let data = try? JSONEncoder().encode(widgetSnapshot) else { return }
 
         // Ensure the directory exists
@@ -240,8 +243,11 @@ enum WidgetDataStore {
 
         try? data.write(to: url, options: .atomic)
 
-        // Tell WidgetKit to refresh
-        WidgetCenter.shared.reloadAllTimelines()
+        // Tell WidgetKit to refresh — only for the real shared file, so test
+        // writes don't reload the user's widgets.
+        if fileURL == nil {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     /// Shorten labels for widget display: "5-Hour Window" → "5-Hour", "Tokens Today" → "Tokens"
@@ -263,8 +269,8 @@ enum WidgetDataStore {
     // MARK: - Read (Widget Extension)
 
     /// Reads the latest snapshot from shared storage.
-    static func read() -> WidgetSnapshot? {
-        guard let url = sharedFileURL,
+    static func read(from fileURL: URL? = nil) -> WidgetSnapshot? {
+        guard let url = fileURL ?? sharedFileURL,
               let data = try? Data(contentsOf: url),
               let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data) else {
             return nil

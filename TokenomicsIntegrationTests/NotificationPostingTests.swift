@@ -92,7 +92,12 @@ final class NotificationPostingTests: XCTestCase {
 
         let request = try XCTUnwrap(fakeCenter.addedRequests.first)
         XCTAssertEqual(request.identifier, "claude_short_alert")
-        XCTAssertEqual(request.content.title, "Claude Code at 85%")
+        // Compare against the production title builder so this can't drift
+        // from the pool-label source of truth again.
+        XCTAssertEqual(
+            request.content.title,
+            NotificationService.usageAlertTitle(for: .claude, utilization: 85)
+        )
         XCTAssertEqual(request.content.categoryIdentifier, "USAGE_ALERT")
         XCTAssertNil(request.trigger, "Notification should deliver immediately (no trigger)")
     }

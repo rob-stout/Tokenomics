@@ -9,11 +9,12 @@ import XCTest
 /// (not UserDefaults) to sidestep CFPrefs issues between sandboxed/non-sandboxed targets.
 ///
 /// These tests write via the production `WidgetDataStore.write()` path and
-/// read back via `WidgetDataStore.read()` — the same paths the real app uses.
+/// read back via `WidgetDataStore.read()` — the same code the real app uses.
 ///
-/// The App Group identifier is `group.com.robstout.tokenomics`. In CI (where
-/// the App Group container isn't provisioned), `containerURL` returns nil and
-/// `write()` silently no-ops. The test detects this and skips gracefully.
+/// The tests write to a per-test temp file rather than the real App Group
+/// container: writing there would overwrite the user's live widget data, and on
+/// macOS 15+ an unentitled (ad-hoc / CI) build gets a container URL it can't
+/// actually use, so a `containerURL != nil` skip check doesn't work.
 
 final class WidgetSyncTests: XCTestCase {
 
@@ -38,9 +39,14 @@ final class WidgetSyncTests: XCTestCase {
         return (id, snapshot)
     }
 
-    private var appGroupAvailable: Bool {
-        FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId) != nil
+    // XCTest makes a fresh instance per test, so each test gets its own file.
+    private let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("WidgetSyncTests-\(UUID().uuidString)")
+        .appendingPathComponent("widget-data.json")
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+        try super.tearDownWithError()
     }
 
     // MARK: - Roundtrip Test
@@ -49,22 +55,18 @@ final class WidgetSyncTests: XCTestCase {
     /// Asserts roundtrip equality on all non-Date fields (Date equality is ±1s due to
     /// JSON encoding precision).
     func testMenuBarToWidget_roundtrip_dataPreserved() throws {
-        guard appGroupAvailable else {
-            throw XCTSkip("App Group container unavailable in this environment (CI without entitlements)")
-        }
-
         let entry = makeProviderEntry(utilization: 73.5)
-        WidgetDataStore.write(providers: [entry])
+        WidgetDataStore.write(providers: [entry], to: fileURL)
 
         let snapshot = try XCTUnwrap(
-            WidgetDataStore.read(),
+            WidgetDataStore.read(from: fileURL),
             "WidgetDataStore.read() returned nil after write — file may not have been created"
         )
 
         XCTAssertEqual(snapshot.providers.count, 1)
         let provider = try XCTUnwrap(snapshot.providers.first)
         XCTAssertEqual(provider.id, ProviderId.claude.rawValue)
-        XCTAssertEqual(provider.displayName, ProviderId.claude.displayName)
+        XCTAssertEqual(provider.displayName, ProviderId.claude.poolLabel) // widget bakes in the pool label
         XCTAssertEqual(provider.shortWindow.utilization, 73.5, accuracy: 0.001)
         XCTAssertEqual(provider.shortWindow.label, "5-Hour") // widgetLabel strips " Window"
         XCTAssertNil(provider.longWindow)
@@ -73,17 +75,13 @@ final class WidgetSyncTests: XCTestCase {
 
     /// Write multiple providers — widget reads back all of them in order.
     func testMenuBarToWidget_multipleProviders_allPreserved() throws {
-        guard appGroupAvailable else {
-            throw XCTSkip("App Group container unavailable in this environment (CI without entitlements)")
-        }
-
         let entries: [(ProviderId, ProviderUsageSnapshot)] = [
             makeProviderEntry(id: .claude, utilization: 40.0),
             makeProviderEntry(id: .cursor, utilization: 80.0)
         ]
-        WidgetDataStore.write(providers: entries)
+        WidgetDataStore.write(providers: entries, to: fileURL)
 
-        let snapshot = try XCTUnwrap(WidgetDataStore.read())
+        let snapshot = try XCTUnwrap(WidgetDataStore.read(from: fileURL))
         XCTAssertEqual(snapshot.providers.count, 2)
         XCTAssertEqual(snapshot.providers[0].id, "claude")
         XCTAssertEqual(snapshot.providers[1].id, "cursor")
@@ -92,16 +90,12 @@ final class WidgetSyncTests: XCTestCase {
 
     /// Overwrite: second write replaces first — reader sees the latest data only.
     func testMenuBarToWidget_secondWrite_replacesFirst() throws {
-        guard appGroupAvailable else {
-            throw XCTSkip("App Group container unavailable in this environment (CI without entitlements)")
-        }
-
         // First write
-        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 25.0)])
+        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 25.0)], to: fileURL)
         // Second write with different value
-        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 90.0)])
+        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 90.0)], to: fileURL)
 
-        let snapshot = try XCTUnwrap(WidgetDataStore.read())
+        let snapshot = try XCTUnwrap(WidgetDataStore.read(from: fileURL))
         let provider = try XCTUnwrap(snapshot.providers.first)
         XCTAssertEqual(provider.shortWindow.utilization, 90.0, accuracy: 0.001)
     }
@@ -111,13 +105,9 @@ final class WidgetSyncTests: XCTestCase {
     /// WidgetDataStore.widgetLabel strips " Window" and " Today" suffixes.
     /// This is private logic — we verify its effect by round-tripping through write/read.
     func testWidgetLabel_windowSuffix_isStripped() throws {
-        guard appGroupAvailable else {
-            throw XCTSkip("App Group container unavailable in this environment (CI without entitlements)")
-        }
+        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 50)], to: fileURL)
 
-        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 50)])
-
-        let snapshot = try XCTUnwrap(WidgetDataStore.read())
+        let snapshot = try XCTUnwrap(WidgetDataStore.read(from: fileURL))
         let provider = try XCTUnwrap(snapshot.providers.first)
         // "5-Hour Window" → "5-Hour"
         XCTAssertEqual(provider.shortWindow.label, "5-Hour")
@@ -132,17 +122,13 @@ final class WidgetSyncTests: XCTestCase {
     /// WidgetDataStore uses `.atomic` write — so this test verifies the file persists
     /// correctly across what would be a process boundary (simulated by a second read).
     func testSparkleRelaunch_dataPersistedAcrossReads() throws {
-        guard appGroupAvailable else {
-            throw XCTSkip("App Group container unavailable in this environment (CI without entitlements)")
-        }
-
-        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 55.0)])
+        WidgetDataStore.write(providers: [makeProviderEntry(utilization: 55.0)], to: fileURL)
 
         // First read (simulates widget getting data immediately after write)
-        let firstRead = try XCTUnwrap(WidgetDataStore.read())
+        let firstRead = try XCTUnwrap(WidgetDataStore.read(from: fileURL))
 
         // Second read (simulates widget reading after Sparkle relaunched the app)
-        let secondRead = try XCTUnwrap(WidgetDataStore.read())
+        let secondRead = try XCTUnwrap(WidgetDataStore.read(from: fileURL))
 
         // Both reads must see the same data — no cache invalidation issue
         XCTAssertEqual(firstRead.providers.count, secondRead.providers.count)
