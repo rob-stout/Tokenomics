@@ -197,7 +197,7 @@ enum SettingsService {
 
     // MARK: - Copilot Plan Limit
 
-    /// User-specified monthly premium request limit for Copilot.
+    /// User-specified monthly AI credits limit for Copilot.
     /// nil = use default (300 for Individual plan).
     static var copilotMonthlyLimit: Int? {
         get {

@@ -6,9 +6,9 @@ import os
 /// Auth: reads the token from `gh auth token` (stored in the system keyring by
 /// the GitHub CLI). No PAT or manual setup required.
 ///
-/// API: `GET https://api.github.com/copilot_internal/user` — returns remaining
-/// quotas, monthly limits, plan type, and reset date. Works for both free and
-/// paid users with the standard gh CLI token.
+/// API: `GET https://api.github.com/copilot_internal/user` — returns the user's
+/// plan, quota reset date, and per-quota snapshots. We surface the
+/// `quota_snapshots.premium_interactions` metric (the AI credits budget).
 actor CopilotProvider: UsageProvider {
     let id = ProviderId.copilot
     let pollInterval: TimeInterval = 300 // 5 min — lightweight internal endpoint
@@ -119,64 +119,69 @@ actor CopilotProvider: UsageProvider {
     // MARK: - Mapping
 
     private func mapToSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
-        let chatQuota = info.limitedUserQuotas?.chat ?? 0
-        let chatLimit = info.monthlyQuotas?.chat ?? 0
-        let chatUsed = chatLimit - chatQuota
+        let resetsAt = info.resetDate ?? Date.distantFuture
 
-        let completionsQuota = info.limitedUserQuotas?.completions ?? 0
-        let completionsLimit = info.monthlyQuotas?.completions ?? 0
-        let completionsUsed = completionsLimit - completionsQuota
-
-        let chatUtilization = chatLimit > 0
-            ? Double(chatUsed) / Double(chatLimit) * 100 : 0
-        let completionsUtilization = completionsLimit > 0
-            ? Double(completionsUsed) / Double(completionsLimit) * 100 : 0
-
-        // Parse reset date
-        let resetsAt: Date
-        if let resetStr = info.limitedUserResetDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            resetsAt = formatter.date(from: resetStr) ?? Date.distantFuture
-        } else {
-            resetsAt = Date.distantFuture
-        }
-
-        // Estimate cycle start (reset date minus ~30 days)
+        // Estimate cycle start (reset date minus ~1 month) for pace calculations.
         let calendar = Calendar.current
         let cycleStart = calendar.date(byAdding: .month, value: -1, to: resetsAt) ?? Date()
         let cycleDuration = resetsAt.timeIntervalSince(cycleStart)
 
-        // Short window: chat requests (the tighter constraint for most users)
-        let shortWindow = WindowUsage(
-            label: "Chat",
-            utilization: min(chatUtilization, 999),
-            resetsAt: resetsAt,
-            windowDuration: cycleDuration,
-            sublabelOverride: "\(chatUsed) / \(chatLimit) used"
-        )
-
-        // Long window: completions (higher limit, secondary metric)
-        let longWindow: WindowUsage?
-        if completionsLimit > 0 {
-            longWindow = WindowUsage(
-                label: "Completions",
-                utilization: min(completionsUtilization, 999),
-                resetsAt: resetsAt,
-                windowDuration: cycleDuration,
-                sublabelOverride: "\(completionsUsed) / \(completionsLimit) used"
-            )
-        } else {
-            longWindow = nil
-        }
+        let premium = info.quotaSnapshots?.premiumInteractions
+        let shortWindow = premiumWindow(premium, resetsAt: resetsAt, windowDuration: cycleDuration)
 
         return ProviderUsageSnapshot(
             shortWindow: shortWindow,
-            longWindow: longWindow,
+            longWindow: nil,
             planLabel: info.planLabel,
             extraUsage: nil,
             creditsBalance: nil
         )
+    }
+
+    private func premiumWindow(_ snapshot: CopilotUserInfo.QuotaSnapshot?,
+                               resetsAt: Date,
+                               windowDuration: TimeInterval) -> WindowUsage {
+        let label = "AI credits"
+
+        guard let snapshot, !(snapshot.unlimited ?? false) else {
+            return WindowUsage(
+                label: label,
+                utilization: 0,
+                resetsAt: resetsAt,
+                windowDuration: windowDuration,
+                sublabelOverride: "Unlimited"
+            )
+        }
+
+        let entitlement = snapshot.entitlement ?? 0
+        let remaining = snapshot.remaining ?? entitlement
+        let used = max(entitlement - remaining, 0)
+
+        // Prefer the server-provided percentage; fall back to a local calc.
+        let utilization: Double
+        if let percentRemaining = snapshot.percentRemaining {
+            utilization = max(0, 100 - percentRemaining)
+        } else if entitlement > 0 {
+            utilization = Double(used) / Double(entitlement) * 100
+        } else {
+            utilization = 0
+        }
+
+        let sublabel = "\(Self.formatCount(used)) / \(Self.formatCount(entitlement)) used"
+
+        return WindowUsage(
+            label: label,
+            utilization: min(utilization, 999),
+            resetsAt: resetsAt,
+            windowDuration: windowDuration,
+            sublabelOverride: sublabel
+        )
+    }
+
+    private static func formatCount(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }
 
@@ -187,29 +192,72 @@ private struct CopilotUserInfo: Decodable {
     let accessTypeSku: String?
     let copilotPlan: String?
     let chatEnabled: Bool?
-    let limitedUserQuotas: Quotas?
-    let limitedUserResetDate: String?
-    let monthlyQuotas: Quotas?
+    let quotaSnapshots: QuotaSnapshots?
+    let quotaResetDate: String?
+    let quotaResetDateUtc: String?
 
-    struct Quotas: Decodable {
-        let chat: Int?
-        let completions: Int?
+    struct QuotaSnapshots: Decodable {
+        let premiumInteractions: QuotaSnapshot?
+
+        enum CodingKeys: String, CodingKey {
+            case premiumInteractions = "premium_interactions"
+        }
     }
 
-    var planLabel: String {
-        guard let sku = accessTypeSku else { return "Free" }
-        switch sku {
-        case "free_limited_copilot": return "Free"
-        case "copilot_for_individual", "copilot_individual": return "Individual"
-        case "copilot_for_business", "copilot_business": return "Business"
-        case "copilot_enterprise": return "Enterprise"
-        default:
-            // Fall back to copilot_plan field
-            if let plan = copilotPlan {
-                return plan.prefix(1).uppercased() + plan.dropFirst()
-            }
-            return "Free"
+    struct QuotaSnapshot: Decodable {
+        let entitlement: Int?
+        let remaining: Int?
+        let percentRemaining: Double?
+        let unlimited: Bool?
+        let overageCount: Int?
+        let overagePermitted: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case entitlement
+            case remaining
+            case percentRemaining = "percent_remaining"
+            case unlimited
+            case overageCount = "overage_count"
+            case overagePermitted = "overage_permitted"
         }
+    }
+
+    /// Reset date for the current quota cycle. Prefers the precise UTC timestamp,
+    /// falling back to the day-granularity `quota_reset_date`.
+    var resetDate: Date? {
+        if let utc = quotaResetDateUtc, let date = Self.iso8601.date(from: utc) {
+            return date
+        }
+        if let day = quotaResetDate, let date = Self.dayFormatter.date(from: day) {
+            return date
+        }
+        return nil
+    }
+
+    private static let iso8601: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter
+    }()
+
+    var planLabel: String {
+        if let sku = accessTypeSku?.lowercased() {
+            if sku.contains("free") { return "Free" }
+            if sku.contains("enterprise") { return "Enterprise" }
+            if sku.contains("business") { return "Business" }
+            if sku.contains("individual") { return "Individual" }
+        }
+        if let plan = copilotPlan, !plan.isEmpty {
+            return plan.prefix(1).uppercased() + plan.dropFirst()
+        }
+        return "Free"
     }
 
     enum CodingKeys: String, CodingKey {
@@ -217,9 +265,9 @@ private struct CopilotUserInfo: Decodable {
         case accessTypeSku = "access_type_sku"
         case copilotPlan = "copilot_plan"
         case chatEnabled = "chat_enabled"
-        case limitedUserQuotas = "limited_user_quotas"
-        case limitedUserResetDate = "limited_user_reset_date"
-        case monthlyQuotas = "monthly_quotas"
+        case quotaSnapshots = "quota_snapshots"
+        case quotaResetDate = "quota_reset_date"
+        case quotaResetDateUtc = "quota_reset_date_utc"
     }
 }
 

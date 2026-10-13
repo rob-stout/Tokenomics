@@ -1,0 +1,34 @@
+{
+  "login": "enterpriseuser",
+  "access_type_sku": "copilot_enterprise_seat_multi_quota",
+  "copilot_plan": "enterprise",
+  "chat_enabled": true,
+  "quota_reset_date": "2026-07-01",
+  "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
+  "quota_snapshots": {
+    "chat": {
+      "entitlement": 0,
+      "remaining": 0,
+      "percent_remaining": 100.0,
+      "unlimited": true,
+      "overage_count": 0,
+      "overage_permitted": false
+    },
+    "completions": {
+      "entitlement": 0,
+      "remaining": 0,
+      "percent_remaining": 100.0,
+      "unlimited": true,
+      "overage_count": 0,
+      "overage_permitted": false
+    },
+    "premium_interactions": {
+      "entitlement": 40000,
+      "remaining": 22499,
+      "percent_remaining": 56.2,
+      "unlimited": false,
+      "overage_count": 0,
+      "overage_permitted": true
+    }
+  }
+}
