@@ -175,15 +175,13 @@ actor CodexProvider: UsageProvider {
     }
 
     private func mapToSnapshot(_ data: SessionData) -> ProviderUsageSnapshot {
-        // Primary bar: 5-hour rate limit (drives menu bar % and inner ring)
+        // The service does not guarantee that `primary` is the 5-hour window.
+        // Some plans return a weekly-only primary with `secondary: null`, so
+        // order and label the available windows by their actual durations.
+        let windows = data.rateLimits?.windowsByDuration ?? []
         let shortWindow: WindowUsage
-        if let primary = data.rateLimits?.primary {
-            shortWindow = WindowUsage(
-                label: "5-Hour Window",
-                utilization: primary.usedPercent,
-                resetsAt: Date(timeIntervalSince1970: primary.resetsAt),
-                windowDuration: Double(primary.windowMinutes) * 60
-            )
+        if let firstWindow = windows.first {
+            shortWindow = Self.mapWindow(firstWindow)
         } else {
             // No session data yet — .distantFuture is only a pace sentinel; without
             // an override timeUntilReset would format it as a real calendar date.
@@ -196,22 +194,7 @@ actor CodexProvider: UsageProvider {
             )
         }
 
-        // Secondary bar: weekly rate limit. Parallels Claude's 7-Day window and
-        // ChatGPT's Weekly budget so every coding tool tells a consistent
-        // "5-hour + weekly" story. (`secondary` is OpenAI's weekly cap; it was
-        // previously decoded but never surfaced — the slot showed context-window
-        // tokens instead.)
-        let longWindow: WindowUsage?
-        if let secondary = data.rateLimits?.secondary {
-            longWindow = WindowUsage(
-                label: "Weekly",
-                utilization: secondary.usedPercent,
-                resetsAt: Date(timeIntervalSince1970: secondary.resetsAt),
-                windowDuration: Double(secondary.windowMinutes) * 60
-            )
-        } else {
-            longWindow = nil
-        }
+        let longWindow = windows.dropFirst().first.map(Self.mapWindow)
 
         let plan = inferPlan(from: data.rateLimits)
 
@@ -221,6 +204,15 @@ actor CodexProvider: UsageProvider {
             planLabel: plan,
             extraUsage: nil,
             creditsBalance: data.rateLimits?.credits?.balance
+        )
+    }
+
+    private static func mapWindow(_ window: CodexRateLimitWindow) -> WindowUsage {
+        WindowUsage(
+            label: window.displayLabel,
+            utilization: window.usedPercent,
+            resetsAt: Date(timeIntervalSince1970: window.resetsAt),
+            windowDuration: Double(window.windowMinutes) * 60
         )
     }
 
@@ -338,13 +330,20 @@ private struct CodexSessionEvent: Decodable {
 
 struct CodexRateLimits: Decodable, Sendable {
     let primary: CodexRateLimitWindow
-    let secondary: CodexRateLimitWindow
+    let secondary: CodexRateLimitWindow?
     let credits: CodexCredits?
     let planType: String?
 
     enum CodingKeys: String, CodingKey {
         case primary, secondary, credits
         case planType = "plan_type"
+    }
+
+    /// Sort by duration instead of assuming primary = 5-hour and secondary = weekly.
+    var windowsByDuration: [CodexRateLimitWindow] {
+        [primary, secondary]
+            .compactMap { $0 }
+            .sorted { $0.windowMinutes < $1.windowMinutes }
     }
 }
 
@@ -357,6 +356,14 @@ struct CodexRateLimitWindow: Decodable, Sendable {
         case usedPercent = "used_percent"
         case windowMinutes = "window_minutes"
         case resetsAt = "resets_at"
+    }
+
+    var displayLabel: String {
+        switch windowMinutes {
+        case 300: return "5-Hour Window"
+        case 10_080: return "Weekly"
+        default: return "Rate Limit"
+        }
     }
 }
 
