@@ -211,6 +211,7 @@ extension ButtonStyle where Self == InFieldButtonStyle {
 
 // MARK: - Preview
 
+@MainActor
 private var buttonGallery: some View {
     VStack(alignment: .leading, spacing: Tokens.Spacing.s4) {
         Button("Install Codex CLI") {}

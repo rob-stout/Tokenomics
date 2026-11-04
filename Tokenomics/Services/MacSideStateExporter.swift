@@ -84,7 +84,7 @@ actor MacSideStateExporter {
 
     private func scheduleWrite() {
         pendingWriteTask?.cancel()
-        pendingWriteTask = Task { [state = currentMacSideState] in
+        pendingWriteTask = Task {
             // 250ms debounce — rapid updates coalesce to one write
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }

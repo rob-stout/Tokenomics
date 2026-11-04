@@ -461,7 +461,8 @@ final class UsageViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refresh()
+            // queue: .main guarantees we're on the main thread; tell the compiler.
+            MainActor.assumeIsolated { self?.refresh() }
         }
 
         // SettingsService.setVisibility was called → propagate to MacSideStateExporter.
@@ -470,12 +471,13 @@ final class UsageViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] note in
-            guard let self,
-                  let providerIdRaw = note.object as? String,
-                  let setting = note.userInfo?["setting"] as? ProviderVisibilitySetting,
-                  let exporter = self.macSideStateExporter else { return }
-            Task {
-                await exporter.setVisibility(setting, for: providerIdRaw)
+            guard let providerIdRaw = note.object as? String,
+                  let setting = note.userInfo?["setting"] as? ProviderVisibilitySetting else { return }
+            MainActor.assumeIsolated {
+                guard let exporter = self?.macSideStateExporter else { return }
+                Task {
+                    await exporter.setVisibility(setting, for: providerIdRaw)
+                }
             }
         }
 

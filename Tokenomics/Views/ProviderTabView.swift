@@ -167,7 +167,7 @@ private func providerTabIcon(for provider: ProviderId, colorScheme: ColorScheme)
 }
 
 private struct TabFramePreference: PreferenceKey {
-    static var defaultValue: [ProviderId: CGRect] = [:]
+    static let defaultValue: [ProviderId: CGRect] = [:]
     static func reduce(value: inout [ProviderId: CGRect], nextValue: () -> [ProviderId: CGRect]) {
         value.merge(nextValue()) { _, new in new }
     }

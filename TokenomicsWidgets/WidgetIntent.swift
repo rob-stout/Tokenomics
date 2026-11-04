@@ -35,11 +35,11 @@ enum WidgetProviderSelection: String, AppEnum {
     case grok            = "grok"
     case perplexity      = "perplexity"
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
     // These strings MUST equal the matching ProviderId.poolLabel (asserted in
     // PoolLabelAlignmentTests). "Best of All (Smart)" is the only non-pool entry.
-    static var caseDisplayRepresentations: [WidgetProviderSelection: DisplayRepresentation] = [
+    static let caseDisplayRepresentations: [WidgetProviderSelection: DisplayRepresentation] = [
         .smart:           "Best of All (Smart)",
         .claude:          "Claude",
         .chatgpt:         "ChatGPT",
@@ -61,8 +61,8 @@ enum WidgetProviderSelection: String, AppEnum {
 #if WIDGET_EXTENSION
 /// Configurable intent for the small widget — lets users pick a specific provider or Smart mode
 struct SelectProviderIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Select Provider"
-    static var description = IntentDescription("Choose which AI provider to show, or use Smart mode to show the most critical one.")
+    static let title: LocalizedStringResource = "Select Provider"
+    static let description = IntentDescription("Choose which AI provider to show, or use Smart mode to show the most critical one.")
 
     @Parameter(title: "Provider", default: .smart)
     var provider: WidgetProviderSelection

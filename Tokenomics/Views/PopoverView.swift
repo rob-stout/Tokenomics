@@ -752,7 +752,7 @@ struct PopoverView: View {
                         .toggleStyle(.switch)
                         .controlSize(.mini)
                         .labelsHidden()
-                        .onChange(of: launchAtLogin) { newValue in
+                        .onChange(of: launchAtLogin) { _, newValue in
                             LaunchAtLoginService.setEnabled(newValue)
                             launchAtLogin = LaunchAtLoginService.isEnabled
                         }
@@ -941,7 +941,7 @@ struct PopoverView: View {
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .labelsHidden()
-                .onChange(of: brandAggregationFlag) { newValue in
+                .onChange(of: brandAggregationFlag) { _, newValue in
                     FeatureFlags.brandAggregation = newValue
                 }
         }

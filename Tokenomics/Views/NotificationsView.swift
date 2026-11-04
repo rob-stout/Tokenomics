@@ -68,7 +68,7 @@ struct NotificationsView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .onChange(of: alertWindow) { newValue in
+                .onChange(of: alertWindow) { _, newValue in
                     SettingsService.alertWindow = newValue
                 }
 
