@@ -1,27 +1,19 @@
 import AppKit
-import MenuBarExtraAccess
 import SwiftUI
 import os
 
 @main
 struct TokenomicsApp: App {
-    @StateObject private var viewModel = UsageViewModel()
+    // @State, not @StateObject: the App only owns the view model — the views
+    // observe it. With @StateObject every published change (each poll result)
+    // re-evaluated the whole scene, rebuilding the MenuBarExtra each time.
+    @State private var viewModel = UsageViewModel()
     @StateObject private var updaterService = UpdaterService()
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
-
-    /// Popover width depends on both provider count (4+ need extra room for
-    /// icon-only tabs) and user-selected text size (Medium/Large need wider
-    /// popovers to avoid cramping or truncating).
-    private var popoverWidth: CGFloat {
-        let size = TextSize(rawValue: textSizeRaw) ?? .compact
-        return size.popoverWidth(providerCount: viewModel.visibleProviders.count)
-    }
 
     var body: some Scene {
         MenuBarExtra {
             PopoverView(viewModel: viewModel, updaterService: updaterService)
-                .frame(width: popoverWidth)
                 .onAppear {
                     // Wire the exporter reference once the popover is ready.
                     // This is idempotent — assigning the same actor reference again is harmless.
@@ -33,11 +25,6 @@ struct TokenomicsApp: App {
             // is gated on hasCompletedOnboarding inside the view model.
             MenuBarLabel(viewModel: viewModel)
         }
-        // Lets us open the popover programmatically (e.g. at the end of
-        // onboarding). Two-way: also reflects user-driven open/close.
-        // MUST be the first modifier after MenuBarExtra (it's a MenuBarExtra
-        // extension, not a generic Scene modifier).
-        .menuBarExtraAccess(isPresented: $viewModel.isPopoverPresented)
         .menuBarExtraStyle(.window)
 
         // MARK: - Onboarding Window
@@ -88,14 +75,14 @@ struct OnboardingWindowRoot: View {
     var body: some View {
         ConnectorContainer(viewModel: viewModel, webCompanion: webCompanion) {
             // Onboarding finished. Close the window, focus the app, then pop the
-            // menu-bar popover open so the user lands on their usage. The popover
-            // is opened via MenuBarExtraAccess (no first-party API exists). A short
-            // delay lets the window dismiss + the status item settle first —
-            // opening immediately can silently no-op.
+            // menu-bar popover open so the user lands on their usage (no
+            // first-party API exists — see StatusItemPresenter). A short delay
+            // lets the window dismiss + the status item settle first — opening
+            // immediately can silently no-op.
             NSApp.activate(ignoringOtherApps: true)
             dismissWindow(id: "onboarding")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                viewModel.isPopoverPresented = true
+                StatusItemPresenter.open()
             }
         }
         .frame(width: 720, height: 560)

@@ -70,6 +70,11 @@ struct PopoverView: View {
                 mainContent
             }
         }
+        // Width depends on both provider count (4+ need extra room for icon-only
+        // tabs) and text size (Medium/Large need wider popovers to avoid cramping
+        // or truncating). Lives here, not in the App scene, so the scene doesn't
+        // have to observe the view model.
+        .frame(width: textSize.popoverWidth(providerCount: viewModel.visibleProviders.count))
         .animation(.easeInOut(duration: 0.2), value: viewModel.showSettings)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showAIConnections)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showNotifications)

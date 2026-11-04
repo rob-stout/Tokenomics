@@ -8,11 +8,6 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: "2.6.0"
-  # Lets us programmatically open the MenuBarExtra popover (no first-party API
-  # exists). Used to pop the menu open at the end of onboarding.
-  MenuBarExtraAccess:
-    url: https://github.com/orchetect/MenuBarExtraAccess
-    from: "1.3.0"
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -71,8 +66,6 @@ targets:
     dependencies:
       - package: Sparkle
         product: Sparkle
-      - package: MenuBarExtraAccess
-        product: MenuBarExtraAccess
       - target: TokenomicsWidgets
         embed: true
       - target: TokenomicsBridge

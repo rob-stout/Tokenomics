@@ -45,11 +45,6 @@ final class UsageViewModel: ObservableObject {
     /// Whether onboarding has been completed
     @Published private(set) var hasCompletedOnboarding: Bool
 
-    /// Two-way bound to the MenuBarExtra popover's presentation (via
-    /// MenuBarExtraAccess). Set true to open the popover programmatically — e.g.
-    /// at the end of onboarding so the user lands on their usage.
-    @Published var isPopoverPresented = false
-
     /// Navigation state
     @Published var showSettings = false
     @Published var showAIConnections = false
