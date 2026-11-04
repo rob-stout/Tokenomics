@@ -248,21 +248,21 @@ struct BrandTabView: View {
 // MARK: - Width measurement
 
 private struct TabBarWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
     }
 }
 
 private struct TabContentWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
     }
 }
 
 private struct BrandTabFramePreference: PreferenceKey {
-    static var defaultValue: [BrandId: CGRect] = [:]
+    static let defaultValue: [BrandId: CGRect] = [:]
     static func reduce(value: inout [BrandId: CGRect], nextValue: () -> [BrandId: CGRect]) {
         value.merge(nextValue()) { _, new in new }
     }

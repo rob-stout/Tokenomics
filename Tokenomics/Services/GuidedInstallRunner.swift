@@ -209,15 +209,15 @@ actor GuidedInstallRunner {
         try process.run()
         Self.log.info("[GuidedInstallRunner] npm install \(package) started (pid=\(process.processIdentifier))")
 
-        var stderrLines: [String] = []
-        let stderrTask = Task {
+        // Detached so stderr drains while this actor blocks reading stdout below.
+        // An actor-inherited Task couldn't start until the actor suspends, so a
+        // chatty install that filled the ~64KB stderr pipe would deadlock.
+        let stderrTask = Task.detached { () -> [String] in
             let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-            if let text = String(data: data, encoding: .utf8) {
-                stderrLines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
-                for line in stderrLines {
-                    continuation.yield(.log("[npm stderr] \(line)"))
-                }
-            }
+            guard let text = String(data: data, encoding: .utf8) else { return [] }
+            let lines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
+            for line in lines { continuation.yield(.log("[npm stderr] \(line)")) }
+            return lines
         }
 
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
@@ -228,7 +228,7 @@ actor GuidedInstallRunner {
         }
 
         process.waitUntilExit()
-        _ = await stderrTask.result
+        let stderrLines = await stderrTask.value
         self.runningProcess = nil
 
         let exitCode = process.terminationStatus
@@ -266,9 +266,7 @@ actor GuidedInstallRunner {
         formula: String,
         isCask: Bool = false
     ) async throws -> AsyncStream<InstallEvent> {
-        var args = ["install"]
-        if isCask { args.append("--cask") }
-        args.append(formula)
+        let args = ["install"] + (isCask ? ["--cask"] : []) + [formula]
 
         return AsyncStream<InstallEvent> { [weak self] continuation in
             guard let self else {
@@ -316,13 +314,15 @@ actor GuidedInstallRunner {
         try process.run()
         Self.log.info("[GuidedInstallRunner] brew install \(formula) started (pid=\(process.processIdentifier))")
 
-        var stderrLines: [String] = []
-        let stderrTask = Task {
+        // Detached so stderr drains while this actor blocks reading stdout below.
+        // An actor-inherited Task couldn't start until the actor suspends, so a
+        // chatty install that filled the ~64KB stderr pipe would deadlock.
+        let stderrTask = Task.detached { () -> [String] in
             let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-            if let text = String(data: data, encoding: .utf8) {
-                stderrLines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
-                for line in stderrLines { continuation.yield(.log("[brew stderr] \(line)")) }
-            }
+            guard let text = String(data: data, encoding: .utf8) else { return [] }
+            let lines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
+            for line in lines { continuation.yield(.log("[brew stderr] \(line)")) }
+            return lines
         }
 
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
@@ -333,7 +333,7 @@ actor GuidedInstallRunner {
         }
 
         process.waitUntilExit()
-        _ = await stderrTask.result
+        let stderrLines = await stderrTask.value
         self.runningProcess = nil
 
         let exitCode = process.terminationStatus
@@ -459,7 +459,9 @@ actor GuidedInstallRunner {
         try process.run()
         Self.log.info("[GuidedInstallRunner] \(executable.lastPathComponent) \(args.joined(separator: " ")) (pid=\(process.processIdentifier))")
 
-        let stdoutTask = Task {
+        // Detached (and streamLines nonisolated) so both pipes drain while this
+        // actor blocks in waitUntilExit() — otherwise a full pipe deadlocks.
+        let stdoutTask = Task.detached {
             await self.streamLines(from: stdoutPipe.fileHandleForReading) { line in
                 continuation.yield(.stdout(line))
                 if let event = CLIOutputParser.parseDeviceCode(from: line) {
@@ -468,7 +470,7 @@ actor GuidedInstallRunner {
             }
         }
 
-        let stderrTask = Task {
+        let stderrTask = Task.detached {
             await self.streamLines(from: stderrPipe.fileHandleForReading) { line in
                 continuation.yield(.stderr(line))
                 if let event = CLIOutputParser.parseDeviceCode(from: line) {
@@ -523,7 +525,7 @@ actor GuidedInstallRunner {
 
     // MARK: - Line streaming
 
-    private func streamLines(
+    nonisolated private func streamLines(
         from handle: FileHandle,
         handler: @Sendable (String) -> Void
     ) async {

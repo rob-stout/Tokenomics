@@ -6,7 +6,7 @@ Supports Claude Code, Codex CLI, Gemini CLI, GitHub Copilot, and Cursor.
 **Platform skill:** native **macOS** (SwiftUI menu-bar) → load `platform-macos` for the app + `TokenomicsWidgets`. For work under `extension/` (MV3 browser extension — `manifest.json`, content scripts, `chrome.*`) load `platform-browser-extension` instead. (The `tokenomics-*` sibling dirs are worktrees of this repo and share this file.)
 
 ## Tech Stack
-- **UI**: SwiftUI (macOS 13+)
+- **UI**: SwiftUI (macOS 14+ — every target's deployment target in `project.yml`)
 - **Architecture**: MVVM with @Observable
 - **Updates**: Sparkle framework (EdDSA signed, auto-update via appcast.xml)
 - **Distribution**: Developer ID signed .dmg via GitHub Releases + Homebrew cask

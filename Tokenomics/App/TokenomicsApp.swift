@@ -116,6 +116,7 @@ extension Notification.Name {
 ///
 /// Also owns the two long-lived bridge services (WebCompanionService and
 /// MacSideStateExporter) so they survive across SwiftUI scene reconstructions.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "AppDelegate")

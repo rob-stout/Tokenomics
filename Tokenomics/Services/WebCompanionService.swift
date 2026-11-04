@@ -70,7 +70,7 @@ actor WebCompanionService: WebCompanionStateProvider {
         guard eventStream == nil else { return } // already watching
 
         let path = url.path as CFString
-        var pathArray: CFArray = [path] as CFArray
+        let pathArray: CFArray = [path] as CFArray
 
         // We capture `self` as an unmanaged reference because FSEventStream
         // C callbacks can't capture Swift actors directly.
@@ -112,7 +112,7 @@ actor WebCompanionService: WebCompanionStateProvider {
         )
 
         if let stream {
-            FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+            FSEventStreamSetDispatchQueue(stream, .main)
             FSEventStreamStart(stream)
             self.eventStream = stream
             Self.log.info("FSEvents watch started on \(url.path)")

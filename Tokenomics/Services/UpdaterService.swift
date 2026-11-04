@@ -49,7 +49,7 @@ struct PendingUpdateStore {
 }
 
 @MainActor
-final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
+final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUserDriverDelegate {
     private var updaterController: SPUStandardUpdaterController!
     private let pendingStore = PendingUpdateStore()
 

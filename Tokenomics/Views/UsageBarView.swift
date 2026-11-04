@@ -88,7 +88,7 @@ struct UsageBarView: View {
         .onDisappear {
             animatedValue = 0
         }
-        .onChange(of: utilization) { newValue in
+        .onChange(of: utilization) { _, newValue in
             animatedValue = min(max(newValue / 100.0, 0), 1)
         }
     }
