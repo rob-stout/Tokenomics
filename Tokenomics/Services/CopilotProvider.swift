@@ -16,6 +16,7 @@ actor CopilotProvider: UsageProvider {
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "CopilotProvider")
 
     func checkConnection() async -> ProviderConnectionState {
+        if let forced = DetectionScenario.current.forcedConnection { return forced }
         guard let token = readToken() else {
             if isGitHubCLIInstalled() { return .installedNoAuth }
             return .notInstalled

@@ -17,6 +17,7 @@ actor GeminiProvider: UsageProvider {
     }
 
     func checkConnection() async -> ProviderConnectionState {
+        if let forced = DetectionScenario.current.forcedConnection { return forced }
         guard isGeminiInstalled() else {
             return .notInstalled
         }

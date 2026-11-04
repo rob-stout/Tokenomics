@@ -20,6 +20,7 @@ actor StableDiffusionProvider: UsageProvider {
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "StableDiffusionProvider")
 
     func checkConnection() async -> ProviderConnectionState {
+        if let forced = DetectionScenario.current.forcedConnection { return forced }
         guard let apiKey = APIKeyService.read(for: .stableDiffusion) else {
             return .notInstalled // No API key = not connected
         }

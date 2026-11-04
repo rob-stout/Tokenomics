@@ -120,6 +120,8 @@ actor DetectionService {
     /// Brands with no signals are omitted from the result — callers should treat
     /// a missing key as "not detected" rather than an error.
     func detect() async -> [BrandId: BrandDetection] {
+        // Screenshot scenario: a fresh Mac has nothing to detect.
+        if DetectionScenario.current == .fresh { return [:] }
         // Run all brand detections concurrently via a task group.
         return await withTaskGroup(of: BrandDetection?.self) { group in
             group.addTask { await self.detectAnthropic() }

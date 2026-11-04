@@ -39,6 +39,7 @@ actor ClaudeProvider: UsageProvider {
     private static let connectionCacheTTL: TimeInterval = 5.0
 
     func checkConnection() async -> ProviderConnectionState {
+        if let forced = DetectionScenario.current.forcedConnection { return forced }
         // One store lookup per call; the token is passed down so validation
         // below doesn't trigger a second read.
         let token: String

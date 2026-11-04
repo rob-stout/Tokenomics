@@ -29,6 +29,7 @@ actor CursorProvider: UsageProvider {
     private var cachedUserId: String?
 
     func checkConnection() async -> ProviderConnectionState {
+        if let forced = DetectionScenario.current.forcedConnection { return forced }
         guard isCursorInstalled() else { return .notInstalled }
         guard let token = readAccessToken() else { return .installedNoAuth }
 

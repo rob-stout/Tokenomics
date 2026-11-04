@@ -19,6 +19,7 @@ actor CodexProvider: UsageProvider {
     }
 
     func checkConnection() async -> ProviderConnectionState {
+        if let forced = DetectionScenario.current.forcedConnection { return forced }
         let fm = FileManager.default
 
         // Check if Codex CLI is installed

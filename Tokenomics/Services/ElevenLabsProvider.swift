@@ -14,6 +14,7 @@ actor ElevenLabsProvider: UsageProvider {
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "ElevenLabsProvider")
 
     func checkConnection() async -> ProviderConnectionState {
+        if let forced = DetectionScenario.current.forcedConnection { return forced }
         guard let apiKey = APIKeyService.read(for: .elevenlabs) else {
             return .notInstalled // No API key = not connected
         }
