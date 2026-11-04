@@ -127,7 +127,7 @@ actor BrowserExtensionConnector: ProviderConnector {
 
     /// Shared privacy footnote — identical across the Chrome and Safari install
     /// steps, so it's defined once here.
-    private static let installFootnote = "The extension reads only your usage counts — never your prompts, messages, or files. It runs locally and talks only to Tokenomics on your Mac."
+    private static let installFootnote = "The extension reads your usage numbers, not your prompts, messages, or files. It talks to the AI sites you use and to Tokenomics on your Mac, and nowhere else."
 
     /// Which store the "install the extension" step should point at. Safari
     /// only ever gets the extension through its Mac App Store companion app;

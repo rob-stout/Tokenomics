@@ -14,6 +14,7 @@
 
 import browser from 'webextension-polyfill';
 import type { ExtensionMessage } from '../messages';
+import { hasConsent } from '../storage';
 
 const TAG = '__tokenomics_chatgpt_msg__';
 
@@ -72,11 +73,14 @@ function mainWorldPatch(tag: string): void {
   };
 }
 
-window.addEventListener('message', (event: MessageEvent) => {
+window.addEventListener('message', async (event: MessageEvent) => {
   if (event.source !== window) return;
   const data = event.data as { tag?: string; kind?: string; model?: string | null; ts?: number };
   if (data?.tag !== TAG) return;
   if (data.kind !== 'CHATGPT_MESSAGE') return;
+
+  // Nothing leaves the page until the user agrees on the consent screen.
+  if (!(await hasConsent())) return;
 
   const message: ExtensionMessage = {
     kind: 'CHATGPT_MESSAGE',

@@ -49,3 +49,7 @@ docs/gemini-reader-spec.md
 
 # Beta-3 handoff reference docs — private (endpoint reverse-engineering + signing)
 docs/beta-3-handoff/
+
+# Legal drafts, attorney notes and the launch checklist stay local — this repo is public.
+docs/publishing/legal/
+docs/publishing/LAUNCH-CHECKLIST.md

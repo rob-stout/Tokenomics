@@ -215,7 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showShareSheet() {
         let shareURL = URL(string: "https://robrstout.com/work/tokenomics/")!
-        let shareText = "Tokenomics — see your AI coding tool usage at a glance. Free and open source."
+        let shareText = "Tokenomics — see your AI coding tool usage at a glance. Free and source-available."
         let items: [Any] = [shareText, shareURL]
 
         let picker = NSSharingServicePicker(items: items)

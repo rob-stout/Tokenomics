@@ -11,8 +11,9 @@ interface Props {
 /**
  * Slim banner at the top of the popup that signals Mac app connection status.
  *
- * - No bridge data yet or stale (>5min): "Mac app not detected" warning with
- *   install link. Shown only once storage has been loaded (bridgeState !== null).
+ * - No bridge data yet or stale (>5min): a neutral note pointing to the Mac
+ *   app. Not a warning — the extension works on its own. Shown only once
+ *   storage has been loaded (bridgeState !== null).
  * - Recent success: "Connected to Tokenomics x.y.z" in a subtle footer chip.
  * - Recent success but with error entries: small warning indicator instead.
  */
@@ -25,18 +26,18 @@ export function BridgeBanner({ bridgeState }: Props) {
 
   if (!isConnected) {
     return (
-      <div class="bridge-banner bridge-banner--warn" role="status" aria-live="polite">
+      <div class="bridge-banner bridge-banner--note" role="status" aria-live="polite">
         <span class="bridge-banner__text">
-          Mac app not detected.{' '}
+          Works on its own.{' '}
           <a
             class="bridge-banner__link"
             href={TRYTOKENOMICS_URL}
             target="_blank"
             rel="noreferrer noopener"
           >
-            Install Tokenomics
+            Get the Mac app
           </a>{' '}
-          to see menu-bar usage.
+          for menu bar rings.
         </span>
       </div>
     );

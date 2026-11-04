@@ -1,12 +1,13 @@
 {
   "name": "tokenomics-web-companion",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Tokenomics browser companion — AI usage at a glance.",
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
+    "package": "node build.mjs --store",
     "typecheck": "tsc --noEmit",
     "test": "node build-tests.mjs && node --test 'dist-test/**/*.test.mjs'"
   },
