@@ -1,6 +1,7 @@
 import * as esbuild from 'esbuild';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const watch = process.argv.includes('--watch');
 // Safari Web Extensions ship as a native-app resource bundle rather than a
@@ -11,7 +12,11 @@ const watch = process.argv.includes('--watch');
 // mode reuses the exact same esbuild steps with one output dir and one extra
 // background-script context.
 const safari = process.argv.includes('--safari');
-const outdir = safari ? 'dist-safari' : 'dist';
+// Chrome Web Store / Edge Add-ons upload: same build as `dist/`, minus the
+// manifest `key` (the stores assign the ID and reject a pinned one), zipped
+// into release/ ready to upload.
+const store = process.argv.includes('--store');
+const outdir = safari ? 'dist-safari' : store ? 'dist-store' : 'dist';
 
 await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
@@ -24,7 +29,15 @@ const shared = {
   jsxImportSource: 'preact',
   logLevel: 'info',
   sourcemap: watch ? 'inline' : false,
-  minify: !watch,
+  // Store builds ship unminified: the stores allow minification, but readable
+  // code gets through first-time review faster (and reviewers read this code).
+  minify: !watch && !store,
+  // Shipped builds drop console.log/debug — several readers log raw usage
+  // payloads, which shouldn't sit in a user's DevTools. Errors/warnings stay.
+  pure: store || safari ? ['console.log', 'console.debug'] : [],
+  // `pure` calls are only removed during syntax minification; this keeps
+  // names and whitespace intact so the store build stays readable.
+  minifySyntax: !watch,
 };
 
 // SW + popup ship as ES modules (the SW manifest declares `type: module`).
@@ -85,6 +98,10 @@ if (safari) {
   delete manifest.key;
   delete manifest.background.type;
   await writeFile(`${outdir}/manifest.json`, `${JSON.stringify(manifest, null, 2)}\n`);
+} else if (store) {
+  const manifest = JSON.parse(await readFile('src/manifest.json', 'utf8'));
+  delete manifest.key;
+  await writeFile(`${outdir}/manifest.json`, `${JSON.stringify(manifest, null, 2)}\n`);
 } else {
   await cp('src/manifest.json', `${outdir}/manifest.json`);
 }
@@ -109,4 +126,14 @@ if (watch) {
 } else {
   await Promise.all([moduleCtx.dispose(), contentCtx.dispose(), ...(backgroundCtx ? [backgroundCtx.dispose()] : [])]);
   console.log(`Build complete → ${outdir}/`);
+}
+
+if (store) {
+  const { version } = JSON.parse(await readFile('src/manifest.json', 'utf8'));
+  const zipPath = `release/tokenomics-chrome-${version}.zip`;
+  await mkdir('release', { recursive: true });
+  await rm(zipPath, { force: true });
+  // Zip the folder's *contents* — the stores want manifest.json at the zip root.
+  execFileSync('zip', ['-r', '-X', '-q', `../${zipPath}`, '.', '-x', '.DS_Store'], { cwd: outdir });
+  console.log(`Store package → ${zipPath}`);
 }

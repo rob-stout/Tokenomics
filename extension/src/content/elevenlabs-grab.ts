@@ -25,6 +25,7 @@
 
 import browser from 'webextension-polyfill';
 import type { ExtensionMessage } from '../messages';
+import { hasConsent } from '../storage';
 
 const POLL_INTERVAL_MS = 10 * 60 * 1000;
 const DB_NAME = 'firebaseLocalStorageDb';
@@ -101,6 +102,8 @@ async function readFirebaseToken(): Promise<string | null> {
 
 async function grabAndSend(): Promise<void> {
   try {
+    // Nothing is read until the user agrees on the consent screen.
+    if (!(await hasConsent())) return;
     const token = await readFirebaseToken();
     if (!token) return;
 

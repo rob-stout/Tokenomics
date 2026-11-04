@@ -46,7 +46,7 @@ struct ContentView: View {
             .font(Tokens.Typography.Onboarding.h1)
             .foregroundStyle(Tokens.DynamicColor.text)
 
-        Text("One switch and Tokenomics starts reading your web AI usage — ChatGPT, Gemini, Claude, and more — right in Safari.")
+        Text("Turn it on, then allow it on the sites you want it to read. Tokenomics shows your web AI usage — ChatGPT, Gemini, Claude and more — right in Safari.")
             .font(Tokens.Typography.Onboarding.lede)
             .foregroundStyle(Tokens.DynamicColor.textMuted)
             .fixedSize(horizontal: false, vertical: true)
@@ -95,9 +95,22 @@ struct ContentView: View {
                 openMacAppSite()
             }
             .buttonStyle(.tokenTextLink)
+
+            // App Review 5.1.1: the privacy policy must be reachable in-app.
+            HStack(spacing: Tokens.Spacing.s3) {
+                Link("Privacy Policy", destination: Self.privacyURL)
+                Link("Help", destination: Self.supportURL)
+            }
+            .font(Tokens.Typography.Onboarding.small)
+            .foregroundStyle(Tokens.DynamicColor.textMuted)
+            .padding(.top, Tokens.Spacing.s2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    // Compile-time constants — URL(string:) only fails on malformed strings.
+    private static let privacyURL = URL(string: "https://trytokenomics.com/privacy")! // swiftlint:disable:this force_unwrapping
+    private static let supportURL = URL(string: "https://trytokenomics.com/faq")! // swiftlint:disable:this force_unwrapping
 
     private func openMacAppSite() {
         if let url = URL(string: "https://trytokenomics.com") {

@@ -15,12 +15,13 @@
 
 import browser from 'webextension-polyfill';
 import type { ExtensionMessage } from '../messages';
+import { hasConsent } from '../storage';
 import type { ProviderUsageSnapshot } from '../snapshot';
 
 // Must match the TAG constant in gemini-main.ts exactly.
 const TAG = '__tokenomics_gemini_msg__';
 
-window.addEventListener('message', (event: MessageEvent) => {
+window.addEventListener('message', async (event: MessageEvent) => {
   if (event.source !== window) return;
   const data = event.data as {
     tag?: string;
@@ -30,6 +31,9 @@ window.addEventListener('message', (event: MessageEvent) => {
   if (data?.tag !== TAG) return;
   if (data.kind !== 'GEMINI_USAGE') return;
   if (!data.snapshot) return;
+
+  // Nothing leaves the page until the user agrees on the consent screen.
+  if (!(await hasConsent())) return;
 
   const message: ExtensionMessage = {
     kind: 'GEMINI_USAGE',

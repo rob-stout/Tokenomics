@@ -3,7 +3,8 @@
 Chrome (MV3) extension that surfaces AI usage in a popup mirroring the
 Tokenomics menu bar widget.
 
-Phase 1.5 + 4.5 ships three providers:
+The extension reads usage from eight AI sites: Claude, ChatGPT, Gemini,
+Midjourney, ElevenLabs, Grok, Perplexity and Leonardo. Notes on the first three:
 
 - **Claude** — real usage via `claude.ai/api/organizations/{id}/usage`,
   cookie auth, polled every 5 min.
@@ -120,15 +121,20 @@ No telemetry, no analytics, no remote reporting. All Claude and
 ChatGPT data stays on your machine — the extension's only network
 calls are to `claude.ai` (usage endpoint) and `chatgpt.com`
 (`/backend-api/me` for plan detection, plus passive observation of
-the chat tab's own requests via a content script). Cookies aren't
-read; tokens aren't extracted.
+the chat tab's own requests via a content script).
+
+More generally: the extension uses your existing signed-in session to ask
+each site for your own usage numbers. For ElevenLabs and Leonardo it also
+saves the access token the site gives your browser, unencrypted, in the
+browser's extension storage so numbers can keep refreshing. Nothing is sent
+to us. Nothing is read until the user agrees on the first-run consent screen.
 
 Manifest permissions:
 
 - `storage` — persisting tab selection, pin state, snapshots, event log
 - `alarms` — periodic Claude poll + daily ChatGPT plan re-detect
-- `host_permissions: ["https://claude.ai/*", "https://chatgpt.com/*", "https://www.midjourney.com/*"]`
-  — limited to the three providers we read
+- `host_permissions: ["https://claude.ai/*", "https://chatgpt.com/*", "https://www.midjourney.com/*", "https://gemini.google.com/*", "https://api.us.elevenlabs.io/*", "https://elevenlabs.io/*", "https://grok.com/*", "https://www.perplexity.ai/*", "https://app.leonardo.ai/*", "https://api.leonardo.ai/*"]`
+  — limited to the sites we read
 - `content_scripts` on `chatgpt.com/*` — observes the page's own
   `/backend-api/conversation` calls (does not initiate them)
 
@@ -150,8 +156,8 @@ No `<all_urls>`, no `chrome.cookies`, no `chrome.tabs`, no `scripting`.
   not include one — active subscriptions may; the parser will use the
   real field if present).
 - Gemini consumer reader is deferred.
-- No native messaging bridge to the Mac app — Phase 2.
-- Chrome only. Safari port lands in a later phase.
+- Syncs with the Tokenomics Mac app through native messaging when it is
+  installed. Also ships as a Safari extension in "Tokenomics for Safari".
 - Claude plan label hardcoded to "Pro"; ChatGPT plan auto-detected
   from `/backend-api/me`, falling back to the user's manual choice;
   Midjourney plan from the `plan` field in the billing response.

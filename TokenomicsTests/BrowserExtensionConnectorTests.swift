@@ -354,7 +354,7 @@ final class BrowserExtensionConnectorTests: XCTestCase {
     /// Both branches keep the exact same privacy footnote — it must not diverge
     /// between the Chrome and Safari copy variants.
     func testBothBranches_shareIdenticalFootnote() async {
-        let expectedFootnote = "The extension reads only your usage counts — never your prompts, messages, or files. It runs locally and talks only to Tokenomics on your Mac."
+        let expectedFootnote = "The extension reads your usage numbers, not your prompts, messages, or files. It talks to the AI sites you use and to Tokenomics on your Mac, and nowhere else."
 
         let safariConnector = BrowserExtensionConnector(
             webCompanion: StubWebCompanionService(state: .stale()),

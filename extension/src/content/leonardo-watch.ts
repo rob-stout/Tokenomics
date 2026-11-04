@@ -13,11 +13,12 @@
 
 import browser from 'webextension-polyfill';
 import type { ExtensionMessage } from '../messages';
+import { hasConsent } from '../storage';
 
 // Must match LEO_TAG in leonardo-main.ts exactly.
 const LEO_TAG = '__tokenomics_leonardo_msg__';
 
-window.addEventListener('message', (event: MessageEvent) => {
+window.addEventListener('message', async (event: MessageEvent) => {
   if (event.source !== window) return;
   const data = event.data as {
     tag?: string;
@@ -28,6 +29,9 @@ window.addEventListener('message', (event: MessageEvent) => {
   if (data?.tag !== LEO_TAG) return;
   if (data.kind !== 'LEONARDO_TOKEN') return;
   if (!data.idToken || !data.userSub) return;
+
+  // Nothing leaves the page until the user agrees on the consent screen.
+  if (!(await hasConsent())) return;
 
   const message: ExtensionMessage = {
     kind: 'LEONARDO_TOKEN',

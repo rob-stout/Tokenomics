@@ -4,7 +4,14 @@ import browser from 'webextension-polyfill';
 import type { ExtensionMessage } from '../messages';
 import type { ChatGPTPlan } from '../chatgpt';
 import type { ProviderVisibilitySetting } from '../bridge-types';
-import { getChatGPTPlanAuto, getChatGPTPlanOverride } from '../storage';
+import {
+  getChatGPTPlanAuto,
+  getChatGPTPlanOverride,
+  grantConsent,
+  hasConsent,
+  revokeConsentAndClear,
+} from '../storage';
+import { ConsentScreen } from '../popup/components/ConsentScreen';
 import { PROVIDERS, PROVIDER_META, type ProviderId } from '../types';
 import { TRYTOKENOMICS_URL } from '../urls';
 import { applyVisibilityToggle } from './options-logic';
@@ -182,7 +189,7 @@ function ProviderVisibilitySection() {
 
 // ── Component ────────────────────────────────────────
 
-function Options() {
+function Options({ onStop }: { onStop: () => void }) {
   const [autoPlan, setAutoPlan] = useState<ChatGPTPlan>('unknown');
   // null means no override is set (radio shows 'auto').
   // 'unknown' is never a valid override value so we narrow to PlanChoice.
@@ -304,8 +311,54 @@ function Options() {
           </a>
         </p>
       </section>
+
+      <section class="options-section">
+        <div class="options-section__header">
+          <h2 class="options-section__title">Your data</h2>
+        </div>
+        <p class="options-section__description">
+          Tokenomics only keeps your usage on this computer. Stopping turns off all
+          reading and deletes everything it has stored. You’ll be asked again before
+          it starts.
+        </p>
+        <button type="button" class="options-section__danger" onClick={onStop}>
+          Stop reading and delete my data
+        </button>
+      </section>
     </div>
   );
+}
+
+/** Shows the consent screen until the user agrees, then the settings page. */
+function OptionsRoot() {
+  // null while the stored answer loads — render nothing rather than flash.
+  const [consented, setConsented] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void hasConsent().then(setConsented);
+  }, []);
+
+  const handleAgree = async () => {
+    await grantConsent();
+    const message: ExtensionMessage = { kind: 'CONSENT_GRANTED' };
+    await browser.runtime.sendMessage(message).catch(() => undefined);
+    setConsented(true);
+  };
+
+  const handleStop = async () => {
+    await revokeConsentAndClear();
+    setConsented(false);
+  };
+
+  if (consented === null) return null;
+  if (!consented) {
+    return (
+      <div class="options-page">
+        <ConsentScreen onAgree={() => void handleAgree()} />
+      </div>
+    );
+  }
+  return <Options onStop={() => void handleStop()} />;
 }
 
 // ── Entry ────────────────────────────────────────────
@@ -316,4 +369,4 @@ window
   .addEventListener('change', applyTheme);
 
 const root = document.getElementById('app');
-if (root) render(<Options />, root);
+if (root) render(<OptionsRoot />, root);

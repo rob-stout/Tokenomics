@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Tokenomics",
-  "version": "0.1.0",
-  "description": "Track your AI usage at a glance.",
+  "name": "Tokenomics: AI Usage & Limits Tracker",
+  "version": "1.0.0",
+  "description": "See your AI usage and limits at a glance, across the AI sites you pay for. Free, no analytics.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA51XofP/uHtnTys3SJpo+VzcX3fU9WfglBD7Q9mJV6+zUcCflayhd0HwXAAbXkPJd6X+HPoZ4vvDoML4EK1rbx9UHb8/uZAxvcAKHOF06RSPtljATMsR5fn4Vg/L/a1Wo4dxegQEuP8Vju4aFnLIPsuUY3hNB1W2HX/SKIOw06lWwEaE/0zbmG6sEatEEjE/R+Yx5Y14ErxF+LBJ3AKyj9xMHenyDk/eRwTdfgaiX3IgcyH6eHlBi13xY9FaWfSKDX50zUvTjj6fNNKmgdEHIPHZ6KE9owBR43kW0QDrxiYX8SSlH/X5xwVPCdzwE40S5Gs1cY4+eVIVs7MG6dWwzgwIDAQAB",
   "permissions": ["storage", "alarms", "nativeMessaging"],
   "host_permissions": [

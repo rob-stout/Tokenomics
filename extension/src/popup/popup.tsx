@@ -21,11 +21,14 @@ import {
   getLeonardoSnapshot,
   getPinnedProvider,
   getSelectedTab,
+  grantConsent,
+  hasConsent,
   setPinnedProvider,
   setSelectedTab,
 } from '../storage';
 import { type ProviderId } from '../types';
 import { BridgeBanner } from './components/BridgeBanner';
+import { ConsentScreen } from './components/ConsentScreen';
 import { EmptyState } from './components/EmptyState';
 import { Header } from './components/Header';
 import { NativeFooter } from './components/NativeFooter';
@@ -136,7 +139,7 @@ function renderNativeBars(snap: BridgeSnapshot) {
 
 type WebSnapshotMap = Partial<Record<ProviderId, ProviderUsageSnapshot>>;
 
-function App() {
+function UsageApp() {
   const [selected, setSelected] = useState<ProviderId>(WEB_PROVIDERS[0]);
   const [pinned, setPinned] = useState<ProviderId | null>(null);
   const [webSnapshots, setWebSnapshots] = useState<WebSnapshotMap>({});
@@ -365,6 +368,33 @@ applyTheme();
 window
   .matchMedia('(prefers-color-scheme: dark)')
   .addEventListener('change', applyTheme);
+
+/** Shows the consent screen until the user agrees, then the usage popup. */
+function App() {
+  // null while the stored answer loads — render nothing rather than flash.
+  const [consented, setConsented] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void hasConsent().then(setConsented);
+  }, []);
+
+  const handleAgree = async () => {
+    await grantConsent();
+    const message: ExtensionMessage = { kind: 'CONSENT_GRANTED' };
+    await browser.runtime.sendMessage(message).catch(() => undefined);
+    setConsented(true);
+  };
+
+  if (consented === null) return null;
+  if (!consented) {
+    return (
+      <div class="popup">
+        <ConsentScreen onAgree={() => void handleAgree()} />
+      </div>
+    );
+  }
+  return <UsageApp />;
+}
 
 const root = document.getElementById('app');
 if (root) render(<App />, root);

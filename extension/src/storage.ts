@@ -6,6 +6,7 @@ import type { AuthState, BackoffState, ProviderUsageSnapshot } from './snapshot'
 
 const KEYS = {
   selectedTab: 'selectedTab',
+  consent: 'consent',
   pinnedProvider: 'pinnedProvider',
   claudeOrgId: 'claudeOrgId',
   claudeSnapshot: 'claudeSnapshot',
@@ -53,6 +54,32 @@ interface CachedOrgId {
 }
 
 // ── selectedTab ─────────────────────────────────────────────
+
+// ── Consent ────────────────────────────────────────────────────────
+//
+// Chrome Web Store User Data policy (Aug 2026): nothing may be read until the
+// user agrees to an in-extension disclosure. Every reader checks this first.
+// Bump CONSENT_VERSION whenever the disclosure's substance changes — users
+// who agreed to an older version are asked again.
+
+export const CONSENT_VERSION = 1;
+
+export async function hasConsent(): Promise<boolean> {
+  const result = await browser.storage.local.get(KEYS.consent);
+  const raw = result[KEYS.consent] as { version?: unknown } | undefined;
+  return typeof raw?.version === 'number' && raw.version >= CONSENT_VERSION;
+}
+
+export async function grantConsent(): Promise<void> {
+  await browser.storage.local.set({
+    [KEYS.consent]: { version: CONSENT_VERSION, grantedAt: Date.now() },
+  });
+}
+
+/** Withdraws consent and deletes everything the extension has stored. */
+export async function revokeConsentAndClear(): Promise<void> {
+  await browser.storage.local.clear();
+}
 
 export async function getSelectedTab(): Promise<ProviderId | null> {
   const result = await browser.storage.local.get(KEYS.selectedTab);

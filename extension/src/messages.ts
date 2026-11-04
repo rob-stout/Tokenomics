@@ -7,6 +7,7 @@ import type { ProviderUsageSnapshot } from './snapshot';
 
 export type ExtensionMessage =
   | { kind: 'REFRESH_REQUESTED' }
+  | { kind: 'CONSENT_GRANTED' }
   | { kind: 'CHATGPT_MESSAGE'; model: string | null; ts: number }
   | { kind: 'CHATGPT_SET_PLAN'; plan: 'free' | 'plus' | 'pro' | 'team' | 'auto' }
   | { kind: 'GEMINI_USAGE'; snapshot: ProviderUsageSnapshot }

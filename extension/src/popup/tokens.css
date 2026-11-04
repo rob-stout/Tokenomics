@@ -65,6 +65,7 @@
   --shadow-ring: 0 0 0 4px rgba(47, 132, 191, 0.18);
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-bars: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* brand motion table: Bars */
   --dur-fast: 120ms;
   --dur: 220ms;
 

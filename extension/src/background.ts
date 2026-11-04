@@ -62,6 +62,7 @@ import {
   setLeonardoSnapshot,
   getLeonardoCredentials,
   setLeonardoCredentials,
+  hasConsent,
 } from './storage';
 import type { ProviderId } from './types';
 
@@ -89,7 +90,8 @@ console.log('[tokenomics] service worker booted');
 
 // Register the command handler so bridge.ts can trigger re-polls without
 // importing background.ts (which would create a circular dependency).
-registerRefreshWebProvidersHandler(() => {
+registerRefreshWebProvidersHandler(async () => {
+  if (!(await hasConsent())) return;
   void pollClaude('manual');
   void pollMidjourney('manual');
   void pollElevenLabs('manual');
@@ -103,8 +105,7 @@ registerRefreshWebProvidersHandler(() => {
 
 void sendBridgeBatch('ping').catch(() => undefined);
 
-browser.runtime.onInstalled.addListener(async () => {
-  await scheduleAlarms();
+function startAllReaders(): void {
   void pollClaude('install');
   void pollMidjourney('install');
   void pollElevenLabs('install');
@@ -112,13 +113,26 @@ browser.runtime.onInstalled.addListener(async () => {
   void pollPerplexity('install');
   void pollLeonardo('install');
   void redetectChatGPTPlan('install');
+}
+
+browser.runtime.onInstalled.addListener(async () => {
+  await scheduleAlarms();
+  // Fires on install AND update, so a new consent version is asked for too.
+  // Nothing is read until the user agrees on the consent screen.
+  if (!(await hasConsent())) {
+    void browser.runtime.openOptionsPage();
+    return;
+  }
+  startAllReaders();
 });
 
 browser.runtime.onStartup.addListener(async () => {
   await scheduleAlarms();
 });
 
-browser.alarms.onAlarm.addListener((alarm) => {
+browser.alarms.onAlarm.addListener(async (alarm) => {
+  // The heartbeat carries no user data — it only tells the Mac app we're alive.
+  if (alarm.name !== BRIDGE_HEARTBEAT_ALARM && !(await hasConsent())) return;
   if (alarm.name === CLAUDE_ALARM) void pollClaude('alarm');
   else if (alarm.name === MIDJOURNEY_ALARM) void pollMidjourney('alarm');
   else if (alarm.name === ELEVENLABS_ALARM) void pollElevenLabs('alarm');
@@ -141,6 +155,17 @@ browser.runtime.onMessage.addListener(
   async (message: unknown): Promise<ExtensionResponse | undefined> => {
     const msg = message as ExtensionMessage | undefined;
     if (!msg) return undefined;
+
+    if (msg.kind === 'CONSENT_GRANTED') {
+      startAllReaders();
+      return { kind: 'ACK' };
+    }
+
+    // Before consent, drop anything that carries user data (tokens, usage).
+    // CHATGPT_SET_PLAN is a plain user preference from the options page.
+    if (msg.kind !== 'CHATGPT_SET_PLAN' && !(await hasConsent())) {
+      return { kind: 'ACK' };
+    }
 
     if (msg.kind === 'GEMINI_USAGE') {
       // Snapshot was parsed in the content script and relayed here.

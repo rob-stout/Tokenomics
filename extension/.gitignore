@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-safari/
+dist-store/
+release/
 dist-test/
 *.tsbuildinfo
 .DS_Store

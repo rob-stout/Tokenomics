@@ -19,7 +19,7 @@ export function EmptyState({ provider, isNativeSource = false }: Props) {
     return (
       <div class="empty-state">
         <p class="empty-state__copy">
-          Tokenomics reads {meta.displayName} from the app on your Mac. Open it to see your usage here.
+          {meta.displayName} is tracked by the Tokenomics Mac app, not the browser. Install the app and it shows up here.
         </p>
         <a
           class="empty-state__cta"
@@ -27,7 +27,7 @@ export function EmptyState({ provider, isNativeSource = false }: Props) {
           target="_blank"
           rel="noreferrer noopener"
         >
-          Open Tokenomics →
+          Get the Mac app →
         </a>
       </div>
     );
@@ -82,7 +82,7 @@ export function EmptyState({ provider, isNativeSource = false }: Props) {
   return (
     <div class="empty-state">
       <p class="empty-state__copy">
-        Track {meta.displayName} in the Tokenomics menu bar app.
+        {meta.displayName} is tracked by the Tokenomics Mac app.
       </p>
       <a
         class="empty-state__cta"
@@ -90,7 +90,7 @@ export function EmptyState({ provider, isNativeSource = false }: Props) {
         target="_blank"
         rel="noreferrer noopener"
       >
-        Install Tokenomics →
+        Get the Mac app →
       </a>
     </div>
   );
