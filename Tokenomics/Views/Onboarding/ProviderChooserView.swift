@@ -8,7 +8,7 @@ import SwiftUI
 ///   - Scrollable .chooser region with group labels + provider rows
 ///   - Pinned .winfoot: "← Back" ghost | "I'm all set" secondary
 struct ProviderChooserView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
     /// Extension-fed providers (.chatgpt, .geminiConsumer, .midjourney, etc.)
     /// currently feeding usage over the NMH bridge. `viewModel.providerStates`
     /// has no entry for these — they're not native `UsageProvider`s — so this

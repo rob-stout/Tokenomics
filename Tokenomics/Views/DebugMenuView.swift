@@ -15,7 +15,7 @@ import SwiftUI
 ///   how the bars/rings render at each level (fill geometry + sublabel text;
 ///   bar color is fixed per window type, not utilization-based)
 struct DebugMenuView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    @Bindable var viewModel: UsageViewModel
     let onDismiss: () -> Void
 
     @State private var brandAggFlag = FeatureFlags.brandAggregation

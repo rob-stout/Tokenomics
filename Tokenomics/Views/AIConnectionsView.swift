@@ -6,7 +6,7 @@ import SwiftUI
 /// open the guided onboarding window pre-routed to that provider, so users get the full
 /// step-by-step flow without ever seeing a Terminal window.
 struct AIConnectionsView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    @Bindable var viewModel: UsageViewModel
     @State private var geminiPlan: GeminiPlan = SettingsService.geminiPlan ?? .free
     /// Disables the Allow Access button while the macOS dialog is up.
     @State private var isRequestingKeychainAccess = false

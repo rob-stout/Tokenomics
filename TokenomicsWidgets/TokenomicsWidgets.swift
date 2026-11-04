@@ -7,6 +7,10 @@ struct UsageEntry: TimelineEntry {
     let date: Date
     let snapshot: WidgetDataStore.WidgetSnapshot?
     let selectedProvider: WidgetProviderSelection
+    /// Refresh-button taps so far, per widget size. Each tap reloads the widget
+    /// with its count one higher, and the arrow animates a full turn between
+    /// the two entries.
+    var refreshTaps: [String: Int] = [:]
 }
 
 // MARK: - Timeline Provider (Configurable)
@@ -22,7 +26,8 @@ struct UsageTimelineProvider: AppIntentTimelineProvider {
         UsageEntry(
             date: .now,
             snapshot: WidgetDataStore.read() ?? .placeholder,
-            selectedProvider: configuration.provider
+            selectedProvider: configuration.provider,
+            refreshTaps: WidgetRefreshTaps.all
         )
     }
 
@@ -31,7 +36,8 @@ struct UsageTimelineProvider: AppIntentTimelineProvider {
         let entry = UsageEntry(
             date: .now,
             snapshot: snapshot,
-            selectedProvider: configuration.provider
+            selectedProvider: configuration.provider,
+            refreshTaps: WidgetRefreshTaps.all
         )
 
         // Poll every 2 minutes — reloadAllTimelines() is unreliable from non-sandboxed host apps
@@ -44,6 +50,15 @@ struct UsageTimelineProvider: AppIntentTimelineProvider {
 
 struct TokenomicsWidget: Widget {
     let kind = "TokenomicsWidget"
+
+    /// Extra-large portrait (a tall column) arrived in macOS 27.
+    private static var families: [WidgetFamily] {
+        var families: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge]
+        if #available(macOS 27.0, *) {
+            families.append(.systemExtraLargePortrait)
+        }
+        return families
+    }
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
@@ -58,7 +73,7 @@ struct TokenomicsWidget: Widget {
         }
         .configurationDisplayName("AI Usage")
         .description("Track your AI coding tool usage at a glance.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies(Self.families)
         .contentMarginsDisabled()
     }
 }

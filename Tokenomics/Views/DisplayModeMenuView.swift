@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Dropdown menu for choosing Smart vs Individual menu bar display mode
 struct DisplayModeMenuView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
 
     @Environment(\.tokenomicsTextSize) private var textSize
 

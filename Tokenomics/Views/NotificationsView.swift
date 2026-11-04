@@ -3,7 +3,7 @@ import UserNotifications
 
 /// Settings sub-screen for per-provider notification thresholds and alert window selection
 struct NotificationsView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
 
     @Environment(\.tokenomicsTextSize) private var textSize
 

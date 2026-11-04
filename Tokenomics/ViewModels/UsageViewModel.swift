@@ -1,9 +1,15 @@
 import SwiftUI
-import Combine
 
 /// Main view model orchestrating multiple AI usage providers
+///
+/// `@Observable` (not `ObservableObject`): SwiftUI tracks exactly which
+/// properties each view reads, so a view only redraws when something it
+/// reads changes. With `ObservableObject`, *any* change — opening Settings,
+/// switching tabs, a sheet flag — redrew every view holding the view model,
+/// including the menu bar label.
 @MainActor
-final class UsageViewModel: ObservableObject {
+@Observable
+final class UsageViewModel {
 
     // MARK: - Bridge services (injected from AppDelegate)
     //
@@ -12,56 +18,56 @@ final class UsageViewModel: ObservableObject {
     // without needing to reach back through the app delegate at call sites.
 
     /// Set once by the app entry point after AppDelegate is ready.
-    var macSideStateExporter: MacSideStateExporter?
+    @ObservationIgnored var macSideStateExporter: MacSideStateExporter?
 
     /// Notification observers for bridge wiring. Retained so they're cancelled on deinit.
-    private var bridgeObservers: [Any] = []
+    @ObservationIgnored private var bridgeObservers: [Any] = []
 
     // MARK: - Published State
 
     /// Per-provider state (connection, usage, errors)
-    @Published private(set) var providerStates: [ProviderId: ProviderState] = [:]
+    private(set) var providerStates: [ProviderId: ProviderState] = [:]
 
     /// Currently selected tab
-    @Published var selectedTab: ProviderId? {
+    var selectedTab: ProviderId? {
         didSet { SettingsService.selectedTab = selectedTab }
     }
 
     /// Providers pinned to show individual rings in menu bar
-    @Published var pinnedProviders: Set<ProviderId> = [] {
+    var pinnedProviders: Set<ProviderId> = [] {
         didSet { SettingsService.pinnedProviders = pinnedProviders }
     }
 
     /// Custom provider display order
-    @Published var providerOrder: [ProviderId] = [] {
+    var providerOrder: [ProviderId] = [] {
         didSet { SettingsService.providerOrder = providerOrder }
     }
 
     /// Providers hidden from the tab bar
-    @Published var hiddenProviders: Set<ProviderId> = [] {
+    var hiddenProviders: Set<ProviderId> = [] {
         didSet { SettingsService.hiddenProviders = hiddenProviders }
     }
 
     /// Whether onboarding has been completed
-    @Published private(set) var hasCompletedOnboarding: Bool
+    private(set) var hasCompletedOnboarding: Bool
 
     /// Navigation state
-    @Published var showSettings = false
-    @Published var showAIConnections = false
-    @Published var showAbout = false
-    @Published var showHowItWorks = false
-    @Published var showNotifications = false
-    @Published var showTextSize = false
+    var showSettings = false
+    var showAIConnections = false
+    var showAbout = false
+    var showHowItWorks = false
+    var showNotifications = false
+    var showTextSize = false
 
     /// API key entry sheet — lifted here so resetNavigation can guard against
     /// dismissing AIConnectionsView while the sheet is open (the sheet window
     /// takes key focus, which would otherwise fire didResignKeyNotification and
     /// tear down the parent view before the sheet renders).
-    @Published var apiKeyEntryProvider: ProviderId?
+    var apiKeyEntryProvider: ProviderId?
 
     /// Copilot PAT entry sheet — promoted from AIConnectionsView's local @State
     /// so the new connector flow can trigger it from outside that view.
-    @Published var copilotPATEntryRequested: Bool = false
+    var copilotPATEntryRequested: Bool = false
 
     // MARK: - Demo Mode
 
@@ -69,7 +75,7 @@ final class UsageViewModel: ObservableObject {
     /// Backed by UserDefaults so it persists across launches (useful for continuous
     /// review sessions). Only settable when `BuildInfo.showsDebugTools` is true —
     /// stable release builds can never activate demo mode.
-    @Published var demoModeEnabled: Bool = false {
+    var demoModeEnabled: Bool = false {
         didSet {
             guard BuildInfo.showsDebugTools else {
                 // Safety net: silently revert if somehow called in a stable build.
@@ -102,15 +108,15 @@ final class UsageViewModel: ObservableObject {
     ]
 
     private let pollingService = PollingService()
-    private var activityMonitor: ActivityMonitor?
+    @ObservationIgnored private var activityMonitor: ActivityMonitor?
 
     /// Polling is gated behind onboarding completion so first-launch users don't
     /// hit keychain / cross-app TCC prompts before the guided flow can explain
     /// them. Flipped true the first time `startPolling()` actually runs.
-    private var pollingStarted = false
+    @ObservationIgnored private var pollingStarted = false
     let notificationService = NotificationService()
 
-    private var isDetecting = false
+    @ObservationIgnored private var isDetecting = false
 
     // MARK: - Computed Properties
 
@@ -404,7 +410,11 @@ final class UsageViewModel: ObservableObject {
 
     func startPolling() {
         // Demo mode bypasses all live polling — fixture data is already in providerStates.
-        guard !demoModeEnabled else { return }
+        // Observers still go in so the widget ↻ and Spotlight's Refresh work in demos.
+        guard !demoModeEnabled else {
+            registerBridgeObservers()
+            return
+        }
 
         // Don't run detection until the user has been through onboarding. The
         // guided flow's PermissionsStep is responsible for triggering the
@@ -447,9 +457,10 @@ final class UsageViewModel: ObservableObject {
     }
 
     /// Registers NotificationCenter observers that wire the bridge layer into
-    /// the VM without creating a retain cycle. Safe to call once; calling more
-    /// than once is a no-op because `pollingStarted` guards the caller.
+    /// the VM without creating a retain cycle. Idempotent: demo mode registers them
+    /// on every menu-bar appear, and again when live polling starts after demo.
     private func registerBridgeObservers() {
+        guard bridgeObservers.isEmpty else { return }
         // Extension requests a native re-poll → treat it the same as a user tapping Refresh.
         let refreshObserver = NotificationCenter.default.addObserver(
             forName: .tokenomicsBridgeRefreshRequested,
@@ -495,7 +506,13 @@ final class UsageViewModel: ObservableObject {
         Task { await pollingService.stop() }
     }
 
+    /// Bumped on every manual refresh (button or ⌘R) so the popover can replay
+    /// its motion — refresh-button spin, bars/pace/% build-in — even when the
+    /// fetched numbers come back unchanged.
+    private(set) var refreshCount = 0
+
     func refresh() {
+        refreshCount += 1
         // In demo mode, re-apply fixture data so the UI updates (e.g. after slam).
         guard !demoModeEnabled else {
             applyDemoData(snapshots: DemoData.allSnapshots)

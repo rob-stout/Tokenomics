@@ -550,3 +550,43 @@ The "Midjourney has no API" discovery also mattered for product confidence. Rath
 **Story Thread**: This entry belongs to "The Approach" arc — the phase where the right question is "what model does the UI need to reflect?" rather than "what should the UI look like?" The Connections page redesign is not a visual problem; it is a conceptual architecture problem. The flat list was always a simplification. Five providers across two billing ecosystems and five categories of creative AI tools made the simplification visible. Designing the correct model before writing the first line of integration code is the kind of decision that only looks obvious in hindsight.
 
 ---
+
+## 2026-10-27 — The Pace Dot Shouldn't Wiggle: Decorative Motion vs. Data Motion
+
+**Phase**: The Craft — a motion pass on the macOS 14 upgrade branch
+
+**What Changed**: I asked for a motion pass because the animations are a big part of what makes the app feel good to use. The first move was to carry the website's brand motion spec into the native app: bars fill over 500ms on a gentle ease-out curve, and the pace dot drifts ±4px on a 2.5s loop. The drift went in first, and then we caught a problem. The spec was written for the marketing site, where the dot is decoration. In the app, the dot is the data. I replaced the wiggle with a one-time entrance: the bar grows in, the dot slides to its true position on a slightly longer timing, and then both hold still.
+
+**Why It Matters**: The pace dot is the most important reading on a usage bar. Fill past the dot means you'll run out before the window resets. A dot that moves lies about its own value. When usage is clearly ahead of pace, the wiggle is harmless. When usage is right at pace (say 55% used, dot at 54.5%), the dot slides back and forth across the fill's edge, and the bar flips between "ahead" and "behind" every second. On a popover-width bar, 4px is about 1.2% of the window, which is the same size as the difference the user is trying to read. A data marker shouldn't move unless the data moves.
+
+**Key Decision**: I rejected the wiggle, but I didn't just cut it. I asked what it was for. My read: "I think the intention is to grab the user's eye so they can find the dot faster." That intent is worth keeping. The motion just needed to carry meaning instead of noise. So the dot should travel to its real value, once, and stop. We prototyped three timings in an HTML motion study, all on the brand's Bars curve:
+
+- **A. Together.** Fill and dot leave the left edge at the same time. One quick sweep, but the dot rides inside the fill and is easy to miss.
+- **B. Fill, then dot.** The fill lands first, then the dot slides in half a second later. A strong two-beat reveal ("here's what you've used", then "here's where you should be"). But it takes a full second on every popover open, and it risks feeling slow with daily use.
+- **C. Together, dot slower.** Both start at once. The fill takes 500ms and the dot takes 800ms, so the dot trails and lands last. This was my idea, and the one I chose. It's playful, and it still draws the eye to the pace dot because it's the last thing to settle.
+
+C wins because it gets B's separate beat for the dot at 0.8s instead of 1s, in one continuous motion. It also stays on the brand curve, so it stays in-system.
+
+**The Number**: 800ms for the dot, 500ms for the fill. That is 200ms faster than the two-beat version, and the dot still gets its own moment. Drift removed entirely: 0 continuous animations on data markers.
+
+**UX Thinking**: Motion in a menu bar popover is repeated dozens of times a day, so it has to earn its time. The question for each animation was "what is this telling the user?" A fill that grows says "this is how much you've used." A dot that travels to its position says "look here." A dot that oscillates forever says nothing, and it blurs the one thing the user came to read. Ending at rest also means the eye can settle on a stable reading.
+
+**UI Craft**: The dot's slide is a new token, `Tokens.Motion.paceSlide` (800ms, the brand Bars curve), animated separately from the fill's 500ms `barFill`. The percentage digits roll up with the fill so the number and the bar tell the same story. The drift modifier and its tokens were deleted rather than left unused. The decision went back into the brand motion table as a new "App · pace dot" row, next to the website spec. The design system now records that the app diverges from the site, and why.
+
+**Accessibility**: With Reduce Motion on, bars and the dot appear at their final positions with no animation. The reading is identical; only the choreography is removed. I treated this as an equal state, not an afterthought, and the study page shows C side by side with the Reduce Motion version.
+
+**Also in this pass**: The onboarding "connected" check gets a keyframe pop (0.6, 1.15, 0.95, 1). A brand-palette confetti burst is prototyped in HTML but not built in the app yet. While matching the confetti demo to the real screen, we found the pop had been attached to an icon the app never displays, and moved it to the large 64pt connected check.
+
+**What I Learned**: A spec is only as portable as its purpose. The website's drift was right for a surface where the dot is decoration, and wrong for one where it's a reading. Naming the intent behind the spec ("help the eye find the dot") gave me a better answer than either keeping or cutting it. And a prototype has to be checked against the real screen: building the confetti demo to match the real layout is what showed that the app's pop code was on an icon the app never displays.
+
+**Status (honest)**: The code is on `feat/macos14-upgrades`, uncommitted. It builds and tests pass. I haven't seen it in the running app yet, so the timing is chosen from the HTML study and not yet confirmed in the real popover.
+
+**Artifacts to Capture**:
+- The interactive motion study page (A/B/C plus Reduce Motion), private link: https://claude.ai/artifact/FkrrEsRijjUpVXKV1S15AU
+- The before/after demo showing the dot flipping a near-pace bar between "ahead" and "behind"
+- The brand motion table with the new "App · pace dot" row, next to the website values
+- Screen recording of the popover opening in the real app, once I've seen it (with and without Reduce Motion)
+
+**Story Thread**: This belongs in "The Craft" arc. The point is judgment: motion that earns its place, a spec questioned instead of copied, and a design system updated with the decision instead of left to drift. The designer-led moment is the reframe from "cut the wiggle" to "keep the intent, change the motion."
+
+---

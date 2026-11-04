@@ -3,7 +3,7 @@ import SwiftUI
 /// Shown when no provider is connected — walks the user to the Providers screen
 /// where they can install a CLI, paste a token, or enter an API key.
 struct LoginView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
 
     var body: some View {
         VStack(spacing: 12) {

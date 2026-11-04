@@ -136,6 +136,9 @@ struct TokenomicsWidgetEntryView: View {
             MediumWidgetView(entry: entry)
         case .systemLarge:
             LargeWidgetView(entry: entry)
+        case .systemExtraLargePortrait:
+            // Same layout as large, with room for every pool instead of "+N in app".
+            LargeWidgetView(entry: entry, maxRows: 14)
         default:
             MediumWidgetView(entry: entry)
         }
@@ -220,13 +223,18 @@ struct SmallWidgetView: View {
                             )
                             .rotationEffect(.degrees(-90))
                             .frame(width: outerDia, height: outerDia)
+                            .animation(WidgetMotion.barFill, value: provider.shortWindow.utilization)
 
                         // Outer ring tracker dot (short window pace) — runway indicator
                         if provider.shortWindow.pace > 0.01 && provider.shortWindow.pace < 0.99 {
                             Circle()
                                 .fill(theme.paceDotColor)
                                 .frame(width: dotSize, height: dotSize)
-                                .offset(trackerDotOffset(progress: provider.shortWindow.pace, radius: outerDia / 2))
+                                .offset(y: -outerDia / 2)
+                                // Rotate a full-ring frame (not the dot) so the move follows the arc.
+                                .frame(width: outerDia, height: outerDia)
+                                .rotationEffect(.degrees(provider.shortWindow.pace * 360))
+                                .animation(WidgetMotion.paceSlide, value: provider.shortWindow.pace)
                         }
 
                         // Inner ring track (long window — only when available)
@@ -244,18 +252,24 @@ struct SmallWidgetView: View {
                                 )
                                 .rotationEffect(.degrees(-90))
                                 .frame(width: innerDia, height: innerDia)
+                                .animation(WidgetMotion.barFill, value: longWindow.utilization)
 
                             // Inner ring tracker dot (long window pace) — runway indicator
                             if longWindow.pace > 0.01 && longWindow.pace < 0.99 {
                                 Circle()
                                     .fill(theme.paceDotColor)
                                     .frame(width: dotSize, height: dotSize)
-                                    .offset(trackerDotOffset(progress: longWindow.pace, radius: innerDia / 2))
+                                    .offset(y: -innerDia / 2)
+                                    // Rotate a full-ring frame (not the dot) so the move follows the arc.
+                                    .frame(width: innerDia, height: innerDia)
+                                    .rotationEffect(.degrees(longWindow.pace * 360))
+                                    .animation(WidgetMotion.paceSlide, value: longWindow.pace)
                             }
                         }
 
                         // Percentage — centered in rings
                         Text("\(Int(provider.shortWindow.utilization))%")
+                            .widgetPercentRoll(provider.shortWindow.utilization)
                             .font(.system(size: fontSize, weight: .bold))
                             .monospacedDigit()
                             .foregroundStyle(theme.shortColor)
@@ -286,17 +300,20 @@ struct SmallWidgetView: View {
                         .padding(.leading, s * 0.082)
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                GeometryReader { geo in
+                    let s = min(geo.size.width, geo.size.height)
+                    // Same inset and box as the provider icon, mirrored.
+                    WidgetRefreshButton(taps: entry.refreshTaps)
+                        .frame(width: s * 0.112, height: s * 0.112)
+                        .padding(.top, s * 0.082)
+                        .padding(.trailing, s * 0.082)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
         } else {
             NoDataView()
         }
-    }
-
-    /// Computes the offset for a tracker dot at `progress` (0–1) around a ring of `radius`.
-    private func trackerDotOffset(progress: Double, radius: CGFloat) -> CGSize {
-        let angle: Double = progress * 2 * Double.pi - Double.pi / 2
-        let dx: Double = cos(angle)
-        let dy: Double = sin(angle)
-        return CGSize(width: CGFloat(dx) * radius, height: CGFloat(dy) * radius)
     }
 }
 
@@ -430,6 +447,7 @@ struct MediumWidgetView: View {
             Text(snapshot.updatedAt, style: .relative)
                 .font(.caption2)
                 .foregroundStyle(theme.labelColor)
+            WidgetRefreshButton(taps: entry.refreshTaps)
         }
     }
 }
@@ -445,6 +463,8 @@ struct MediumWidgetView: View {
 /// code path is untouched.
 struct LargeWidgetView: View {
     let entry: UsageEntry
+    /// Provider rows before the rest collapse into "+N in app".
+    var maxRows = 7
 
     @Environment(\.widgetTheme) private var theme
 
@@ -465,7 +485,7 @@ struct LargeWidgetView: View {
     @ViewBuilder
     private func legacyBody(snapshot: WidgetDataStore.WidgetSnapshot) -> some View {
         let useCompact = snapshot.providers.count >= 4
-        let maxVisible = 7
+        let maxVisible = maxRows
         let visibleProviders = Array(snapshot.providers.prefix(maxVisible))
         let overflowCount = snapshot.providers.count - maxVisible
         let hasOverflow = overflowCount > 0
@@ -480,6 +500,7 @@ struct LargeWidgetView: View {
                 Text(snapshot.updatedAt, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(theme.labelColor)
+                WidgetRefreshButton(taps: entry.refreshTaps)
             }
             .padding(.bottom, hasOverflow ? 14 : 20)
 
@@ -528,7 +549,7 @@ struct LargeWidgetView: View {
     private func brandAwareBody(snapshot: WidgetDataStore.WidgetSnapshot) -> some View {
         // Large widget cap: 6 data rows (same as the existing maxVisible=7 minus
         // one seat reserved for the footer, giving visual breathing room).
-        let maxDataRows = 6
+        let maxDataRows = maxRows - 1
         let groups = BrandGrouping.group(providers: snapshot.providers, maxDataRows: maxDataRows)
         let overflowCount = BrandGrouping.overflowCount(providers: snapshot.providers, maxDataRows: maxDataRows)
         let hasOverflow = overflowCount > 0
@@ -543,6 +564,7 @@ struct LargeWidgetView: View {
                 Text(snapshot.updatedAt, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(theme.labelColor)
+                WidgetRefreshButton(taps: entry.refreshTaps)
             }
             .padding(.bottom, hasOverflow ? 14 : 20)
 
@@ -767,6 +789,7 @@ private struct CompactProviderRow: View {
                         .foregroundStyle(theme.labelColor)
                     Spacer()
                     Text("\(Int(provider.shortWindow.utilization))%")
+                        .widgetPercentRoll(provider.shortWindow.utilization)
                         .font(.caption2)
                         .fontWeight(.medium)
                         .monospacedDigit()
@@ -789,6 +812,7 @@ private struct CompactProviderRow: View {
                             .foregroundStyle(theme.labelColor)
                         Spacer()
                         Text("\(Int(longWindow.utilization))%")
+                            .widgetPercentRoll(longWindow.utilization)
                             .font(.caption2)
                             .fontWeight(.medium)
                             .monospacedDigit()
@@ -850,6 +874,7 @@ private struct LargeProviderRow: View {
                     )
 
                     Text("\(Int(provider.shortWindow.utilization))%")
+                        .widgetPercentRoll(provider.shortWindow.utilization)
                         .font(.caption2)
                         .fontWeight(.medium)
                         .monospacedDigit()
@@ -872,6 +897,7 @@ private struct LargeProviderRow: View {
                         )
 
                         Text("\(Int(longWindow.utilization))%")
+                            .widgetPercentRoll(longWindow.utilization)
                             .font(.caption2)
                             .fontWeight(.medium)
                             .monospacedDigit()
@@ -882,6 +908,56 @@ private struct LargeProviderRow: View {
             }
         }
     }
+}
+
+// MARK: - Refresh button
+
+/// Refresh control in the widget header (top-right corner on small). Asks the
+/// app to poll; the arrow turns once per tap. WidgetKit can only animate
+/// between timeline entries, so the turn is the tap count changing from one
+/// entry to the next (the system reloads the widget after a button intent).
+private struct WidgetRefreshButton: View {
+    /// Tap counts for every widget size; this button turns on its own size's.
+    let taps: [String: Int]
+    @Environment(\.widgetTheme) private var theme
+    @Environment(\.widgetFamily) private var family
+
+    private var widget: String { "\(family)" }
+
+    var body: some View {
+        #if WIDGET_EXTENSION
+        Button(intent: WidgetRefreshIntent(widget: widget)) { arrow }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Refresh usage")
+        #else
+        // The app target compiles these views only for previews.
+        arrow
+        #endif
+    }
+
+    private var arrow: some View {
+        Image(systemName: "arrow.clockwise")
+            .resizable()
+            .fontWeight(.semibold)
+            .scaledToFit()
+            .foregroundStyle(theme.labelColor)
+            .frame(width: 12, height: 12)
+            .rotationEffect(.degrees(Double(taps[widget] ?? 0) * 360), anchor: .refreshArrowCenter)
+            .animation(WidgetMotion.refreshSpin, value: taps[widget])
+            // 28pt tap target around a 12pt glyph, without growing the layout.
+            .padding(8)
+            .contentShape(Rectangle())
+            .padding(-8)
+    }
+}
+
+extension UnitPoint {
+    /// Center of the circle traced by the `arrow.clockwise` glyph, inside a
+    /// square frame holding the glyph via `.resizable().scaledToFit()`. The
+    /// arrowhead makes the glyph taller than its circle, so the frame's center
+    /// sits above the circle's and spinning about it wobbles. Measured from
+    /// the rendered symbol (best-fit circle of the arc).
+    static let refreshArrowCenter = UnitPoint(x: 0.491, y: 0.584)
 }
 
 // MARK: - Share CTA
@@ -948,6 +1024,7 @@ struct WidgetProgressBar: View {
                         width: geometry.size.width * min(max(utilization / 100.0, 0), 1),
                         height: 4
                     )
+                    .animation(WidgetMotion.barFill, value: utilization)
 
                 // Pace tracker dot — runway indicator (time elapsed through the window)
                 if pace > 0.01 && pace < 0.99 {
@@ -956,10 +1033,31 @@ struct WidgetProgressBar: View {
                         .fill(theme.paceDotColor)
                         .frame(width: 4, height: 4)
                         .offset(x: paceX - 2)
+                        .animation(WidgetMotion.paceSlide, value: pace)
                 }
             }
         }
         .frame(height: 4)
+    }
+}
+
+// MARK: - Motion
+
+/// Widget copies of `Tokens.Motion.barFill` / `paceSlide` (Tokens isn't in this
+/// target). WidgetKit animates from the previous timeline entry to the new one,
+/// so a refresh grows each bar from its old value and the pace dot lands last.
+enum WidgetMotion {
+    static let barFill = Animation.timingCurve(0.25, 0.46, 0.45, 0.94, duration: 0.5)
+    static let paceSlide = Animation.timingCurve(0.25, 0.46, 0.45, 0.94, duration: 0.8)
+    /// Mirrors `Tokens.Motion.refreshSpin`: one full turn per tap.
+    static let refreshSpin = Animation.easeOut(duration: 0.6)
+}
+
+extension View {
+    /// Digits roll from the previous entry's percentage to the new one.
+    func widgetPercentRoll(_ value: Double) -> some View {
+        contentTransition(.numericText(value: value))
+            .animation(WidgetMotion.barFill, value: value)
     }
 }
 

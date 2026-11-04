@@ -265,6 +265,41 @@ enum Tokens {
 
         /// Default easing — matches CSS cubic-bezier(.2,.7,.2,1).
         static let ease = Animation.timingCurve(0.2, 0.7, 0.2, 1, duration: standard)
+
+        // Per-behavior curves — docs/brand/tokenomics-brand-guidelines.html,
+        // "Motion rules" table. All custom motion is skipped under Reduce Motion.
+
+        /// Bars: width 0→final, 500ms, cubic-bezier(.25,.46,.45,.94).
+        static let barFill = Animation.timingCurve(0.25, 0.46, 0.45, 0.94, duration: 0.5)
+        /// Pace dot rides in with the fill on the same curve but slower, so it
+        /// trails the fill and lands last — that last beat draws the eye to it.
+        static let paceSlide = Animation.timingCurve(0.25, 0.46, 0.45, 0.94, duration: 0.8)
+        /// Refresh button: one full turn per refresh. Fetches are near-instant,
+        /// so a single turn reads as "done" rather than an open-ended spinner.
+        static let refreshSpin = Animation.easeOut(duration: 0.6)
+
+        /// Success pop (onboarding "connected"): scale 0.6 → 1.15 → 0.95 → 1.
+        /// Not in the brand table — app-only value, added with this motion pass.
+        static let successPopScales: [(scale: CGFloat, duration: Double)] = [
+            (1.15, 0.18), (0.95, 0.12), (1.0, 0.12)
+        ]
+        static let successPopStart: CGFloat = 0.6
+
+        /// Confetti on the onboarding "connected" screen. Tuned by Rob in the
+        /// HTML motion study (2026-10-29); units are points and seconds in the
+        /// 680pt-wide onboarding window.
+        enum Confetti {
+            static let originX: CGFloat = 0.5    // fraction of width
+            static let originY: CGFloat = 0      // fraction of height (top edge)
+            static let depth: Double = 0.2       // how far pieces pop toward the viewer
+            static let aimDegrees: Double = 0    // 0° = up
+            static let spreadDegrees: Double = 360
+            static let pop: Double = 800         // max launch speed, pt/s
+            static let gravity: Double = 1100    // pt/s²
+            static let drag: Double = 0.4        // linear air drag, 1/s
+            static let emitDuration: Double = 0.14
+            static let density: Double = 1680    // pieces per second (235 total)
+        }
     }
 }
 

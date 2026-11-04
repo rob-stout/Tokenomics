@@ -1831,6 +1831,16 @@
             <tr><td>Pace dot (after bar fills)</td><td>±4px sinusoidal drift</td><td><code>2.5s</code> loop, 400ms delay</td><td>ease-in-out, infinite</td></tr>
             <tr><td>FAQ expand</td><td>max-height (only)</td><td><code>300ms</code></td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
             <tr><td>Theme toggle</td><td>background, color, border, shadow</td><td><code>220ms</code> · default</td><td><code>cubic-bezier(.2,.7,.2,1)</code></td></tr>
+            <!-- App-only motion (macOS 14 APIs). Tokens: Tokens.Motion in Tokens.swift; modifiers: MotionEffects.swift. -->
+            <tr><td>App · usage % (with bar fill)</td><td>counts up 0→value in place (no roll, no slide)</td><td><code>500ms</code> · same as Bars</td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
+            <tr><td>App · pace dot (with bar fill)</td><td>slides 0→pace, starting with the fill, lands last, then still (no drift: it marks a real position)</td><td><code>800ms</code> · starts with Bars</td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
+            <tr><td>Widget · refresh</td><td>↻ turns once per tap (600ms ease-out); bars/rings grow old→new, % rolls, pace dot lands last; no grow-from-zero at load (widgets only animate between entries)</td><td><code>500ms</code> fill · <code>800ms</code> dot</td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
+            <tr><td>Extension popup · open</td><td>same as App bars + pace dot; % counts up; off under reduced motion</td><td><code>500ms</code> fill · <code>800ms</code> dot</td><td><code>cubic-bezier(.25,.46,.45,.94)</code></td></tr>
+            <tr><td>App · refresh (button or ⌘R)</td><td>arrow turns once 0→360°; bars, pace dot and % replay their build-in from 0</td><td><code>600ms</code> turn · <code>500ms</code> fill · <code>800ms</code> dot</td><td>ease-out turn; off under reduced motion</td></tr>
+            <tr><td>App · alert symbol (appear)</td><td>SF Symbol <code>.wiggle</code> (macOS 15+; <code>.bounce</code> on 14)</td><td>system</td><td>system, once</td></tr>
+            <tr><td>App · share symbol (hover)</td><td>SF Symbol <code>.bounce</code></td><td>system</td><td>system, once per hover</td></tr>
+            <tr><td>App · success check (onboarding)</td><td>scale 0.6 → 1.15 → 0.95 → 1 (keyframes)</td><td><code>180ms</code> + <code>120ms</code> + <code>120ms</code></td><td>spring keyframes</td></tr>
+            <tr><td>App · confetti (onboarding connected)</td><td>pops from top center toward the viewer (depth 0.2), 360° spread, piles on the bottom edge; side exits leave</td><td>0.14s emit · 1680/s (235 pieces)</td><td>physics: launch ≤800pt/s, gravity 1100pt/s², drag 0.4; skipped under Reduce Motion</td></tr>
           </tbody>
         </table>
       </div>

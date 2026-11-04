@@ -3,8 +3,8 @@ import ServiceManagement
 
 /// Main popover content shown when clicking the menu bar icon
 struct PopoverView: View {
-    @ObservedObject var viewModel: UsageViewModel
-    @ObservedObject var updaterService: UpdaterService
+    @Bindable var viewModel: UsageViewModel
+    var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
     @State private var isRequestingKeychainAccess = false
@@ -356,6 +356,7 @@ struct PopoverView: View {
             ) {
                 Image(systemName: "square.and.arrow.up")
                     .scaledFont(.caption)
+                    .bounceOnHover()
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -419,7 +420,8 @@ struct PopoverView: View {
                 label: usage.shortWindow.label,
                 utilization: usage.shortWindow.utilization,
                 pace: usage.shortWindow.pace,
-                sublabel: usage.shortWindow.timeUntilReset
+                sublabel: usage.shortWindow.timeUntilReset,
+                replayTrigger: viewModel.refreshCount
             )
 
             if let longWindow = usage.longWindow {
@@ -429,7 +431,8 @@ struct PopoverView: View {
                     label: longWindow.label,
                     utilization: longWindow.utilization,
                     pace: longWindow.pace,
-                    sublabel: longWindow.timeUntilReset
+                    sublabel: longWindow.timeUntilReset,
+                    replayTrigger: viewModel.refreshCount
                 )
             }
 
@@ -572,6 +575,7 @@ struct PopoverView: View {
             Image(systemName: "exclamationmark.triangle")
                 .scaledFont(.title2)
                 .foregroundStyle(.orange)
+                .attentionOnAppear()
 
             Text("\(provider.displayName) authentication expired")
                 .scaledFont(.caption)
@@ -672,6 +676,7 @@ struct PopoverView: View {
             Image(systemName: "exclamationmark.triangle")
                 .scaledFont(.title2)
                 .foregroundStyle(.orange)
+                .attentionOnAppear()
 
             Text(error.localizedDescription)
                 .scaledFont(.caption)
@@ -840,6 +845,7 @@ struct PopoverView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .scaledFont(.caption)
+                            .attentionOnAppear(updaterService.updateAvailable)
                             .frame(width: 16 * textSize.iconScale, height: 16 * textSize.iconScale)
                             .foregroundStyle(.secondary)
                         Text(updaterService.updateAvailable ? "Update Available" : "Check for Updates")

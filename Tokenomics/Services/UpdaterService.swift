@@ -49,12 +49,14 @@ struct PendingUpdateStore {
 }
 
 @MainActor
-final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUserDriverDelegate {
-    private var updaterController: SPUStandardUpdaterController!
+@Observable
+final class UpdaterService: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUserDriverDelegate {
+    @ObservationIgnored private var updaterController: SPUStandardUpdaterController!
+    @ObservationIgnored private var canCheckObservation: NSKeyValueObservation?
     private let pendingStore = PendingUpdateStore()
 
-    @Published var canCheckForUpdates = false
-    @Published var updateAvailable = false
+    var canCheckForUpdates = false
+    var updateAvailable = false
 
     override init() {
         super.init()
@@ -73,9 +75,14 @@ final class UpdaterService: NSObject, ObservableObject, SPUUpdaterDelegate, @pre
         // Ensure automatic checks are enabled (overrides any stale UserDefaults preference)
         updaterController.updater.automaticallyChecksForUpdates = true
 
-        // Observe Sparkle's canCheckForUpdates property via KVO
-        updaterController.updater.publisher(for: \.canCheckForUpdates)
-            .assign(to: &$canCheckForUpdates)
+        // Mirror Sparkle's KVO-observable canCheckForUpdates into our property
+        canCheckObservation = updaterController.updater.observe(
+            \.canCheckForUpdates,
+            options: [.initial, .new]
+        ) { [weak self] updater, _ in
+            let canCheck = updater.canCheckForUpdates
+            Task { @MainActor in self?.canCheckForUpdates = canCheck }
+        }
 
         let current = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? ""
         updateAvailable = pendingStore.shouldShowBadge(currentVersion: current)

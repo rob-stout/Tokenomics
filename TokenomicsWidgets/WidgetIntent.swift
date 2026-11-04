@@ -1,3 +1,4 @@
+import AppKit
 import AppIntents
 import WidgetKit
 
@@ -66,5 +67,65 @@ struct SelectProviderIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Provider", default: .smart)
     var provider: WidgetProviderSelection
+}
+#endif
+
+#if WIDGET_EXTENSION
+/// Widget refresh button. A widget can't fetch usage itself, so this asks the
+/// app to poll via `tokenomics://refresh`, which also launches the app when it
+/// isn't running. Opened in the background so a tap never pulls focus.
+///
+/// Widget-extension only: if the app target also contained this intent, the
+/// system could run it in the app's process instead, which is slower and
+/// brings the app forward.
+struct WidgetRefreshIntent: AppIntent {
+    static let title: LocalizedStringResource = "Refresh Widget"
+    static let isDiscoverable = false
+
+    /// Which widget size was tapped, so only that widget's arrow turns.
+    @Parameter(title: "Widget")
+    var widget: String
+
+    init() {}
+
+    init(widget: String) {
+        self.widget = widget
+    }
+
+    func perform() async throws -> some IntentResult {
+        WidgetRefreshTaps.increment(widget)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = false
+        // Fire and forget. WidgetKit redraws (and the arrow turns) only once
+        // perform() returns, so waiting for the app to receive the URL —
+        // or to launch — showed up as lag between the tap and the turn.
+        NSWorkspace.shared.open(URL(string: "tokenomics://refresh")!, configuration: configuration, completionHandler: nil)
+        return .result()
+    }
+}
+
+/// Tap counters in the App Group container, read into each timeline entry.
+///
+/// Kept per widget size: with one shared count, a widget that hadn't redrawn
+/// since the others were tapped jumped several taps at once and spun that
+/// many turns. Counts only go up, so every tap is a new value to turn to.
+enum WidgetRefreshTaps {
+    private static var fileURL: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId)?
+            .appendingPathComponent("widget-refresh-taps.json")
+    }
+
+    static var all: [String: Int] {
+        guard let fileURL, let data = try? Data(contentsOf: fileURL) else { return [:] }
+        return (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+    }
+
+    static func increment(_ widget: String) {
+        guard let fileURL else { return }
+        var taps = all
+        taps[widget, default: 0] += 1
+        try? JSONEncoder().encode(taps).write(to: fileURL, options: .atomic)
+    }
 }
 #endif

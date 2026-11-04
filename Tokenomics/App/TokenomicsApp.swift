@@ -8,7 +8,7 @@ struct TokenomicsApp: App {
     // observe it. With @StateObject every published change (each poll result)
     // re-evaluated the whole scene, rebuilding the MenuBarExtra each time.
     @State private var viewModel = UsageViewModel()
-    @StateObject private var updaterService = UpdaterService()
+    @State private var updaterService = UpdaterService()
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
@@ -53,6 +53,10 @@ struct TokenomicsApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 720, height: 560)
         .windowStyle(.titleBar)
+        // A tokenomics:// link that launches the app (widget ↻ while quit)
+        // would otherwise be routed to this window and open it. The app
+        // delegate handles every link itself.
+        .handlesExternalEvents(matching: [])
 
         if #available(macOS 15.0, *) {
             return base.restorationBehavior(.disabled)
@@ -68,7 +72,7 @@ struct TokenomicsApp: App {
 /// focusable (LSUIElement is still `true` — no Dock icon except while this view
 /// is visible), then restores `.accessory` when it disappears.
 struct OnboardingWindowRoot: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
     var webCompanion: any WebCompanionStateProvider
     @Environment(\.dismissWindow) private var dismissWindow
 
@@ -196,6 +200,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showShareSheet()
         case "open":
             NSApp.activate(ignoringOtherApps: true)
+        case "refresh":
+            // Widget refresh button. On a cold launch this lands before or
+            // just after the startup poll — either way the data is fresh.
+            // Hold widget reloads past the ↻ turn (600ms) so it isn't cut short.
+            // The turn starts only once WidgetKit redraws after the tap, which can
+            // trail this link by a few hundred ms — hence the margin.
+            WidgetReloadGate.hold(for: 1.2)
+            NotificationCenter.default.post(name: .tokenomicsBridgeRefreshRequested, object: nil)
         default:
             break
         }
@@ -219,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// The menu bar label — shows ring + percentage for one provider.
 /// Smart mode picks the worst-of-N; pinned mode shows the user's choice.
 struct MenuBarLabel: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {

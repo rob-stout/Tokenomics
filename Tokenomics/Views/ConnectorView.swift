@@ -3,10 +3,11 @@ import SwiftUI
 /// Universal connector view — handles every provider's "from zero to connected"
 /// flow with consistent chrome. Routes between step types based on `step` enum.
 struct ConnectorView: View {
-    @ObservedObject var viewModel: ConnectorViewModel
+    var viewModel: ConnectorViewModel
     var onBack: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,6 +33,13 @@ struct ConnectorView: View {
                     .padding(.top, Tokens.Spacing.s6)        // 32pt
                     .padding(.horizontal, 40)                // 40pt — mockup literal
                     .padding(.bottom, Tokens.Spacing.s5 + 4) // 28pt
+            }
+        }
+        // Confetti sits between the background and the content, so it falls
+        // behind the text and buttons. Skipped under Reduce Motion.
+        .background {
+            if isConnectedStep && !reduceMotion {
+                ConfettiView()
             }
         }
         .background(Tokens.DynamicColor.bg.ignoresSafeArea())
@@ -373,6 +381,7 @@ struct ConnectorView: View {
                     .foregroundStyle(Tokens.Color.success(scheme))
             }
             .frame(width: 64, height: 64)
+            .successPop()
             .padding(.top, Tokens.Spacing.s1 + 2)
             .padding(.bottom, Tokens.Spacing.s4 + 2) // 18pt
 

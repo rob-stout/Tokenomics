@@ -9,11 +9,14 @@ struct SyncFooterView: View {
     let showDisplayMode: Bool
     var updateAvailable: Bool = false
     var isStale: Bool = false
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
     /// Called when the debug button is tapped. Only rendered when `BuildInfo.showsDebugTools`.
     var onDebug: (() -> Void)? = nil
 
     @Environment(\.tokenomicsTextSize) private var textSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Accumulates a full turn per refresh, so each one spins exactly once.
+    @State private var spinDegrees: Double = 0
 
     private var syncText: String {
         guard let lastSynced else { return "Not yet synced" }
@@ -45,7 +48,10 @@ struct SyncFooterView: View {
             // Refresh button
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 13 * textSize.iconScale))
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 13 * textSize.iconScale, height: 13 * textSize.iconScale)
+                    .rotationEffect(.degrees(spinDegrees), anchor: .refreshArrowCenter)
                     .frame(width: 28 * textSize.iconScale, height: 28 * textSize.iconScale)
                     .contentShape(Rectangle())
             }
@@ -54,6 +60,10 @@ struct SyncFooterView: View {
             .opacity(isLoading ? 0.4 : 1.0)
             .animation(.easeInOut(duration: 0.2), value: isLoading)
             .disabled(isLoading)
+            .onChange(of: viewModel.refreshCount) { _, _ in
+                guard !reduceMotion else { return }
+                withAnimation(Tokens.Motion.refreshSpin) { spinDegrees += 360 }
+            }
 
             // Display mode dropdown (only with multiple providers)
             if showDisplayMode {
@@ -71,6 +81,7 @@ struct SyncFooterView: View {
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13 * textSize.iconScale))
+                    .attentionOnAppear(updateAvailable)
                     .frame(width: 28 * textSize.iconScale, height: 28 * textSize.iconScale)
                     .contentShape(Rectangle())
                     .overlay(alignment: .topTrailing) {

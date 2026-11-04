@@ -10,7 +10,7 @@ import SwiftUI
 /// connector flow. Both "Add another" and "I'm all set" outcomes close the window
 /// in that case, since the chooser context doesn't apply.
 struct ConnectorContainer: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
 
     /// WebCompanionService instance for BrowserExtensionConnector.
     /// Passed in from the app root so it shares the same singleton the rest of

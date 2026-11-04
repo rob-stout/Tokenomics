@@ -6,7 +6,8 @@ import os
 /// to the main actor for SwiftUI, and manages post-connection chaining
 /// (Add another provider / I'm all set).
 @MainActor
-final class ConnectorViewModel: ObservableObject, Identifiable {
+@Observable
+final class ConnectorViewModel: Identifiable {
     /// Stable identifier so SwiftUI's `.sheet(item:)` can uniquely track this VM.
     let id = UUID()
 
@@ -14,7 +15,7 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
 
     // MARK: - Published state
 
-    @Published private(set) var step: ConnectorStep = .detecting
+    private(set) var step: ConnectorStep = .detecting
 
     /// Display name shown in the connector header.
     let providerName: String
@@ -140,7 +141,7 @@ final class ConnectorViewModel: ObservableObject, Identifiable {
     // MARK: - Internal
 
     private let connector: any ProviderConnector
-    private var pollingTask: Task<Void, Never>?
+    @ObservationIgnored private var pollingTask: Task<Void, Never>?
 
     /// Polling cadence while detection / install / OAuth is in progress.
     private static let pollInterval: TimeInterval = 1.5

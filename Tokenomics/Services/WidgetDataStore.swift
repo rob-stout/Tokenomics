@@ -246,7 +246,7 @@ enum WidgetDataStore {
         // Tell WidgetKit to refresh — only for the real shared file, so test
         // writes don't reload the user's widgets.
         if fileURL == nil {
-            WidgetCenter.shared.reloadAllTimelines()
+            Task { @MainActor in WidgetReloadGate.reload() }
         }
     }
 
@@ -276,5 +276,34 @@ enum WidgetDataStore {
             return nil
         }
         return snapshot
+    }
+}
+
+/// Reloading a widget's timeline cuts short any animation it's mid-way through.
+/// A widget ↻ tap starts a 600ms turn and, at about the same moment, asks the
+/// app to refresh — whose data writes would otherwise land mid-turn. `hold`
+/// defers reloads until the turn is done; writes made meanwhile go out as one.
+@MainActor
+enum WidgetReloadGate {
+    private static var heldUntil = Date.distantPast
+    private static var isReloadScheduled = false
+
+    static func hold(for seconds: TimeInterval) {
+        heldUntil = max(heldUntil, Date().addingTimeInterval(seconds))
+    }
+
+    static func reload() {
+        let wait = heldUntil.timeIntervalSinceNow
+        guard wait > 0 else {
+            WidgetCenter.shared.reloadAllTimelines()
+            return
+        }
+        guard !isReloadScheduled else { return }
+        isReloadScheduled = true
+        Task {
+            try? await Task.sleep(for: .seconds(wait))
+            isReloadScheduled = false
+            reload()
+        }
     }
 }
