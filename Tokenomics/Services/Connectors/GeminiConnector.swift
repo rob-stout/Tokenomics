@@ -35,6 +35,8 @@ actor GeminiConnector: ProviderConnector {
         case confirmingInstall(PrerequisiteKind)
         /// Installing a prerequisite (Homebrew, Node.js).
         case installingDependency(name: String, progress: Double?)
+        /// Homebrew's installer is running in a Terminal window we opened.
+        case installingInTerminal(name: String)
         /// Installing the primary Gemini CLI.
         case installingCLI(progress: Double?)
         /// `gemini` subprocess is running; waiting for the [Y/n] confirm prompt.
@@ -89,6 +91,8 @@ actor GeminiConnector: ProviderConnector {
             return confirmStep(for: kind)
         case .installingDependency(let name, let progress):
             return .installingDependency(name: name, progress: progress)
+        case .installingInTerminal(let name):
+            return .installingInTerminal(name: name)
         case .installingCLI(let progress):
             return .installing(progress: progress)
         case .awaitingUserConfirm(let message):
@@ -225,13 +229,13 @@ actor GeminiConnector: ProviderConnector {
     // MARK: - Install steps
 
     private func installHomebrew() async {
-        activePhase = .installingDependency(name: "Homebrew", progress: nil)
+        activePhase = .installingInTerminal(name: "Homebrew")
         do {
             let events = try await runner.installHomebrew()
             for await event in events {
                 switch event {
-                case .progress(let p):
-                    activePhase = .installingDependency(name: "Homebrew", progress: p)
+                case .progress:
+                    break
                 case .log(let line):
                     Self.log.debug("[brew] \(line)")
                 case .completed:
@@ -322,6 +326,9 @@ actor GeminiConnector: ProviderConnector {
     // MARK: - Failure classification
 
     private func classifyHomebrewFailure(_ reason: String) -> ConnectorError {
+        if reason == GuidedInstallRunner.automationDeniedReason {
+            return .automationPermissionDenied
+        }
         let lower = reason.lowercased()
         if lower.contains("user canceled") || lower.contains("errAEEventNotPermitted".lowercased())
             || lower.contains("not allowed to send apple events") {

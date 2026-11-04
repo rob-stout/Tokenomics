@@ -90,6 +90,11 @@ enum ConnectorStep: Sendable, Equatable {
     /// (codex, gemini). Lets the view label "Installing Node.js…" vs "Installing Codex CLI…".
     case installingDependency(name: String, progress: Double?)
 
+    /// A prerequisite is installing in a Terminal window Tokenomics opened —
+    /// today only Homebrew, whose installer needs the user's password on a real
+    /// TTY. The user works in Terminal; Tokenomics waits and continues on its own.
+    case installingInTerminal(name: String)
+
     /// Preview screen: explains a multi-step thing the user is about to do
     /// somewhere outside Tokenomics (e.g. Claude Code's sign-in wizard).
     /// Used for Windows 3 and 4 of the Anthropic flow.

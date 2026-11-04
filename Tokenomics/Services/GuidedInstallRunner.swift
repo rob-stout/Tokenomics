@@ -33,9 +33,8 @@ enum GuidedInstallError: Error, LocalizedError {
 /// npm installs are routed to a per-user prefix (`~/.tokenomics-cli/`) so they
 /// never need elevated permissions, regardless of where Homebrew is installed.
 ///
-/// Admin elevation (Homebrew's own installer script) is handled via NSAppleScript
-/// `do shell script … with administrator privileges`, which triggers macOS's
-/// native authentication dialog without opening a Terminal window.
+/// Homebrew itself is the exception: its installer needs the user's password on
+/// a real TTY, so it runs in a Terminal window Tokenomics opens (see `installHomebrew()`).
 actor GuidedInstallRunner {
 
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "GuidedInstallRunner")
@@ -66,6 +65,8 @@ actor GuidedInstallRunner {
 
     /// Terminates the running process, if any. Safe to call multiple times.
     func cancel() {
+        terminalWaitTask?.cancel()
+        terminalWaitTask = nil
         guard let process = runningProcess, process.isRunning else { return }
         Self.log.info("[GuidedInstallRunner] Cancelling process \(process.processIdentifier)")
         process.terminate()
@@ -276,10 +277,10 @@ actor GuidedInstallRunner {
 
             Task {
                 do {
-                    try await self.runBrewInstall(
-                        brewPath: brewPath,
+                    try await self.runInstallProcess(
+                        executable: brewPath,
                         args: args,
-                        formula: formula,
+                        label: "brew install \(formula)",
                         continuation: continuation
                     )
                 } catch {
@@ -290,16 +291,55 @@ actor GuidedInstallRunner {
         }
     }
 
-    private func runBrewInstall(
-        brewPath: URL,
+    // MARK: - Claude Code native installer
+
+    /// Installs Claude Code with Anthropic's native installer
+    /// (`curl -fsSL https://claude.ai/install.sh | bash`).
+    ///
+    /// Runs as the current user — the installer writes only under `$HOME`
+    /// (binary symlinked at `~/.local/bin/claude`) and refuses to run under
+    /// sudo, so no admin elevation or Homebrew is involved. Verified to run
+    /// cleanly without a TTY.
+    ///
+    /// `pipefail` matters: without it a failed `curl` pipes nothing into
+    /// `bash`, which then exits 0 and the install looks successful.
+    ///
+    /// - Returns: An `AsyncStream<InstallEvent>` terminating with `.completed` or `.failed`.
+    func installClaudeCodeNative() async throws -> AsyncStream<InstallEvent> {
+        AsyncStream<InstallEvent> { [weak self] continuation in
+            guard let self else {
+                continuation.finish()
+                return
+            }
+
+            Task {
+                do {
+                    try await self.runInstallProcess(
+                        executable: URL(fileURLWithPath: "/bin/bash"),
+                        args: ["-c", "set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash"],
+                        label: "Claude Code native install",
+                        continuation: continuation
+                    )
+                } catch {
+                    continuation.yield(.failed(error.localizedDescription))
+                    continuation.finish()
+                }
+            }
+        }
+    }
+
+    /// Runs an install command as a hidden subprocess and maps its exit to
+    /// `.completed` / `.failed`. Shared by brew and the Claude native installer.
+    private func runInstallProcess(
+        executable: URL,
         args: [String],
-        formula: String,
+        label: String,
         continuation: AsyncStream<InstallEvent>.Continuation
     ) async throws {
         let process = Process()
         self.runningProcess = process
 
-        process.executableURL = brewPath
+        process.executableURL = executable
         process.arguments = args
         process.environment = buildEnvironment(extra: nil)
         process.standardInput = Pipe()
@@ -312,7 +352,7 @@ actor GuidedInstallRunner {
         continuation.yield(.progress(nil))
 
         try process.run()
-        Self.log.info("[GuidedInstallRunner] brew install \(formula) started (pid=\(process.processIdentifier))")
+        Self.log.info("[GuidedInstallRunner] \(label) started (pid=\(process.processIdentifier))")
 
         // Detached so stderr drains while this actor blocks reading stdout below.
         // An actor-inherited Task couldn't start until the actor suspends, so a
@@ -321,7 +361,7 @@ actor GuidedInstallRunner {
             let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
             guard let text = String(data: data, encoding: .utf8) else { return [] }
             let lines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
-            for line in lines { continuation.yield(.log("[brew stderr] \(line)")) }
+            for line in lines { continuation.yield(.log("[stderr] \(line)")) }
             return lines
         }
 
@@ -338,11 +378,11 @@ actor GuidedInstallRunner {
 
         let exitCode = process.terminationStatus
         if exitCode == 0 {
-            Self.log.info("[GuidedInstallRunner] brew install \(formula) succeeded")
+            Self.log.info("[GuidedInstallRunner] \(label) succeeded")
             continuation.yield(.completed)
         } else {
-            let lastStderr = stderrLines.last ?? "brew exited with code \(exitCode)"
-            Self.log.error("[GuidedInstallRunner] brew install \(formula) failed (exit=\(exitCode)): \(lastStderr)")
+            let lastStderr = stderrLines.last ?? "\(label) exited with code \(exitCode)"
+            Self.log.error("[GuidedInstallRunner] \(label) failed (exit=\(exitCode)): \(lastStderr)")
             // Surface EACCES as a typed failure token so connectors can classify it.
             if let eacces = extractEACCESPath(from: stderrLines) {
                 continuation.yield(.failed("EACCES:\(eacces)"))
@@ -355,83 +395,148 @@ actor GuidedInstallRunner {
 
     // MARK: - Homebrew itself
 
-    /// Installs Homebrew via its official installer script with admin elevation.
+    /// `.failed` reason emitted when macOS blocks Tokenomics from controlling
+    /// Terminal (Automation permission). Connectors map it to
+    /// `ConnectorError.automationPermissionDenied`.
+    static let automationDeniedReason = "TERMINAL_AUTOMATION_DENIED"
+
+    /// How long to wait for the Terminal-based Homebrew install before giving up.
+    /// Generous because a fresh Mac also downloads Apple's Command Line Tools
+    /// (often 5–15 minutes). `ConnectorViewModel`'s stuck threshold for
+    /// `.installingInTerminal` sits above this so the runner's message wins.
+    static let homebrewTimeout: TimeInterval = 25 * 60
+
+    /// Polling task for the Terminal-based Homebrew install, kept so `cancel()` can stop it.
+    private var terminalWaitTask: Task<Void, Never>?
+
+    /// Installs Homebrew by opening Terminal with its official installer, then
+    /// waits for the install to finish.
     ///
-    /// The Homebrew installer script requires admin privileges on Intel Macs
-    /// (installs to `/usr/local/`) and may prompt on Apple Silicon too.
-    /// We use `NSAppleScript` with `do shell script … with administrator privileges`
-    /// so macOS shows its native auth dialog — no Terminal window opens.
+    /// **Why Terminal and not a hidden process:** Homebrew's installer must run
+    /// as the logged-in user — it aborts as root ("Don't run this as root!") —
+    /// but it needs `sudo` partway through, which prompts for the password on a
+    /// TTY. An AppleScript `with administrator privileges` runs it as root, so it
+    /// can never succeed; a hidden `Process` has no TTY for the password. Terminal
+    /// gives it both. It also installs Apple's Command Line Tools when missing.
+    /// (Homebrew's `.pkg` was ruled out: Apple Silicon + macOS 15+ only, and it
+    /// hard-fails without Command Line Tools already installed.)
     ///
-    /// **Why we write the shell command to a temp file instead of interpolating
-    /// it into the AppleScript source:** AppleScript string literals require any
-    /// embedded `"` or `\` to be escaped, and a single missed character produces
-    /// the macOS parser error "A unknown token can't go after this ...". By
-    /// passing only a generated temp-file path to AppleScript, the AppleScript
-    /// source is structurally static and cannot trigger that class of parser
-    /// error. The path is constructed from UUID + a fixed prefix inside
-    /// `FileManager.default.temporaryDirectory`, so it contains only safe ASCII.
+    /// **Completion signal:** the Terminal command touches a success or failure
+    /// marker file when the installer exits. We watch for those rather than for
+    /// `brew` itself, because `bin/brew` appears mid-install — moving on then
+    /// would race the installer's own `brew update`.
     ///
-    /// The user can cancel the dialog; if they do, the stream emits `.failed`.
-    ///
-    /// - Returns: An `AsyncStream<InstallEvent>` terminating with `.completed` or `.failed`.
+    /// - Returns: A stream that emits `.progress(nil)`, then `.completed`, or
+    ///   `.failed` (installer error, timeout, or `automationDeniedReason`).
     func installHomebrew() async throws -> AsyncStream<InstallEvent> {
-        let installerURL = "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+        let (stream, continuation) = AsyncStream<InstallEvent>.makeStream()
 
-        // Generated path — safe ASCII by construction. No AppleScript escaping needed.
-        let tempScript = FileManager.default.temporaryDirectory
-            .appendingPathComponent("tokenomics-brew-install-\(UUID().uuidString).sh")
-        let scriptBody = """
-        #!/bin/bash
-        /bin/bash -c "$(curl -fsSL \(installerURL))"
-        """
+        let markerBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tokenomics-brew-\(UUID().uuidString)")
+        let okMarker = markerBase.appendingPathExtension("ok")
+        let failMarker = markerBase.appendingPathExtension("failed")
+        let installer = #"/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)""#
+        let command = "\(installer) && { touch \(Self.shellQuoted(okMarker.path)); echo; "
+            + "echo 'Homebrew is installed. You can close this window and go back to Tokenomics.'; } "
+            + "|| touch \(Self.shellQuoted(failMarker.path))"
 
-        return AsyncStream<InstallEvent> { continuation in
-            // AppleScript execution is synchronous — run it off the main thread.
-            Task {
-                continuation.yield(.progress(nil))
-                Self.log.info("[GuidedInstallRunner] Starting Homebrew installer via AppleScript admin elevation")
+        terminalWaitTask?.cancel()
+        let task = Task {
+            continuation.yield(.progress(nil))
+            Self.log.info("[GuidedInstallRunner] Opening Terminal for Homebrew install")
 
-                // Write + chmod the temp installer script. Fail early if we can't.
-                do {
-                    try scriptBody.write(to: tempScript, atomically: true, encoding: .utf8)
-                    try FileManager.default.setAttributes(
-                        [.posixPermissions: 0o755],
-                        ofItemAtPath: tempScript.path
-                    )
-                } catch {
-                    continuation.yield(.failed("Could not prepare Homebrew installer: \(error.localizedDescription)"))
-                    continuation.finish()
-                    return
-                }
-
-                // Best-effort cleanup — the temp script has run by the time we get here.
-                defer { try? FileManager.default.removeItem(at: tempScript) }
-
-                let appleScriptSource = "do shell script \"\(tempScript.path)\" with administrator privileges"
-
-                var appleScriptError: NSDictionary?
-                guard let script = NSAppleScript(source: appleScriptSource) else {
-                    continuation.yield(.failed("Could not create AppleScript for Homebrew install."))
-                    continuation.finish()
-                    return
-                }
-
-                // executeAndReturnError is blocking — this Task runs on a cooperative thread,
-                // which is fine because it just waits on the subprocess.
-                _ = script.executeAndReturnError(&appleScriptError)
-
-                if let error = appleScriptError {
-                    let message = error[NSAppleScript.errorMessage] as? String
-                        ?? "Homebrew installation failed or was cancelled."
-                    Self.log.error("[GuidedInstallRunner] Homebrew install via AppleScript failed: \(message)")
-                    continuation.yield(.failed(message))
-                } else {
-                    Self.log.info("[GuidedInstallRunner] Homebrew installer completed successfully")
-                    continuation.yield(.completed)
-                }
+            switch await Self.openInTerminal(command) {
+            case .opened:
+                break
+            case .automationDenied:
+                continuation.yield(.failed(Self.automationDeniedReason))
                 continuation.finish()
+                return
+            case .failed(let message):
+                continuation.yield(.failed(message))
+                continuation.finish()
+                return
+            }
+
+            let fm = FileManager.default
+            let deadline = Date().addingTimeInterval(Self.homebrewTimeout)
+            defer {
+                try? fm.removeItem(at: okMarker)
+                try? fm.removeItem(at: failMarker)
+            }
+            while !Task.isCancelled {
+                if fm.fileExists(atPath: okMarker.path), SystemPrerequisiteDetector.homebrewPath() != nil {
+                    Self.log.info("[GuidedInstallRunner] Homebrew installer finished successfully")
+                    continuation.yield(.completed)
+                    break
+                }
+                if fm.fileExists(atPath: failMarker.path) {
+                    Self.log.error("[GuidedInstallRunner] Homebrew installer exited with an error")
+                    continuation.yield(.failed("Homebrew's installer stopped before finishing. Check the Terminal window for details, then try again."))
+                    break
+                }
+                if Date() > deadline {
+                    Self.log.error("[GuidedInstallRunner] Timed out waiting for Homebrew install")
+                    continuation.yield(.failed("Homebrew didn't finish installing. If Terminal is still working, let it finish, then try again."))
+                    break
+                }
+                try? await Task.sleep(for: .seconds(2))
+            }
+            continuation.finish()
+        }
+        terminalWaitTask = task
+        continuation.onTermination = { _ in task.cancel() }
+        return stream
+    }
+
+    // MARK: - Terminal
+
+    enum TerminalLaunchResult: Sendable {
+        case opened
+        /// macOS Automation (TCC) denied Tokenomics control of Terminal.
+        case automationDenied
+        case failed(String)
+    }
+
+    /// Opens a new Terminal window running `command` and brings Terminal forward.
+    ///
+    /// The first call triggers macOS's Automation permission prompt ("Tokenomics
+    /// wants to control Terminal"). AppleScript blocks while that's up, so this
+    /// runs on a global queue rather than tying up an actor.
+    static func openInTerminal(_ command: String) async -> TerminalLaunchResult {
+        let escaped = command
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let source = """
+        tell application "Terminal"
+            do script "\(escaped)"
+            activate
+        end tell
+        """
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                var error: NSDictionary?
+                NSAppleScript(source: source)?.executeAndReturnError(&error)
+                guard let error else {
+                    continuation.resume(returning: .opened)
+                    return
+                }
+                Self.log.error("[GuidedInstallRunner] Terminal launch error: \(error)")
+                let code = error[NSAppleScript.errorNumber] as? Int ?? 0
+                let message = error[NSAppleScript.errorMessage] as? String ?? ""
+                let lower = message.lowercased()
+                if code == -1743 || lower.contains("not authorized") || lower.contains("automation") {
+                    continuation.resume(returning: .automationDenied)
+                } else {
+                    continuation.resume(returning: .failed(message.isEmpty ? "Couldn't open Terminal." : message))
+                }
             }
         }
+    }
+
+    /// Single-quotes a string for the shell (safe with spaces and quotes).
+    static func shellQuoted(_ string: String) -> String {
+        "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     // MARK: - Private process runner

@@ -76,7 +76,7 @@ final class ConnectorViewModel: Identifiable {
             // Step 2 active: installing tools.
             return [Item(label: l1, state: c), Item(label: l2, state: a),
                     Item(label: l3, state: u), Item(label: l4, state: u)]
-        case .installingDependency, .installing, .openProviderSite:
+        case .installingDependency, .installingInTerminal, .installing, .openProviderSite:
             // Step 2 active: installing tools / opening provider site for API key.
             return [Item(label: l1, state: c), Item(label: l2, state: a),
                     Item(label: l3, state: u), Item(label: l4, state: u)]
@@ -384,6 +384,11 @@ final class ConnectorViewModel: Identifiable {
             return 600  // 10 min — user is in their browser
         case .confirmingInstall(_, _, _, _, _, _, true):
             return 600  // sign-in-framed confirm (e.g. keychain Allow Access) — user is deciding, not a stuck install
+        case .installingInTerminal:
+            // Backstop only — above GuidedInstallRunner.homebrewTimeout (25 min),
+            // so the runner's specific message wins. A fresh Mac also downloads
+            // Command Line Tools here, which can take 15+ minutes.
+            return 30 * 60
         default:
             return 180  // 3 min — install/detection should be much faster
         }
@@ -391,7 +396,7 @@ final class ConnectorViewModel: Identifiable {
 
     private nonisolated func isWaitingState(_ step: ConnectorStep) -> Bool {
         switch step {
-        case .waitingForExternalApp, .installing, .installingDependency,
+        case .waitingForExternalApp, .installing, .installingDependency, .installingInTerminal,
              .awaitingOAuth, .awaitingUserConfirm, .confirmingInstall,
              .awaitingExternalAuth, .openProviderSite, .pasteAPIKey:
             return true

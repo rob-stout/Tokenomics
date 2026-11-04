@@ -155,13 +155,8 @@ actor ClaudeProvider: UsageProvider {
     }
 
     private func isClaudeCodeInstalled() -> Bool {
-        let paths = [
-            "\(NSHomeDirectory())/.claude/.credentials.json",
-            "/usr/local/bin/claude",
-            "\(NSHomeDirectory())/.claude/bin/claude",
-            "/opt/homebrew/bin/claude"
-        ]
-        return paths.contains { FileManager.default.fileExists(atPath: $0) }
+        SystemPrerequisiteDetector.claudePath() != nil
+            || FileManager.default.fileExists(atPath: "\(NSHomeDirectory())/.claude/.credentials.json")
     }
 
     private func mapToSnapshot(_ data: UsageData) -> ProviderUsageSnapshot {

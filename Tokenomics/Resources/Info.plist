@@ -37,6 +37,8 @@
 	<string>68</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Tokenomics opens Terminal to run installers and sign-in steps for your AI tools.</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>

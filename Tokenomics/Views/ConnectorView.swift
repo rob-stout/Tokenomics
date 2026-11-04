@@ -263,6 +263,8 @@ struct ConnectorView: View {
             return "Waiting for \(viewModel.providerName) to install…"
         case .installingDependency(let name, _):
             return "Installing \(name)…"
+        case .installingInTerminal(let name):
+            return "Installing \(name) in Terminal…"
         case .installing:
             return "Setting up — only happens once."
         case .confirmingInstall:
@@ -294,6 +296,8 @@ struct ConnectorView: View {
             statusBadge(icon: .waiting, text: "Waiting for \(viewModel.providerName) — we'll detect it as soon as it's installed.")
         case .installingDependency(_, let progress):
             installingPill(progress: progress)
+        case .installingInTerminal(let name):
+            statusBadge(icon: .waiting, text: "Follow the steps in Terminal — press Return and enter your Mac password when asked. We'll continue automatically once \(name) is ready.")
         case .installing(let progress):
             installingPill(progress: progress)
         case .awaitingUserConfirm(let message):
@@ -353,6 +357,8 @@ struct ConnectorView: View {
             return "Check now"
         case .installingDependency:
             return "Installing…"
+        case .installingInTerminal:
+            return "Waiting for Terminal…"
         case .installing:
             return "Setting up…"
         case .awaitingUserConfirm:
@@ -638,9 +644,8 @@ struct ConnectorView: View {
                 npmCLIItem(name: "Gemini CLI", binary: "gemini", package: "@google/gemini-cli"),
             ]
         case .claude:
-            // Claude Code ships as a Homebrew cask — no Node needed.
+            // Anthropic's native installer is self-contained — no Homebrew or Node.
             return [
-                brewItem(),
                 claudeItem(),
             ]
         case .copilot:
@@ -687,9 +692,8 @@ struct ConnectorView: View {
     }
 
     private func claudeItem() -> DetectionItem {
-        let candidates = ["/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
-        if let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
-            return DetectionItem(name: "Claude Code", sublabel: path, status: .installed)
+        if let url = SystemPrerequisiteDetector.claudePath() {
+            return DetectionItem(name: "Claude Code", sublabel: url.path, status: .installed)
         }
         return DetectionItem(name: "Claude Code",
                              sublabel: "Anthropic's CLI",

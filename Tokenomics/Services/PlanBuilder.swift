@@ -161,7 +161,7 @@ struct PlanBuilder {
             switch brand {
             case .anthropic:
                 title = "Set up Claude Code"
-                description = "Install via npm and sign in."
+                description = "Install with Anthropic's installer and sign in."
                 timeEstimate = "~2 min"
             case .openai:
                 title = "Set up Codex CLI"

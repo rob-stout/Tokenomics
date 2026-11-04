@@ -130,7 +130,9 @@ struct UsageBarView: View {
 private struct CountUpPercent: View, Animatable {
     var value: Double
 
-    var animatableData: Double {
+    // nonisolated: Animatable's requirement isn't main-actor bound, and this
+    // only touches a plain stored Double.
+    nonisolated var animatableData: Double {
         get { value }
         set { value = newValue }
     }
