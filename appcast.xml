@@ -25,6 +25,14 @@
             </item>
         -->
         <item>
+            <title>2.10.0</title>
+            <pubDate>Wed, 04 Nov 2026 08:58:29 -0700</pubDate>
+            <sparkle:version>68</sparkle:version>
+            <sparkle:shortVersionString>2.10.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.10.0/Tokenomics-2.10.0.dmg" length="11903947" type="application/octet-stream" sparkle:edSignature="csdH0f9dKz3kxY2P+68ACyAp4cvwj0Bfaa/FtksBBrQbyPf4XjsRZ47Y1YI47Ec0ndcYlK+nR4JUH077JrhtDw=="/>
+        </item>
+        <item>
             <title>2.9.3</title>
             <pubDate>Thu, 27 Aug 2026 13:52:18 -0600</pubDate>
             <sparkle:version>67</sparkle:version>
@@ -39,14 +47,6 @@
             <sparkle:shortVersionString>2.9.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.9.2/Tokenomics-2.9.2.dmg" length="11838951" type="application/octet-stream" sparkle:edSignature="2rSmLaB0kL+Kka8sQWi6rFuZQukJSdBfEva7ntDveiZ9VWAlLhmFF4HpTZHW21FjwN4OoXpvP5Atag3c4RwaCA=="/>
-        </item>
-        <item>
-            <title>2.9.1</title>
-            <pubDate>Thu, 27 Aug 2026 09:06:13 -0600</pubDate>
-            <sparkle:version>65</sparkle:version>
-            <sparkle:shortVersionString>2.9.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/rob-stout/Tokenomics/releases/download/v2.9.1/Tokenomics-2.9.1.dmg" length="11836298" type="application/octet-stream" sparkle:edSignature="AI9jT1tXExuT/LaQ0lZpP0V30b+JCGz8frbnzBiz/sOde5QRO/sqlIiIRe3tF/w9Lbml9hVAhWqbUvek8ON6Dg=="/>
         </item>
         <item>
             <title>2.7</title>

@@ -1,6 +1,6 @@
 cask "tokenomics" do
-  version "2.9.3"
-  sha256 "29f225764fcdaf662e99327b5f57fc9a2f52623c25ed125a6f3565e043f92fc9"
+  version "2.10.0"
+  sha256 "85e6787251d6f966ce102dae6a168a9d0e016edd68d1d4a8b29c1d2278168c9c"
 
   url "https://trytokenomics.com/download/dmg/v#{version}",
       verified: "trytokenomics.com/download/"
