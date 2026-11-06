@@ -122,10 +122,10 @@ final class CodexProviderParsingTests: XCTestCase {
         XCTAssertEqual(usedPercent, 55.0, accuracy: 0.001)
     }
 
-    /// Regression: API shape changed — rate_limits missing the secondary window
-    func testCodexRateLimits_missingSecondaryWindow_decodesOrThrows() {
+    /// Regression: current plans can return a weekly-only primary and null secondary.
+    func testCodexRateLimits_nullSecondary_decodesWeeklyPrimary() throws {
         let jsonLine = """
-        {"type":"event_msg","payload":{"rate_limits":{"primary":{"used_percent":30.0,"window_minutes":300,"resets_at":1750000000.0}}}}
+        {"type":"event_msg","payload":{"rate_limits":{"primary":{"used_percent":30.0,"window_minutes":10080,"resets_at":1750000000.0},"secondary":null,"plan_type":"prolite"}}}
         """.data(using: .utf8)!
 
         struct SessionEventMirror: Decodable {
@@ -136,13 +136,36 @@ final class CodexProviderParsingTests: XCTestCase {
             let payload: Payload
         }
 
-        // CodexRateLimits has non-optional `secondary` — missing it throws.
-        // This is the "API shape changed" regression: test documents the current
-        // behavior so any future change to make secondary optional is visible.
-        XCTAssertThrowsError(
-            try JSONDecoder().decode(SessionEventMirror.self, from: jsonLine),
-            "Codex rate_limits missing secondary must throw (struct has non-optional secondary)"
+        let event = try JSONDecoder().decode(SessionEventMirror.self, from: jsonLine)
+        let limits = try XCTUnwrap(event.payload.rateLimits)
+        XCTAssertNil(limits.secondary)
+        XCTAssertEqual(limits.windowsByDuration.count, 1)
+        XCTAssertEqual(limits.windowsByDuration[0].windowMinutes, 10_080)
+        XCTAssertEqual(limits.windowsByDuration[0].displayLabel, "Weekly")
+        XCTAssertEqual(limits.planType, "prolite")
+    }
+
+    /// Server field position is not the display order: shorter window comes first.
+    func testCodexRateLimits_windowsAreOrderedByDuration() {
+        let weekly = CodexRateLimitWindow(
+            usedPercent: 10,
+            windowMinutes: 10_080,
+            resetsAt: 1_750_000_000
         )
+        let fiveHour = CodexRateLimitWindow(
+            usedPercent: 20,
+            windowMinutes: 300,
+            resetsAt: 1_750_000_000
+        )
+        let limits = CodexRateLimits(
+            primary: weekly,
+            secondary: fiveHour,
+            credits: nil,
+            planType: "plus"
+        )
+
+        XCTAssertEqual(limits.windowsByDuration.map(\.windowMinutes), [300, 10_080])
+        XCTAssertEqual(limits.windowsByDuration.map(\.displayLabel), ["5-Hour Window", "Weekly"])
     }
 
     /// Plan inference: unlimited credits → Pro
