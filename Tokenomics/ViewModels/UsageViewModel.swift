@@ -866,6 +866,10 @@ final class UsageViewModel {
 
     /// Fetch a single provider by ID (called by the per-provider polling loop)
     private func fetchProvider(_ id: ProviderId) async {
+        // A poll loop already running when demo mode turns on keeps ticking. Its
+        // real numbers would hit the notification evaluator and fire "ready again"
+        // alerts against slammed demo values, so demo mode skips live fetches here.
+        guard !demoModeEnabled else { return }
         guard let provider = providers[id] else { return }
         let currentState = providerStates[id] ?? .empty
         if currentState.connection.isConnected {
