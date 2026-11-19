@@ -11,12 +11,15 @@ import SwiftUI
 /// - Brand aggregation flag on/off
 /// - Reset onboarding
 /// - Force refresh
+/// - Preview the reset celebration screen, held open
 /// - Slam all providers to a preset fill level (0 / 50 / 90 / 100%) to check
 ///   how the bars/rings render at each level (fill geometry + sublabel text;
 ///   bar color is fixed per window type, not utilization-based)
 struct DebugMenuView: View {
     @Bindable var viewModel: UsageViewModel
     let onDismiss: () -> Void
+    /// Shows the reset celebration screen with no auto-fade (it stays until "Let's go").
+    let onPreviewCelebration: (ResetCelebration) -> Void
 
     @State private var brandAggFlag = FeatureFlags.brandAggregation
 
@@ -97,6 +100,35 @@ struct DebugMenuView: View {
                     .padding(.vertical, 8)
 
                     Text("Overrides all demo provider bars to the selected utilization. Enables demo mode if not already on.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+
+                    Divider().padding(.horizontal, 16)
+
+                    // MARK: Reset Celebration
+                    sectionLabel("Reset Celebration")
+
+                    HStack(spacing: 8) {
+                        ForEach([1, 3], id: \.self) { count in
+                            Button(count == 1 ? "1 provider" : "\(count) providers") {
+                                onPreviewCelebration(ResetCelebration(resets: [
+                                    .init(providerId: .claude, windowLabel: "5-Hour Window"),
+                                    .init(providerId: .codex, windowLabel: "5-Hour Window"),
+                                    .init(providerId: .gemini, windowLabel: "Requests Today"),
+                                ].prefix(count).map { $0 }))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .font(.system(size: 11, weight: .medium))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+
+                    Text("Shows the reset screen and holds it open until you tap Let's go.")
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
