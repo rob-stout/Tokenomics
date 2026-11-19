@@ -8,16 +8,19 @@ import XCTest
 
 final class SettingsServiceTests: XCTestCase {
 
+    // Start each test clean, and put the real app's settings back afterwards.
+    private var preserved: PreservedDefaults?
+
+    override func setUp() {
+        super.setUp()
+        preserved = PreservedDefaults(
+            keys: ["pinnedProviders", "providerOrder", "hiddenProviders"] + PreservedDefaults.notificationKeys)
+    }
+
     override func tearDown() {
+        preserved?.restore()
+        preserved = nil
         super.tearDown()
-        // Reset keys touched by these tests
-        UserDefaults.standard.removeObject(forKey: "pinnedProviders")
-        UserDefaults.standard.removeObject(forKey: "providerOrder")
-        UserDefaults.standard.removeObject(forKey: "hiddenProviders")
-        UserDefaults.standard.removeObject(forKey: "alertWindow")
-        for provider in ProviderId.allCases {
-            UserDefaults.standard.removeObject(forKey: "notificationConfig_\(provider.rawValue)")
-        }
     }
 
     // MARK: - Smart Mode
