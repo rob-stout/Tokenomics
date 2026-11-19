@@ -223,7 +223,7 @@ final class NotificationServiceTests: XCTestCase {
 
     private func freshCelebrationService() -> NotificationService {
         UserDefaults.standard.removeObject(forKey: "exhaustedWindows")
-        UserDefaults.standard.removeObject(forKey: "pendingResetCelebration")
+        UserDefaults.standard.removeObject(forKey: NotificationService.pendingCelebrationKey)
         writeNotificationConfig(threshold: 90)
         return NotificationService()
     }
@@ -232,10 +232,10 @@ final class NotificationServiceTests: XCTestCase {
     func testCelebration_afterExhaustionReset() {
         let service = freshCelebrationService()
         evaluate(service, 100)
-        XCTAssertFalse(service.consumePendingCelebration())
+        XCTAssertNil(service.consumePendingCelebration())
         evaluate(service, 3)
-        XCTAssertTrue(service.consumePendingCelebration())
-        XCTAssertFalse(service.consumePendingCelebration())
+        XCTAssertNotNil(service.consumePendingCelebration())
+        XCTAssertNil(service.consumePendingCelebration())
     }
 
     /// Reaching the alert threshold (90) is enough — they don't have to hit 100%.
@@ -243,7 +243,7 @@ final class NotificationServiceTests: XCTestCase {
         let service = freshCelebrationService()
         evaluate(service, 92)
         evaluate(service, 5)
-        XCTAssertTrue(service.consumePendingCelebration())
+        XCTAssertNotNil(service.consumePendingCelebration())
     }
 
     /// An ordinary reset (never reached the threshold) doesn't celebrate.
@@ -251,7 +251,7 @@ final class NotificationServiceTests: XCTestCase {
         let service = freshCelebrationService()
         evaluate(service, 85)
         evaluate(service, 2)
-        XCTAssertFalse(service.consumePendingCelebration())
+        XCTAssertNil(service.consumePendingCelebration())
     }
 
     /// A rolling window easing off 100% isn't a reset.
@@ -259,7 +259,7 @@ final class NotificationServiceTests: XCTestCase {
         let service = freshCelebrationService()
         evaluate(service, 100)
         evaluate(service, 92)
-        XCTAssertFalse(service.consumePendingCelebration())
+        XCTAssertNil(service.consumePendingCelebration())
     }
 
     /// Short window resets while the long window is still maxed → still blocked;
@@ -268,9 +268,9 @@ final class NotificationServiceTests: XCTestCase {
         let service = freshCelebrationService()
         evaluate(service, 100, long: 100)
         evaluate(service, 0, long: 100)
-        XCTAssertFalse(service.consumePendingCelebration())
+        XCTAssertNil(service.consumePendingCelebration())
         evaluate(service, 10, long: 1)
-        XCTAssertTrue(service.consumePendingCelebration())
+        XCTAssertNotNil(service.consumePendingCelebration())
     }
 
     /// Exhaustion survives a relaunch (new service instance).
@@ -278,7 +278,33 @@ final class NotificationServiceTests: XCTestCase {
         evaluate(freshCelebrationService(), 100)
         let relaunched = NotificationService()
         evaluate(relaunched, 0)
-        XCTAssertTrue(relaunched.consumePendingCelebration())
+        XCTAssertNotNil(relaunched.consumePendingCelebration())
+    }
+
+    /// Every provider that reset since the last popover open is named, in a fixed order.
+    func testCelebration_namesEveryResetProvider() {
+        let service = freshCelebrationService()
+        SettingsService.setNotificationConfig(.init(isEnabled: true, threshold: 90), for: .codex)
+        for (id, value) in [(ProviderId.codex, 100.0), (.claude, 100), (.codex, 0), (.claude, 0)] {
+            service.evaluate(providerId: id, snapshot: makeSnapshot(utilization: value),
+                             connection: .connected(plan: "Pro"))
+        }
+        let celebration = service.consumePendingCelebration()
+        XCTAssertEqual(celebration?.resets.map(\.providerId), [.claude, .codex])
+        XCTAssertEqual(celebration?.title, "Claude and Codex CLI are ready again")
+        XCTAssertEqual(celebration?.subtitle, "Your usage reset. Ready to build!")
+    }
+
+    func testCelebrationText_singleAndMany() {
+        let one = ResetCelebration(resets: [.init(providerId: .claude, windowLabel: "5-Hour Window")])
+        XCTAssertEqual(one.title, "Claude is ready again")
+        XCTAssertEqual(one.subtitle, "Your 5-Hour Window reset. Ready to build!")
+
+        let four = ResetCelebration(resets: [ProviderId.claude, .codex, .gemini, .copilot].map {
+            .init(providerId: $0, windowLabel: "x")
+        })
+        XCTAssertEqual(four.title,
+                       "\(ProviderId.claude.poolLabel), \(ProviderId.codex.poolLabel) + 2 more are ready again")
     }
 
     // MARK: - Alert body

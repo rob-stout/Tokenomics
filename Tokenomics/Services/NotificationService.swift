@@ -37,6 +37,36 @@ enum NotificationTabRequest {
     static var pending: ProviderId?
 }
 
+// MARK: - Reset celebration
+
+/// What the popover's celebration screen says: every provider that reset
+/// since the popover last opened.
+struct ResetCelebration: Equatable {
+    struct Reset: Equatable {
+        let providerId: ProviderId
+        let windowLabel: String
+    }
+    let resets: [Reset]
+
+    /// "Claude is ready again" / "Codex CLI and Gemini CLI are ready again" /
+    /// "Claude, Codex CLI + 2 more are ready again".
+    var title: String {
+        let names = resets.map(\.providerId.poolLabel)
+        switch names.count {
+        case 1: return "\(names[0]) is ready again"
+        case 2: return "\(names[0]) and \(names[1]) are ready again"
+        default: return "\(names[0]), \(names[1]) + \(names.count - 2) more are ready again"
+        }
+    }
+
+    /// One reset names its window; several just say usage reset.
+    var subtitle: String {
+        resets.count == 1
+            ? "Your \(resets[0].windowLabel) reset. Ready to build!"
+            : "Your usage reset. Ready to build!"
+    }
+}
+
 // MARK: - NotificationService
 
 /// Evaluates usage snapshots against per-provider thresholds and fires
@@ -138,15 +168,20 @@ final class NotificationService: ObservableObject {
     /// Windows ("<providerId>_<windowKey>") that reached the alert threshold. Persisted so a reset
     /// that lands after a relaunch still gets celebrated.
     private static let exhaustedWindowsKey = "exhaustedWindows"
-    /// Set when a reset frees an exhausted provider; the next popover open fires confetti.
-    private static let pendingCelebrationKey = "pendingResetCelebration"
+    /// Providers freed by a reset since the popover last opened ([providerId: window label]).
+    /// The next popover open shows the celebration screen for them.
+    nonisolated static let pendingCelebrationKey = "pendingResetCelebrations"
 
-    /// Returns true once per celebrated reset, then clears it.
-    func consumePendingCelebration() -> Bool {
+    /// Returns the pending celebration once, then clears it.
+    func consumePendingCelebration() -> ResetCelebration? {
         let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: Self.pendingCelebrationKey) else { return false }
-        defaults.set(false, forKey: Self.pendingCelebrationKey)
-        return true
+        let pending = defaults.dictionary(forKey: Self.pendingCelebrationKey) as? [String: String] ?? [:]
+        defaults.removeObject(forKey: Self.pendingCelebrationKey)
+        // Fixed provider order so the names read the same way every time.
+        let resets = ProviderId.allCases.compactMap { id in
+            pending[id.rawValue].map { ResetCelebration.Reset(providerId: id, windowLabel: $0) }
+        }
+        return resets.isEmpty ? nil : ResetCelebration(resets: resets)
     }
 
     /// Celebrates only resets the user was waiting on: a window that reached
@@ -178,7 +213,9 @@ final class NotificationService: ObservableObject {
 
         guard let resetWindow, !windows.contains(where: { $0.1.utilization >= threshold }) else { return }
         logger.info("Reset after exhaustion for \(providerId.rawValue) — celebrating")
-        defaults.set(true, forKey: Self.pendingCelebrationKey)
+        var pending = defaults.dictionary(forKey: Self.pendingCelebrationKey) as? [String: String] ?? [:]
+        pending[providerId.rawValue] = resetWindow.label
+        defaults.set(pending, forKey: Self.pendingCelebrationKey)
         if config.isEnabled { fireResetNotification(providerId: providerId, window: resetWindow) }
     }
 

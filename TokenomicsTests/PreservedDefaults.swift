@@ -35,5 +35,5 @@ final class PreservedDefaults {
     /// alerts, and the reset-celebration bookkeeping.
     static let notificationKeys: [String] =
         ProviderId.allCases.map { "notificationConfig_\($0.rawValue)" }
-        + ["alertWindow", "exhaustedWindows", "pendingResetCelebration"]
+        + ["alertWindow", "exhaustedWindows", "pendingResetCelebrations"]
 }

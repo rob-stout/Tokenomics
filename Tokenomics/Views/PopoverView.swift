@@ -34,9 +34,8 @@ struct PopoverView: View {
     /// Independent of `viewModel.selectedTab` (ProviderId) which drives the flag-off path.
     /// Initialized lazily to `enabledBrands.first` when the flag-on tab bar renders.
     @State private var selectedBrand: BrandId?
-    /// Confetti for a reset the user was waiting on (they'd hit 100%).
-    @State private var showResetConfetti = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Celebration screen for resets the user was waiting on (they'd hit their alert level).
+    @State private var resetCelebration: ResetCelebration?
     @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
     private var textSize: TextSize { TextSize(rawValue: textSizeRaw) ?? .compact }
 
@@ -59,7 +58,14 @@ struct PopoverView: View {
             } else if viewModel.showTextSize {
                 TextSizeView(onDismiss: { viewModel.showTextSize = false })
             } else if showDebugMenu && BuildInfo.showsDebugTools {
-                DebugMenuView(viewModel: viewModel, onDismiss: { showDebugMenu = false })
+                DebugMenuView(
+                    viewModel: viewModel,
+                    onDismiss: { showDebugMenu = false },
+                    onPreviewCelebration: { celebration in
+                        showDebugMenu = false
+                        resetCelebration = celebration
+                    }
+                )
             } else if viewModel.showSettings {
                 settingsView
             } else if viewModel.connectedProviders.isEmpty && !viewModel.hasCompletedOnboarding {
@@ -78,6 +84,8 @@ struct PopoverView: View {
         // or truncating). Lives here, not in the App scene, so the scene doesn't
         // have to observe the view model.
         .frame(width: textSize.popoverWidth(providerCount: viewModel.visibleProviders.count))
+        // The celebration needs room even when the provider underneath only has one window.
+        .frame(minHeight: resetCelebration == nil ? nil : 280)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showSettings)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showAIConnections)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showNotifications)
@@ -107,19 +115,27 @@ struct PopoverView: View {
                 }
             }
         }
+        // The celebration replaces the usage view rather than covering it, so
+        // the popover keeps its size and material and nothing behind is clickable.
+        .opacity(resetCelebration == nil ? 1 : 0)
+        .allowsHitTesting(resetCelebration == nil)
         .overlay {
-            if showResetConfetti {
-                ConfettiView().transition(.opacity)
+            if let resetCelebration {
+                ResetCelebrationView(celebration: resetCelebration) {
+                    withAnimation(.easeOut(duration: 0.3)) { self.resetCelebration = nil }
+                }
+                .transition(.opacity)
             }
         }
         // Each popover open re-runs onAppear (the bars replay from it too).
         .onAppear {
-            guard viewModel.notificationService.consumePendingCelebration(), !reduceMotion else { return }
-            showResetConfetti = true
+            guard let celebration = viewModel.notificationService.consumePendingCelebration() else { return }
+            resetCelebration = celebration
             Task {
-                // Let it land, then clear the pile so it doesn't sit over the footer.
+                // Untouched, the screen fades out with the confetti once it has landed.
                 try? await Task.sleep(for: .seconds(4))
-                withAnimation(.easeOut(duration: 0.6)) { showResetConfetti = false }
+                guard resetCelebration == celebration else { return }
+                withAnimation(.easeOut(duration: 0.6)) { resetCelebration = nil }
             }
         }
         // Reset to home view when popover closes
