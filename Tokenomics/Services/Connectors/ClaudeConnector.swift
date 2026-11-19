@@ -67,7 +67,7 @@ actor ClaudeConnector: ProviderConnector {
     private var didDenyKeychainAccess = false
 
     /// Sign-in preview is for a user who already has Claude Code installed (expired
-    /// session or unreadable keychain), so it shouldn't say "Finish installing".
+    /// session or unreadable keychain), so it gets the "again" wording.
     private var isReloginFlow = false
 
     // MARK: - Init
@@ -94,10 +94,10 @@ actor ClaudeConnector: ProviderConnector {
 
         case .previewingSignIn:
             return .previewExternalSteps(
-                headline: isReloginFlow ? "Sign in to Claude Code again" : "Finish installing Claude Code",
+                headline: isReloginFlow ? "Sign in to Claude Code again" : "Sign in to Claude Code",
                 body: isReloginFlow
                     ? "Claude Code needs you to sign in again before Tokenomics can read your usage. Walk through the steps Anthropic has laid out — we're here to guide you. Here's what's going to happen:"
-                    : "We've started the install for Claude Code. You'll need to finish it by walking through the steps Anthropic has laid out — we're here to guide you. Here's what's going to happen:",
+                    : "Next, sign in with your Anthropic account. Claude Code walks you through it in Terminal — here's what's going to happen:",
                 groupLabel: "In Claude Code, you'll:",
                 startingNumber: 1,
                 items: [
@@ -111,8 +111,8 @@ actor ClaudeConnector: ProviderConnector {
 
         case .previewingSetup:
             return .previewExternalSteps(
-                headline: "Setup",
-                body: "After you sign in, Claude Code asks for two more things — a folder and macOS permissions. Finish those and you're done.",
+                headline: "After you sign in",
+                body: "Claude Code asks for two more things — a folder and macOS permissions. Finish those and you're done.",
                 groupLabel: "In Claude Code, you'll:",
                 startingNumber: 5,
                 items: [
@@ -166,7 +166,16 @@ actor ClaudeConnector: ProviderConnector {
             // the macOS dialog fires solely from the user's tap on "Allow Access"
             // (confirmInstall).
             return keychainAccessStep()
-        case .notInstalled, .installedNoAuth, .authExpired:
+        case .notInstalled:
+            // Land on the install screen, not the misleading "Sign in with
+            // Anthropic" CTA. The chain sets `.confirmingInstall` by the next
+            // poll tick (or `.previewingSignIn` if the binary turns up after all).
+            if !didStartDetection {
+                didStartDetection = true
+                Task { await self.startPrerequisiteChain() }
+            }
+            return .detecting
+        case .installedNoAuth, .authExpired:
             // Show "Checking your Mac" interstitial once before the
             // needsAction CTA — keeps the onboarding flow visually
             // consistent across providers (Bug B).
@@ -318,7 +327,8 @@ actor ClaudeConnector: ProviderConnector {
     // MARK: - Prerequisite chain
 
     private func startPrerequisiteChain() async {
-        if SystemPrerequisiteDetector.claudePath() == nil {
+        // The fresh scenario walks the install step even when Claude Code is on this Mac.
+        if DetectionScenario.current == .fresh || SystemPrerequisiteDetector.claudePath() == nil {
             activePhase = .confirmingInstall
             return
         }

@@ -536,7 +536,7 @@ struct ConnectorView: View {
                 .progressViewStyle(.linear)
                 .tint(Tokens.Color.accent(scheme))
             HStack {
-                Text("Almost there")
+                Text(progress.map { $0 < 0.9 } == true ? "Downloading" : "Almost there")
                     .font(Tokens.Typography.Onboarding.micro)
                     .foregroundStyle(Tokens.Color.textMuted(scheme))
                 Spacer()

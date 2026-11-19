@@ -21,23 +21,19 @@ struct LoginView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Text("Connect a provider to start tracking. Most providers support an API key or CLI sign-in.")
+            // Hard break keeps the two lines about the same length.
+            Text("Connect a provider to start tracking.\nMost use an API key or CLI sign-in.")
                 .scaledFont(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
+                // The popover proposes a fixed width; without this the line truncates instead of wrapping.
+                .fixedSize(horizontal: false, vertical: true)
 
             Button("Connect a Provider") {
                 viewModel.showAIConnections = true
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
-
-            Button("Refresh") {
-                viewModel.refresh()
-            }
-            .buttonStyle(.plain)
-            .scaledFont(.caption)
-            .foregroundStyle(.secondary)
 
             if let setupURL = URL(string: "https://trytokenomics.com/setup.html") {
                 Link("View setup guide →", destination: setupURL)

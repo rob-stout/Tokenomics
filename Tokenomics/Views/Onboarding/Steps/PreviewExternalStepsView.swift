@@ -180,8 +180,8 @@ private let window4Items: [String] = [
 #Preview("Window 3 — Sign-in preview — light") {
     WindowChromePreview(title: "Connect Anthropic", stepperItems: installStepperItems) {
         PreviewExternalStepsView(
-            headline: "Finish installing Claude Code",
-            introText: "We've started the install for Claude Code. You'll need to finish it by walking through the steps Anthropic has laid out — we're here to guide you. Here's what's going to happen:",
+            headline: "Sign in to Claude Code",
+            introText: "Next, sign in with your Anthropic account. Claude Code walks you through it in Terminal — here's what's going to happen:",
             groupLabel: "In Claude Code, you'll:",
             startingNumber: 1,
             items: window3Items,
@@ -197,8 +197,8 @@ private let window4Items: [String] = [
 #Preview("Window 3 — Sign-in preview — dark") {
     WindowChromePreview(title: "Connect Anthropic", stepperItems: installStepperItems) {
         PreviewExternalStepsView(
-            headline: "Finish installing Claude Code",
-            introText: "We've started the install for Claude Code. You'll need to finish it by walking through the steps Anthropic has laid out — we're here to guide you. Here's what's going to happen:",
+            headline: "Sign in to Claude Code",
+            introText: "Next, sign in with your Anthropic account. Claude Code walks you through it in Terminal — here's what's going to happen:",
             groupLabel: "In Claude Code, you'll:",
             startingNumber: 1,
             items: window3Items,
@@ -214,8 +214,8 @@ private let window4Items: [String] = [
 #Preview("Window 4 — Setup preview with headsUp — light") {
     WindowChromePreview(title: "Connect Anthropic", stepperItems: installStepperItems) {
         PreviewExternalStepsView(
-            headline: "Setup",
-            introText: "After you sign in, Claude Code asks for two more things — a folder and macOS permissions. Finish those and you're done.",
+            headline: "After you sign in",
+            introText: "Claude Code asks for two more things — a folder and macOS permissions. Finish those and you're done.",
             groupLabel: "In Claude Code, you'll:",
             startingNumber: 5,
             items: window4Items,
@@ -232,8 +232,8 @@ private let window4Items: [String] = [
 #Preview("Window 4 — Setup preview with headsUp — dark") {
     WindowChromePreview(title: "Connect Anthropic", stepperItems: installStepperItems) {
         PreviewExternalStepsView(
-            headline: "Setup",
-            introText: "After you sign in, Claude Code asks for two more things — a folder and macOS permissions. Finish those and you're done.",
+            headline: "After you sign in",
+            introText: "Claude Code asks for two more things — a folder and macOS permissions. Finish those and you're done.",
             groupLabel: "In Claude Code, you'll:",
             startingNumber: 5,
             items: window4Items,

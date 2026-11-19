@@ -313,6 +313,8 @@ actor GuidedInstallRunner {
             }
 
             Task {
+                let watcher = Task { await Self.watchClaudeDownload(continuation) }
+                defer { watcher.cancel() }
                 do {
                     try await self.runInstallProcess(
                         executable: URL(fileURLWithPath: "/bin/bash"),
@@ -323,6 +325,59 @@ actor GuidedInstallRunner {
                 } catch {
                     continuation.yield(.failed(error.localizedDescription))
                     continuation.finish()
+                }
+            }
+        }
+    }
+
+    private struct ClaudeReleaseManifest: Decodable {
+        struct Platform: Decodable { let size: Int }
+        let platforms: [String: Platform]
+    }
+
+    /// Anthropic's installer prints nothing while it downloads (`curl -fsSL`), so
+    /// progress comes from watching its download grow in `~/.claude/downloads`
+    /// against the size in the release manifest. The download is the bulk of the
+    /// wait; `claude install` setting up the launcher fills the last 10%. If the
+    /// manifest or file names ever change, the bar just stays indeterminate.
+    private static func watchClaudeDownload(_ continuation: AsyncStream<InstallEvent>.Continuation) async {
+        let base = "https://downloads.claude.ai/claude-code-releases"
+        guard let latestURL = URL(string: "\(base)/latest"),
+              let (data, _) = try? await URLSession.shared.data(from: latestURL),
+              let version = String(data: data, encoding: .utf8)?
+                  .trimmingCharacters(in: .whitespacesAndNewlines),
+              !version.isEmpty else { return }
+
+        #if arch(arm64)
+        let platform = "darwin-arm64"
+        #else
+        let platform = "darwin-x64"
+        #endif
+
+        // The installer fetches a compressed `.zst` when zstd is installed, the raw binary otherwise.
+        func size(_ manifest: String) async -> Int? {
+            guard let url = URL(string: "\(base)/\(version)/\(manifest)"),
+                  let (data, _) = try? await URLSession.shared.data(from: url),
+                  let decoded = try? JSONDecoder().decode(ClaudeReleaseManifest.self, from: data) else { return nil }
+            return decoded.platforms[platform]?.size
+        }
+        let rawSize = await size("manifest.json")
+        let zstSize = await size("manifest.zst.json")
+
+        let downloads = URL(fileURLWithPath: NSHomeDirectory()).appending(path: ".claude/downloads")
+        var shown = 0.0
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(250))
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: downloads, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+            for file in files where file.lastPathComponent.hasPrefix("claude-\(version)-") {
+                guard let total = file.pathExtension == "zst" ? zstSize : rawSize, total > 0,
+                      let bytes = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize else { continue }
+                // Never step backwards: decompressing the .zst starts a second file at zero.
+                let fraction = min(Double(bytes) / Double(total), 1) * 0.9
+                if fraction > shown {
+                    shown = fraction
+                    continuation.yield(.progress(fraction))
                 }
             }
         }
