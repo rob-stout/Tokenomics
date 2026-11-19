@@ -268,11 +268,11 @@ final class NotificationService: ObservableObject {
         return "\(name) at \(Int(utilization))%"
     }
 
-    /// At 100% the limit is already hit, so "may hit your limit soon" would be wrong.
+    /// Two lines: what's happening, then when it resets. At 100% the limit is
+    /// already hit, so "may hit your limit soon" would be wrong.
     nonisolated static func usageAlertBody(resetText: String, utilization: Double) -> String {
-        utilization >= 100
-            ? "You've hit your usage limit.\n\(resetText)"
-            : "\(resetText). You may hit your limit soon."
+        let headline = utilization >= 100 ? "You've hit your usage limit." : "You may hit your limit soon."
+        return "\(headline)\n\(resetText)"
     }
 
     /// Exactly what a usage alert says. One builder so tests check the real text.

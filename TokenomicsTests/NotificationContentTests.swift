@@ -8,7 +8,7 @@ import XCTest
 /// NotificationService builds the title via `usageAlertTitle(for:utilization:)`,
 /// which uses the pool's source-of-truth label (`poolLabel`):
 ///   title = "\(providerId.poolLabel) at \(Int(utilization))%"
-///   body  = "\(window.timeUntilReset). You may hit your limit soon."
+///   body  = "You may hit your limit soon.\n\(window.resetTimeText)"
 ///
 /// These call the REAL builder (not a re-implemented format string) so the test
 /// can't silently drift from production again.
@@ -83,9 +83,9 @@ final class NotificationContentTests: XCTestCase {
             resetsAt: resetsAt,
             windowDuration: 5 * 3600
         )
-        let body = "\(window.timeUntilReset). You may hit your limit soon."
+        let body = NotificationService.usageAlertText(for: .claude, window: window, utilization: 85).body
         XCTAssertTrue(body.contains("Resets in"), "Body should contain reset info: \(body)")
-        XCTAssertTrue(body.hasSuffix(". You may hit your limit soon."))
+        XCTAssertTrue(body.hasPrefix("You may hit your limit soon.\n"))
     }
 
     func testNotificationBody_alreadyReset_showsResettingNow() {
@@ -133,11 +133,12 @@ final class NotificationContentTests: XCTestCase {
                         XCTAssertEqual(lines.first, "You've hit your usage limit.", context)
                         XCTAssertFalse(text.body.contains("may hit"), context)
                     } else {
-                        XCTAssertTrue(text.body.hasSuffix("You may hit your limit soon."), context)
+                        XCTAssertEqual(lines.first, "You may hit your limit soon.", context)
                         XCTAssertFalse(text.body.contains("You've hit"), context)
                     }
                     // The reset line names a time, never a usage caption.
-                    let resetLine = level >= 100 ? lines.last ?? "" : text.body
+                    XCTAssertEqual(lines.count, 2, context)
+                    let resetLine = lines.last ?? ""
                     XCTAssertTrue(resetLine.hasPrefix("Resets"), "\(context): \(text.body)")
                     if let caption = window.sublabelOverride {
                         XCTAssertFalse(text.body.contains(caption), "\(context): \(text.body)")

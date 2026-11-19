@@ -11,6 +11,20 @@ import XCTest
 @MainActor
 final class NotificationServiceTests: XCTestCase {
 
+    // Tests write alert settings; put the real app's back afterwards.
+    private var preserved: PreservedDefaults?
+
+    override func setUp() async throws {
+        try await super.setUp()
+        preserved = PreservedDefaults(keys: PreservedDefaults.notificationKeys)
+    }
+
+    override func tearDown() async throws {
+        preserved?.restore()
+        preserved = nil
+        try await super.tearDown()
+    }
+
     // MARK: - Helpers
 
     private func makeSnapshot(utilization: Double, longWindow: Double? = nil) -> ProviderUsageSnapshot {
@@ -271,7 +285,7 @@ final class NotificationServiceTests: XCTestCase {
 
     func testAlertBody_belowLimit_warns() {
         XCTAssertEqual(NotificationService.usageAlertBody(resetText: "Resets in 2h", utilization: 90),
-                       "Resets in 2h. You may hit your limit soon.")
+                       "You may hit your limit soon.\nResets in 2h")
     }
 
     func testAlertBody_atLimit_saysLimitHit() {
