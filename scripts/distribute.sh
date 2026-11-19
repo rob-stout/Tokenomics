@@ -54,9 +54,20 @@ step "Checking prerequisites"
 command -v xcodegen >/dev/null 2>&1 || die "xcodegen not found. Install with: brew install xcodegen"
 command -v create-dmg >/dev/null 2>&1 || die "create-dmg not found. Install with: brew install create-dmg"
 
-# Confirm the keychain profile exists before spending time on a full build
-xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" >/dev/null 2>&1 \
-    || die "Notarytool keychain profile '$NOTARIZE_PROFILE' not found.\n\nSet it up with:\n  xcrun notarytool store-credentials \"$NOTARIZE_PROFILE\" --apple-id <email> --team-id RPDDQP7KZ5 --password <app-specific-password>"
+# Confirm notarization works before spending time on a full build. Show Apple's
+# real error — a missing profile and an expired developer agreement (HTTP 403)
+# both fail here, and they need different fixes.
+if ! NOTARY_CHECK=$(xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" 2>&1); then
+    echo "ERROR: notarytool can't reach Apple with profile '$NOTARIZE_PROFILE':" >&2
+    echo "  $NOTARY_CHECK" | head -3 >&2
+    if grep -qi "agreement" <<<"$NOTARY_CHECK"; then
+        echo "Fix: accept the pending agreement at https://developer.apple.com/account (can take a few minutes to take effect)." >&2
+    else
+        echo "If the profile is missing, set it up with:" >&2
+        echo "  xcrun notarytool store-credentials \"$NOTARIZE_PROFILE\" --apple-id <email> --team-id RPDDQP7KZ5 --password <app-specific-password>" >&2
+    fi
+    exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Step 0: Version sync — read version from project.yml, auto-increment build
