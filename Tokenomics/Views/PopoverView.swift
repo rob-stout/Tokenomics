@@ -34,6 +34,9 @@ struct PopoverView: View {
     /// Independent of `viewModel.selectedTab` (ProviderId) which drives the flag-off path.
     /// Initialized lazily to `enabledBrands.first` when the flag-on tab bar renders.
     @State private var selectedBrand: BrandId?
+    /// Confetti for a reset the user was waiting on (they'd hit 100%).
+    @State private var showResetConfetti = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("textSize") private var textSizeRaw: String = TextSize.compact.rawValue
     private var textSize: TextSize { TextSize(rawValue: textSizeRaw) ?? .compact }
 
@@ -102,6 +105,21 @@ struct PopoverView: View {
                 } else {
                     selectedBrand = viewModel.enabledBrands.first
                 }
+            }
+        }
+        .overlay {
+            if showResetConfetti {
+                ConfettiView().transition(.opacity)
+            }
+        }
+        // Each popover open re-runs onAppear (the bars replay from it too).
+        .onAppear {
+            guard viewModel.notificationService.consumePendingCelebration(), !reduceMotion else { return }
+            showResetConfetti = true
+            Task {
+                // Let it land, then clear the pile so it doesn't sit over the footer.
+                try? await Task.sleep(for: .seconds(4))
+                withAnimation(.easeOut(duration: 0.6)) { showResetConfetti = false }
             }
         }
         // Reset to home view when popover closes
@@ -514,10 +532,13 @@ struct PopoverView: View {
                 .foregroundStyle(.orange)
                 .accessibilityHidden(true)
 
-            Text("Tokenomics needs permission to read your Claude Code sign-in")
+            // Hard breaks keep each pair of lines about the same length.
+            Text("Tokenomics needs permission\nto read your Claude Code sign-in")
                 .scaledFont(.caption)
                 .fontWeight(.semibold)
                 .multilineTextAlignment(.center)
+                // The popover proposes a fixed width; without this the line truncates instead of wrapping.
+                .fixedSize(horizontal: false, vertical: true)
 
             Button(isRequestingKeychainAccess ? "Waiting…" : "Allow Access") {
                 isRequestingKeychainAccess = true
@@ -535,11 +556,13 @@ struct PopoverView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .disabled(isRequestingKeychainAccess)
+            .padding(.vertical, 8)
 
-            Text("macOS may ask twice. Enter your Mac password and choose \"Always Allow\" each time.")
+            Text("macOS may ask twice. Enter your Mac password\nand choose \"Always Allow\" each time.")
                 .scaledFont(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
             if didKeychainAttemptFail {
                 Text("macOS didn't allow access. Try again.")

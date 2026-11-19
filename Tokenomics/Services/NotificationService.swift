@@ -23,6 +23,18 @@ private enum AlertState {
     case idle
     /// Notification already sent; waiting for utilization to drop below (threshold - 10%) before re-arming
     case alerted
+    /// Hit 100% and said so; same re-arm rule as `alerted`
+    case limitHit
+}
+
+// MARK: - Tab request
+
+/// The provider whose notification was just clicked. The popover opens on its
+/// tab instead of the usual pinned / most-used pick.
+@MainActor
+enum NotificationTabRequest {
+    nonisolated static let providerKey = "providerId"
+    static var pending: ProviderId?
 }
 
 // MARK: - NotificationService
@@ -32,7 +44,8 @@ private enum AlertState {
 ///
 /// Alert lifecycle per (provider, window):
 /// - IDLE → fires notification → ALERTED when utilization ≥ threshold
-/// - ALERTED → resets to IDLE when utilization drops below (threshold - 10%)
+/// - ALERTED → fires a "hit your limit" notification → LIMIT_HIT at 100%
+/// - ALERTED / LIMIT_HIT → reset to IDLE when utilization drops below (threshold - 10%)
 @MainActor
 final class NotificationService: ObservableObject {
 
@@ -72,6 +85,7 @@ final class NotificationService: ObservableObject {
         guard connection.isConnected else { return }
 
         let config = SettingsService.notificationConfig(for: providerId)
+        trackExhaustion(providerId: providerId, snapshot: snapshot, config: config)
         guard config.isEnabled else { return }
 
         let alertWindow = SettingsService.alertWindow
@@ -119,6 +133,74 @@ final class NotificationService: ObservableObject {
         }
     }
 
+    // MARK: - Reset celebration
+
+    /// Windows ("<providerId>_<windowKey>") that reached the alert threshold. Persisted so a reset
+    /// that lands after a relaunch still gets celebrated.
+    private static let exhaustedWindowsKey = "exhaustedWindows"
+    /// Set when a reset frees an exhausted provider; the next popover open fires confetti.
+    private static let pendingCelebrationKey = "pendingResetCelebration"
+
+    /// Returns true once per celebrated reset, then clears it.
+    func consumePendingCelebration() -> Bool {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: Self.pendingCelebrationKey) else { return false }
+        defaults.set(false, forKey: Self.pendingCelebrationKey)
+        return true
+    }
+
+    /// Celebrates only resets the user was waiting on: a window that reached
+    /// their alert threshold and has since dropped below half of it (a real
+    /// reset, not a rolling window drifting down a point). Ordinary resets
+    /// never fire. If another window is still at or over the threshold, the
+    /// user is still waiting on it, so we celebrate when that one resets.
+    private func trackExhaustion(
+        providerId: ProviderId,
+        snapshot: ProviderUsageSnapshot,
+        config: SettingsService.NotificationConfig
+    ) {
+        let threshold = Double(config.threshold)
+        let defaults = UserDefaults.standard
+        var exhausted = Set(defaults.stringArray(forKey: Self.exhaustedWindowsKey) ?? [])
+        var windows = [("short", snapshot.shortWindow)]
+        if let longWindow = snapshot.longWindow { windows.append(("long", longWindow)) }
+
+        var resetWindow: WindowUsage?
+        for (windowKey, window) in windows {
+            let key = "\(providerId.rawValue)_\(windowKey)"
+            if window.utilization >= threshold {
+                exhausted.insert(key)
+            } else if window.utilization < threshold / 2, exhausted.remove(key) != nil {
+                resetWindow = window
+            }
+        }
+        defaults.set(Array(exhausted), forKey: Self.exhaustedWindowsKey)
+
+        guard let resetWindow, !windows.contains(where: { $0.1.utilization >= threshold }) else { return }
+        logger.info("Reset after exhaustion for \(providerId.rawValue) — celebrating")
+        defaults.set(true, forKey: Self.pendingCelebrationKey)
+        if config.isEnabled { fireResetNotification(providerId: providerId, window: resetWindow) }
+    }
+
+    private func fireResetNotification(providerId: ProviderId, window: WindowUsage) {
+        Task {
+            guard await ensurePermission() else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "\(providerId.poolLabel) \(window.label) is ready again"
+            content.body = "Your usage reset. Ready to build!"
+            content.categoryIdentifier = "RESET_ALERT"
+            content.userInfo = [NotificationTabRequest.providerKey: providerId.rawValue]
+            let identifier = "\(providerId.rawValue)_reset"
+            do {
+                try await notificationCenter.add(
+                    UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+                logger.info("Notification fired: \(identifier)")
+            } catch {
+                logger.error("Failed to deliver notification \(identifier): \(error)")
+            }
+        }
+    }
+
     // MARK: - Private
 
     private func evaluateWindow(
@@ -136,7 +218,8 @@ final class NotificationService: ObservableObject {
         switch currentState {
         case .idle:
             if utilization >= threshold {
-                alertStates[stateKey] = .alerted
+                // A threshold of 100 lands straight on the limit — one alert, not two.
+                alertStates[stateKey] = utilization >= 100 ? .limitHit : .alerted
                 logger.debug("Threshold crossed for \(providerId.rawValue)/\(windowKey): \(utilization)% >= \(threshold)%")
                 fireNotification(
                     providerId: providerId,
@@ -147,6 +230,22 @@ final class NotificationService: ObservableObject {
             }
 
         case .alerted:
+            if utilization >= 100 {
+                // Already warned; now say why requests stopped.
+                alertStates[stateKey] = .limitHit
+                fireNotification(
+                    providerId: providerId,
+                    window: window,
+                    windowKey: windowKey,
+                    utilization: utilization
+                )
+            } else if utilization < hysteresisFloor {
+                // Usage has dropped enough — re-arm for the next crossing
+                alertStates[stateKey] = .idle
+                logger.debug("Re-armed \(providerId.rawValue)/\(windowKey): \(utilization)% < \(hysteresisFloor)%")
+            }
+
+        case .limitHit:
             if utilization < hysteresisFloor {
                 // Usage has dropped enough — re-arm for the next crossing
                 alertStates[stateKey] = .idle
@@ -158,9 +257,32 @@ final class NotificationService: ObservableObject {
     /// Usage-alert title. Uses the pool's source-of-truth label (`poolLabel`) so
     /// the notification reads the same as the toggle / popover / widget — e.g.
     /// "Codex CLI at 90%", never the brand-ish "OpenAI at 90%". Pure + static for
-    /// unit testing (see `PoolLabelAlignmentTests`).
-    nonisolated static func usageAlertTitle(for providerId: ProviderId, utilization: Double) -> String {
-        "\(providerId.poolLabel) at \(Int(utilization))%"
+    /// unit testing (see `PoolLabelAlignmentTests`). The window name rides in the
+    /// title ("Claude 5-Hour Window at 100%") — a subtitle line looked odd.
+    nonisolated static func usageAlertTitle(
+        for providerId: ProviderId,
+        windowLabel: String? = nil,
+        utilization: Double
+    ) -> String {
+        let name = [providerId.poolLabel, windowLabel].compactMap { $0 }.joined(separator: " ")
+        return "\(name) at \(Int(utilization))%"
+    }
+
+    /// At 100% the limit is already hit, so "may hit your limit soon" would be wrong.
+    nonisolated static func usageAlertBody(resetText: String, utilization: Double) -> String {
+        utilization >= 100
+            ? "You've hit your usage limit.\n\(resetText)"
+            : "\(resetText). You may hit your limit soon."
+    }
+
+    /// Exactly what a usage alert says. One builder so tests check the real text.
+    nonisolated static func usageAlertText(
+        for providerId: ProviderId,
+        window: WindowUsage,
+        utilization: Double
+    ) -> (title: String, body: String) {
+        (usageAlertTitle(for: providerId, windowLabel: window.label, utilization: utilization),
+         usageAlertBody(resetText: window.resetTimeText, utilization: utilization))
     }
 
     private func fireNotification(
@@ -177,10 +299,11 @@ final class NotificationService: ObservableObject {
             }
 
             let content = UNMutableNotificationContent()
-            content.title = Self.usageAlertTitle(for: providerId, utilization: utilization)
-            content.subtitle = window.label
-            content.body = "\(window.timeUntilReset). You may hit your limit soon."
+            let text = Self.usageAlertText(for: providerId, window: window, utilization: utilization)
+            content.title = text.title
+            content.body = text.body
             content.categoryIdentifier = "USAGE_ALERT"
+            content.userInfo = [NotificationTabRequest.providerKey: providerId.rawValue]
 
             // Stable identifier prevents duplicate banners for the same provider+window
             let identifier = "\(providerId.rawValue)_\(windowKey)_alert"

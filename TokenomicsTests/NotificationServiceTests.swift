@@ -196,4 +196,86 @@ final class NotificationServiceTests: XCTestCase {
         )
         // No crash = providers tracked independently
     }
+
+    // MARK: - Reset celebration
+
+    private func evaluate(_ service: NotificationService, _ short: Double, long: Double? = nil) {
+        service.evaluate(
+            providerId: .claude,
+            snapshot: makeSnapshot(utilization: short, longWindow: long),
+            connection: .connected(plan: "Pro")
+        )
+    }
+
+    private func freshCelebrationService() -> NotificationService {
+        UserDefaults.standard.removeObject(forKey: "exhaustedWindows")
+        UserDefaults.standard.removeObject(forKey: "pendingResetCelebration")
+        writeNotificationConfig(threshold: 90)
+        return NotificationService()
+    }
+
+    /// Hit 100%, then reset → one celebration, consumed once.
+    func testCelebration_afterExhaustionReset() {
+        let service = freshCelebrationService()
+        evaluate(service, 100)
+        XCTAssertFalse(service.consumePendingCelebration())
+        evaluate(service, 3)
+        XCTAssertTrue(service.consumePendingCelebration())
+        XCTAssertFalse(service.consumePendingCelebration())
+    }
+
+    /// Reaching the alert threshold (90) is enough — they don't have to hit 100%.
+    func testCelebration_afterThresholdReset() {
+        let service = freshCelebrationService()
+        evaluate(service, 92)
+        evaluate(service, 5)
+        XCTAssertTrue(service.consumePendingCelebration())
+    }
+
+    /// An ordinary reset (never reached the threshold) doesn't celebrate.
+    func testCelebration_notForOrdinaryReset() {
+        let service = freshCelebrationService()
+        evaluate(service, 85)
+        evaluate(service, 2)
+        XCTAssertFalse(service.consumePendingCelebration())
+    }
+
+    /// A rolling window easing off 100% isn't a reset.
+    func testCelebration_notForSmallDrop() {
+        let service = freshCelebrationService()
+        evaluate(service, 100)
+        evaluate(service, 92)
+        XCTAssertFalse(service.consumePendingCelebration())
+    }
+
+    /// Short window resets while the long window is still maxed → still blocked;
+    /// celebrate when the long one resets.
+    func testCelebration_waitsForEveryMaxedWindow() {
+        let service = freshCelebrationService()
+        evaluate(service, 100, long: 100)
+        evaluate(service, 0, long: 100)
+        XCTAssertFalse(service.consumePendingCelebration())
+        evaluate(service, 10, long: 1)
+        XCTAssertTrue(service.consumePendingCelebration())
+    }
+
+    /// Exhaustion survives a relaunch (new service instance).
+    func testCelebration_survivesRelaunch() {
+        evaluate(freshCelebrationService(), 100)
+        let relaunched = NotificationService()
+        evaluate(relaunched, 0)
+        XCTAssertTrue(relaunched.consumePendingCelebration())
+    }
+
+    // MARK: - Alert body
+
+    func testAlertBody_belowLimit_warns() {
+        XCTAssertEqual(NotificationService.usageAlertBody(resetText: "Resets in 2h", utilization: 90),
+                       "Resets in 2h. You may hit your limit soon.")
+    }
+
+    func testAlertBody_atLimit_saysLimitHit() {
+        XCTAssertEqual(NotificationService.usageAlertBody(resetText: "Resets in 2h", utilization: 100),
+                       "You've hit your usage limit.\nResets in 2h")
+    }
 }

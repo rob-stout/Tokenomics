@@ -561,6 +561,15 @@ struct WindowUsage: Codable, Sendable {
         return min(max(elapsed / windowDuration, 0), 1)
     }
 
+    /// The reset time even when the sublabel shows something else ("14 of 20 used"),
+    /// for alerts where when-it-comes-back is the point. Falls back to the sublabel
+    /// when there's no reset date.
+    var resetTimeText: String {
+        guard sublabelOverride != nil, resetsAt != .distantFuture else { return timeUntilReset }
+        return WindowUsage(label: label, utilization: utilization, resetsAt: resetsAt,
+                           windowDuration: windowDuration).timeUntilReset
+    }
+
     /// Formatted time remaining until reset
     var timeUntilReset: String {
         if let override = sublabelOverride { return override }

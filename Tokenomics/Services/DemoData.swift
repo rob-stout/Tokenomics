@@ -335,7 +335,9 @@ enum DemoData {
             utilization: value,
             resetsAt: window.resetsAt,
             windowDuration: window.windowDuration,
-            sublabelOverride: window.sublabelOverride
+            // Fixture sublabels ("14 of 20 used") describe the original numbers,
+            // so they'd contradict a slammed bar — show the reset time instead.
+            sublabelOverride: nil
         )
     }
 }

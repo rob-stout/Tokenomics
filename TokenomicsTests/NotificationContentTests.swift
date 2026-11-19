@@ -50,6 +50,13 @@ final class NotificationContentTests: XCTestCase {
                        "ChatGPT at 90%")
     }
 
+    func testNotificationTitle_includesWindowLabel() {
+        XCTAssertEqual(
+            NotificationService.usageAlertTitle(for: .claude, windowLabel: "5-Hour Window", utilization: 100),
+            "Claude 5-Hour Window at 100%"
+        )
+    }
+
     func testNotificationTitle_atExactly100_shows100Percent() {
         XCTAssertEqual(
             NotificationService.usageAlertTitle(for: .claude, utilization: 100.0),
@@ -103,5 +110,40 @@ final class NotificationContentTests: XCTestCase {
 
         let longIdentifier = "\(ProviderId.copilot.rawValue)_long_alert"
         XCTAssertEqual(longIdentifier, "copilot_long_alert")
+    }
+
+    // MARK: - Alert level ↔ text agreement
+
+    /// Every provider's alert, at a user-set level and at 100%, must say the
+    /// level it fired at, the matching message, and when the limit comes back.
+    /// Uses the fixtures' own captions ("14 of 20 used", "~60% estimated") —
+    /// those once leaked into the reset line and contradicted "at 100%".
+    func testAlertText_matchesLevelForEveryProvider() {
+        for (id, snapshot) in DemoData.allSnapshots {
+            let windows = [snapshot.shortWindow] + (snapshot.longWindow.map { [$0] } ?? [])
+            for window in windows {
+                for level in [50.0, 90.0, 100.0] {
+                    let text = NotificationService.usageAlertText(for: id, window: window, utilization: level)
+                    let context = "\(id.rawValue) \(window.label) at \(Int(level))%"
+
+                    XCTAssertEqual(text.title, "\(id.poolLabel) \(window.label) at \(Int(level))%", context)
+
+                    let lines = text.body.components(separatedBy: "\n")
+                    if level >= 100 {
+                        XCTAssertEqual(lines.first, "You've hit your usage limit.", context)
+                        XCTAssertFalse(text.body.contains("may hit"), context)
+                    } else {
+                        XCTAssertTrue(text.body.hasSuffix("You may hit your limit soon."), context)
+                        XCTAssertFalse(text.body.contains("You've hit"), context)
+                    }
+                    // The reset line names a time, never a usage caption.
+                    let resetLine = level >= 100 ? lines.last ?? "" : text.body
+                    XCTAssertTrue(resetLine.hasPrefix("Resets"), "\(context): \(text.body)")
+                    if let caption = window.sublabelOverride {
+                        XCTAssertFalse(text.body.contains(caption), "\(context): \(text.body)")
+                    }
+                }
+            }
+        }
     }
 }

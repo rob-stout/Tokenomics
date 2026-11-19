@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UserNotifications
 import os
 
 @main
@@ -150,6 +151,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forEventClass: AEEventClass(kInternetEventClass),
             andEventID: AEEventID(kAEGetURL)
         )
+
+        // Clicking a notification opens the popover (and any pending reset confetti).
+        UNUserNotificationCenter.current().delegate = self
 
         installNMHManifests()
         startBridgeServices()
@@ -320,5 +324,30 @@ struct MenuBarLabel: View {
             return usage
         }
         return viewModel.worstOfNUsage()
+    }
+}
+
+// MARK: - Notification clicks
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
+        let rawId = response.notification.request.content.userInfo[NotificationTabRequest.providerKey] as? String
+        await MainActor.run {
+            NotificationTabRequest.pending = rawId.flatMap(ProviderId.init(rawValue:))
+            StatusItemPresenter.open()
+        }
+    }
+
+    /// Setting a delegate means banners are only shown while we're frontmost if
+    /// we say so — keep them showing as they did before.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound]
     }
 }

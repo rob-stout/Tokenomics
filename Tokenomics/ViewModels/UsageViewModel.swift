@@ -672,6 +672,14 @@ final class UsageViewModel {
     /// Selects the most contextually relevant tab when the popover opens.
     /// Priority: pinned provider → worst-of-N (smart mode) → last selected tab.
     func selectContextualTab() {
+        // A clicked notification names its provider — open on that tab.
+        if let requested = NotificationTabRequest.pending {
+            NotificationTabRequest.pending = nil
+            if visibleProviders.contains(requested) {
+                selectedTab = requested
+                return
+            }
+        }
         if let pinned = pinnedProviders.first, visibleProviders.contains(pinned) {
             selectedTab = pinned
         } else if pinnedProviders.isEmpty, let worst = worstOfNUsage(),
