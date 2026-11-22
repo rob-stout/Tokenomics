@@ -4,8 +4,9 @@ Copyright (c) 2025-2026 Acorn Designs, LLC. All rights reserved.
 Owned by Acorn Designs, LLC. Created by Rob Stout.
 
 Acorn Designs, LLC ("Licensor") grants permission, free of charge, to any
-individual obtaining a copy of this software and associated documentation
-files (the "Software"), to use the Software for their own personal workflow
+individual obtaining a copy of this software (including the Tokenomics Mac
+app, the Tokenomics browser extensions, and Tokenomics for Safari) and
+associated documentation files (the "Software"), to use the Software for their own personal workflow
 monitoring — including use by individual developers monitoring their own AI
 tool subscriptions in a professional setting — subject to the following
 conditions:
@@ -50,17 +51,25 @@ hello@trytokenomics.com to discuss team and enterprise licensing.
    not infringe any third-party rights.
 
 6. NO WARRANTY AND LIMITATION OF LIABILITY
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
-   IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
+   LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING LOST PROFITS,
    LOSS OF DATA, OR BUSINESS INTERRUPTION) ARISING FROM THE USE OF OR
    INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-   SUCH DAMAGES. IN NO EVENT SHALL THE LICENSOR'S TOTAL AGGREGATE LIABILITY
+   SUCH DAMAGES. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO
+   EVENT SHALL THE LICENSOR'S TOTAL AGGREGATE LIABILITY
    FOR ANY CLAIM ARISING OUT OF OR RELATED TO THE SOFTWARE EXCEED THE
    AMOUNT PAID BY YOU FOR THE SOFTWARE IN THE TWELVE MONTHS PRECEDING THE
    CLAIM, OR TEN DOLLARS ($10.00 USD), WHICHEVER IS GREATER.
+
+   Nothing in this license excludes or limits any liability that cannot be
+   excluded or limited under applicable law, including liability for gross
+   negligence, willful misconduct, or fraud, and nothing in it affects any
+   rights you have as a consumer under the mandatory laws of the place
+   where you live.
 
 7. NON-AFFILIATION AND TRADEMARK NOTICE
    Tokenomics is an independent tool and is not affiliated with, endorsed
@@ -94,6 +103,15 @@ hello@trytokenomics.com to discuss team and enterprise licensing.
     regard to conflict of law principles. Any dispute arising under or
     related to this license shall be resolved exclusively in the state or
     federal courts located in Denver County, Colorado, and both parties
-    consent to personal jurisdiction and venue in those courts.
+    consent to personal jurisdiction and venue in those courts. This clause
+    does not deprive a consumer of the protection of the mandatory laws of,
+    or the right to bring proceedings in, their country of residence.
+
+11. APP STORE COPIES
+    If you obtained Tokenomics for Safari from Apple's Mac App Store, your
+    use of that app is governed by Apple's Licensed Application End User
+    License Agreement (https://www.apple.com/legal/internet-services/itunes/dev/stdeula/)
+    instead of this license. This license continues to govern the source
+    code and every other copy of the Software.
 
 For permissions beyond this license, contact: hello@trytokenomics.com
