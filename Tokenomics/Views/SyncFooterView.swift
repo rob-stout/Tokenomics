@@ -46,7 +46,9 @@ struct SyncFooterView: View {
             Spacer()
 
             // Refresh button
-            Button(action: onRefresh) {
+            // Ignores taps mid-refresh instead of `.disabled`, which would dim
+            // the arrow and hide its spin.
+            Button { if !isLoading { onRefresh() } } label: {
                 Image(systemName: "arrow.clockwise")
                     .resizable()
                     .scaledToFit()
@@ -57,9 +59,6 @@ struct SyncFooterView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .opacity(isLoading ? 0.4 : 1.0)
-            .animation(.easeInOut(duration: 0.2), value: isLoading)
-            .disabled(isLoading)
             .onChange(of: viewModel.refreshCount) { _, _ in
                 guard !reduceMotion else { return }
                 withAnimation(Tokens.Motion.refreshSpin) { spinDegrees += 360 }
