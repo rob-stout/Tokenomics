@@ -36,6 +36,9 @@ extension ClaudeCredentialRead {
 /// rebuild with a different code signature). Every read then pops a macOS password
 /// dialog. So background reads must be *silent*, and the one interactive read only
 /// happens when the user explicitly asks for it.
+///
+/// Both reads try Apple's `security` tool first, which avoids the dialog entirely
+/// (see `readViaSecurityTool`); the direct read is the fallback.
 enum KeychainService {
     private static let serviceName = "Claude Code-credentials"
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "KeychainService")
@@ -65,7 +68,7 @@ enum KeychainService {
             log.debug("silent read satisfied by credentials file")
             return .found(accessToken: token)
         }
-        return await onKeychainQueue { readKeychainItem(interactionAllowed: false) }
+        return await onKeychainQueue { readViaSecurityTool() ?? readKeychainItem(interactionAllowed: false) }
     }
 
     /// May show ONE macOS authorization dialog. Call only in response to a user action.
@@ -74,7 +77,7 @@ enum KeychainService {
     /// reaching the keychain, otherwise "Allow Access" would never show its dialog.
     static func readInteractively(excluding rejectedTokens: Set<String> = []) async -> ClaudeCredentialRead {
         if let token = readTokenFromFile(), !rejectedTokens.contains(token) { return .found(accessToken: token) }
-        return await onKeychainQueue { readKeychainItem(interactionAllowed: true) }
+        return await onKeychainQueue { readViaSecurityTool() ?? readKeychainItem(interactionAllowed: true) }
     }
 
     /// True if `token` is what the credentials file currently holds. The store uses it
@@ -124,6 +127,62 @@ enum KeychainService {
         // in the keychain only — the file holds `mcpOAuth` instead), so a missing
         // key is normal; we just fall through to the keychain.
         return parseAccessToken(from: data)
+    }
+
+    // MARK: - Apple's `security` tool
+
+    /// Exit code `security find-generic-password` uses for "no such item".
+    private static let securityToolItemNotFound: Int32 = 44
+
+    /// Reads the item through /usr/bin/security, the tool Claude Code itself uses to
+    /// write and read it. That makes the tool part of the item's access list and its
+    /// "apple-tool:" partition, so this read never shows a dialog. A direct read can't
+    /// say the same: each time Claude Code refreshes its login it rewrites the item,
+    /// which resets the partition list and wipes the user's "Always Allow".
+    ///
+    /// Returns nil when the tool can't answer, so the caller falls back to the direct
+    /// read. Must run on `keychainQueue`.
+    private static func readViaSecurityTool() -> ClaudeCredentialRead? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = ["find-generic-password", "-s", serviceName, "-w"]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            log.error("security tool failed to launch: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+
+        // If the item's access list ever lacked the tool, it would sit waiting on a
+        // dialog. Background reads must never do that, so give up after a few seconds.
+        let pid = process.processIdentifier
+        let timeout = DispatchWorkItem { kill(pid, SIGTERM) }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: timeout)
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        timeout.cancel()
+
+        let exitCode = process.terminationReason == .exit ? process.terminationStatus : -1
+        let read = mapSecurityTool(exitCode: exitCode, output: data)
+        log.info("security tool read: exit \(exitCode) → \(read?.logLabel ?? "fallback", privacy: .public)")
+        return read
+    }
+
+    /// Pure exit-code → result mapping, unit-testable without running the tool.
+    /// nil means "no answer, try the direct read".
+    static func mapSecurityTool(exitCode: Int32, output: Data) -> ClaudeCredentialRead? {
+        switch exitCode {
+        case 0:
+            guard let token = parseAccessToken(from: output) else { return nil }
+            return .found(accessToken: token)
+        case securityToolItemNotFound:
+            return .notFound
+        default:
+            return nil
+        }
     }
 
     // MARK: - Keychain

@@ -450,6 +450,16 @@ final class KeychainServiceMappingTests: XCTestCase {
         XCTAssertEqual(KeychainService.map(status: -34018, data: nil), .needsAuthorization)
     }
 
+    func testMapSecurityTool_exitCodes() {
+        let json = data(#"{"claudeAiOauth":{"accessToken":"sk-ant-x"}}"# + "\n")
+        XCTAssertEqual(KeychainService.mapSecurityTool(exitCode: 0, output: json), .found(accessToken: "sk-ant-x"))
+        XCTAssertEqual(KeychainService.mapSecurityTool(exitCode: 44, output: Data()), .notFound)
+        // Anything else (denied, killed by the timeout, unusable output) falls back.
+        XCTAssertNil(KeychainService.mapSecurityTool(exitCode: 0, output: data("garbage")))
+        XCTAssertNil(KeychainService.mapSecurityTool(exitCode: 51, output: Data()))
+        XCTAssertNil(KeychainService.mapSecurityTool(exitCode: -1, output: Data()))
+    }
+
     func testMap_successWithUnusableData_isNotFound() {
         XCTAssertEqual(KeychainService.map(status: errSecSuccess, data: data("garbage")), .notFound)
         XCTAssertEqual(KeychainService.map(status: errSecSuccess, data: nil), .notFound)
