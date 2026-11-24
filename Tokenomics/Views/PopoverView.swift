@@ -826,15 +826,22 @@ struct PopoverView: View {
                 // ── Preferences ──
                 sectionLabel("Preferences")
 
-                settingsRow(icon: "checkmark.square", label: "Launch at Login") {
-                    Toggle("", isOn: $launchAtLogin)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .labelsHidden()
-                        .onChange(of: launchAtLogin) { _, newValue in
-                            LaunchAtLoginService.setEnabled(newValue)
-                            launchAtLogin = LaunchAtLoginService.isEnabled
-                        }
+                settingsNavRow(
+                    icon: "bell",
+                    label: "Notifications",
+                    detail: viewModel.notificationsSubtitle
+                ) {
+                    viewModel.showNotifications = true
+                }
+
+                Divider().padding(.horizontal, 16)
+
+                settingsNavRow(
+                    icon: "textformat.size",
+                    label: "Text Size",
+                    detail: textSize.displayName
+                ) {
+                    viewModel.showTextSize = true
                 }
 
                 Divider().padding(.horizontal, 16)
@@ -854,22 +861,15 @@ struct PopoverView: View {
 
                 Divider().padding(.horizontal, 16)
 
-                settingsNavRow(
-                    icon: "bell",
-                    label: "Notifications",
-                    detail: viewModel.notificationsSubtitle
-                ) {
-                    viewModel.showNotifications = true
-                }
-
-                Divider().padding(.horizontal, 16)
-
-                settingsNavRow(
-                    icon: "textformat.size",
-                    label: "Text Size",
-                    detail: textSize.displayName
-                ) {
-                    viewModel.showTextSize = true
+                settingsRow(icon: "checkmark.square", label: "Launch at Login") {
+                    Toggle("", isOn: $launchAtLogin)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .onChange(of: launchAtLogin) { _, newValue in
+                            LaunchAtLoginService.setEnabled(newValue)
+                            launchAtLogin = LaunchAtLoginService.isEnabled
+                        }
                 }
 
                 // ── Learn ──
