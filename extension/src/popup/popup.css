@@ -199,10 +199,10 @@ body {
 
 .tab--selected {
   /* Fixed so the strip doesn't shift between tabs: fits the longest name
-     ("ElevenLabs") with 12px either side. */
-  flex: 0 0 100px;
+     ("ElevenLabs") with 16px either side, matching the Mac. */
+  flex: 0 0 106px;
   gap: 5px;
-  padding: 6px 12px;
+  padding: 6px 16px;
   color: var(--widget-name);
   background: var(--widget-surface);
   box-shadow: var(--shadow-sm);
