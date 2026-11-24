@@ -296,7 +296,9 @@ struct PopoverView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, isFirst ? 10 : 18)
+        // Center the pool divider: 20pt sits above it (12 content padding + 8), and the
+        // plan pill already adds ~5pt above this label, so 14 here lands ~20 below.
+        .padding(.top, isFirst ? 10 : 14)
         .padding(.bottom, 2)
     }
 
