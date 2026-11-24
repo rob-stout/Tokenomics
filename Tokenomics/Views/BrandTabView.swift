@@ -26,9 +26,9 @@ struct BrandTabView: View {
     @State private var availableWidth: CGFloat = 0
     @State private var contentWidth: CGFloat = 0
 
-    /// Scroll position of the overflowing strip, for the edge fades.
-    @State private var scrollContentFrame: CGRect = .zero
-    @State private var scrollViewportWidth: CGFloat = 0
+    /// Which edges of the overflowing strip have tabs hidden past them (edge fades).
+    @State private var hiddenLeft = false
+    @State private var hiddenRight = true
 
     /// The selected tab's fixed width: fits the longest name ("ElevenLabs") with
     /// 12pt either side, and stays the same on every tab so the strip doesn't
@@ -96,23 +96,8 @@ struct BrandTabView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
                         tabRow(fill: false)
-                            .background(
-                                GeometryReader { geo in
-                                    Color.clear.preference(
-                                        key: ScrollContentFrameKey.self,
-                                        value: geo.frame(in: .named("brandTabScroll"))
-                                    )
-                                }
-                            )
                     }
-                    .coordinateSpace(name: "brandTabScroll")
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.preference(key: ScrollViewportWidthKey.self, value: geo.size.width)
-                        }
-                    )
-                    .onPreferenceChange(ScrollContentFrameKey.self) { scrollContentFrame = $0 }
-                    .onPreferenceChange(ScrollViewportWidthKey.self) { scrollViewportWidth = $0 }
+                    .modifier(ScrollEdgeTracker(hiddenLeft: $hiddenLeft, hiddenRight: $hiddenRight))
                     // Fade the edge(s) that have more tabs past them — the hint that the
                     // strip scrolls. A fade disappears once you reach that end.
                     .mask(edgeFadeMask)
@@ -301,9 +286,7 @@ extension BrandTabView {
 
     /// Opaque in the middle, fading out at an edge only when tabs are hidden past it.
     fileprivate var edgeFadeMask: some View {
-        let hiddenLeft = scrollContentFrame.minX < -1
-        let hiddenRight = scrollContentFrame.maxX > scrollViewportWidth + 1
-        return HStack(spacing: 0) {
+        HStack(spacing: 0) {
             LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
                 .frame(width: hiddenLeft ? edgeFade : 0)
             Rectangle()
@@ -315,14 +298,33 @@ extension BrandTabView {
     }
 }
 
-private struct ScrollContentFrameKey: PreferenceKey {
-    static let defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
-}
+/// Reports which edges of a horizontal ScrollView have content hidden past them.
+/// macOS 15+ reads the live scroll geometry; macOS 14 has no API for it, so the
+/// right edge stays faded (there's always more to the right when we scroll).
+private struct ScrollEdgeTracker: ViewModifier {
+    @Binding var hiddenLeft: Bool
+    @Binding var hiddenRight: Bool
 
-private struct ScrollViewportWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+    private struct Edges: Equatable {
+        var left: Bool
+        var right: Bool
+    }
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.onScrollGeometryChange(for: Edges.self) { geo in
+                Edges(
+                    left: geo.contentOffset.x > 1,
+                    right: geo.contentOffset.x + geo.containerSize.width < geo.contentSize.width - 1
+                )
+            } action: { _, edges in
+                hiddenLeft = edges.left
+                hiddenRight = edges.right
+            }
+        } else {
+            content
+        }
+    }
 }
 
 // MARK: - Width measurement
