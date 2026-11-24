@@ -104,7 +104,6 @@ body {
   gap: 5px;
   padding: 4px var(--s-4);
   color: var(--widget-label);
-  border-bottom: 1px solid var(--widget-divider);
 }
 
 .bridge-banner__text {
@@ -133,18 +132,43 @@ body {
 
 /* ── Tab bar ────────────────────────────────────────── */
 
-.tab-bar {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
+.tab-bar-wrap {
+  /* Draws the rounded field. Kept separate from the scrolling strip so the edge
+     fade below dims the icons, not the field itself. */
   margin: 0 var(--s-4);
+  padding: 2px;
   background: var(--widget-hover);
   border-radius: 8px;
 }
 
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  border-radius: 6px;
+  /* Like the Mac popover: tabs keep their size and the strip scrolls sideways
+     when they don't fit (web sites plus the Mac's coding tools). */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scroll hint: fade whichever edge has more tabs past it (set from JS). */
+.tab-bar[data-fade='right'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+.tab-bar[data-fade='left'] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+}
+.tab-bar[data-fade='both'] {
+  mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+}
+
 .tab {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 0 auto;
+  min-width: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -165,11 +189,20 @@ body {
   background: var(--widget-hover);
 }
 
+.tab--dragging {
+  opacity: 0.85;
+  transform: scale(1.06);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  z-index: 1;
+  cursor: grabbing;
+}
+
 .tab--selected {
-  flex: 0 0 auto;
-  width: 160px;
+  /* Fixed so the strip doesn't shift between tabs: fits the longest name
+     ("ElevenLabs") with 16px either side, matching the Mac. */
+  flex: 0 0 106px;
   gap: 5px;
-  padding: 6px 12px;
+  padding: 6px 16px;
   color: var(--widget-name);
   background: var(--widget-surface);
   box-shadow: var(--shadow-sm);
@@ -222,12 +255,61 @@ body {
 .tab__icon--grok { background-image: url(../icons/providers/grok-d.blue.svg); }
 .tab__icon--perplexity { background-image: url(../icons/providers/perplexity-d.blue.svg); }
 .tab__icon--leonardo { background-image: url(../icons/providers/leonardo-d.blue.svg); }
+.tab__icon--suno { background-image: url(../icons/providers/suno-d.blue.svg); }
+.tab__icon--udio { background-image: url(../icons/providers/udio-d.blue.svg); }
 
 [data-theme='dark'] .tab__icon--geminiConsumer { background-image: url(../icons/providers/Gemini-white.svg); }
 [data-theme='dark'] .tab__icon--elevenlabs { background-image: url(../icons/providers/elevenlabs-white.svg); }
 [data-theme='dark'] .tab__icon--grok { background-image: url(../icons/providers/grok-white.svg); }
 [data-theme='dark'] .tab__icon--perplexity { background-image: url(../icons/providers/perplexity-white.svg); }
 [data-theme='dark'] .tab__icon--leonardo { background-image: url(../icons/providers/leonardo-white.svg); }
+[data-theme='dark'] .tab__icon--suno { background-image: url(../icons/providers/suno-white.svg); }
+[data-theme='dark'] .tab__icon--udio { background-image: url(../icons/providers/udio-white.svg); }
+
+/* Site-name mode: no vendor logos anywhere; every tab is its name. With 9+
+   tabs the names can't share 368px, so the bar scrolls sideways (scrollbar
+   hidden) instead of abbreviating names into guesswork. */
+[data-labels='text'] .tab__icon {
+  display: none;
+}
+
+.tab-bar--text {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar--text::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-bar--text .tab,
+.tab-bar--text .tab--selected {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 6px 10px;
+}
+
+.tab-bar--text .tab__label {
+  font-size: 11px;
+  overflow: visible;
+}
+
+/* Multi-pool tab (e.g. Gemini app + Gemini CLI): one labelled group per pool,
+   with extra air between groups so each reads on its own. */
+.pool-group + .pool-group {
+  margin-top: var(--s-3, 12px);
+  padding-top: var(--s-3, 12px);
+  border-top: 1px solid var(--widget-hover);
+}
+
+.pool-group__header {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--widget-label);
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
 
 /* ── Body ────────────────────────────────────────────── */
 

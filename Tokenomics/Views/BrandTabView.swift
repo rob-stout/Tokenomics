@@ -26,6 +26,18 @@ struct BrandTabView: View {
     @State private var availableWidth: CGFloat = 0
     @State private var contentWidth: CGFloat = 0
 
+    /// Which edges of the overflowing strip have tabs hidden past them (edge fades).
+    @State private var hiddenLeft = false
+    @State private var hiddenRight = true
+
+    /// The selected tab's fixed width: fits the longest name ("ElevenLabs") with
+    /// 16pt either side, and stays the same on every tab so the strip doesn't
+    /// shift when you switch. Grows with the Text Size setting.
+    private var selectedTabWidth: CGFloat { 118 * textSize.iconScale }
+
+    /// Width of the fade at a scrollable edge.
+    private let edgeFade: CGFloat = 28
+
     /// Icon-only mode kicks in at 4+ brands to keep the popover compact.
     private var useIconOnly: Bool { brands.count >= 4 }
 
@@ -43,17 +55,26 @@ struct BrandTabView: View {
     }
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
+        VStack(spacing: 0) {
+            // Measure the width we're OFFERED, not the bar's own width: an overflowing
+            // fill row widens the bar, which then looked roomy enough to never scroll.
+            // A zero-height clear row takes exactly the proposed width.
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 0)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: TabBarWidthKey.self, value: geo.size.width)
+                    }
+                )
 
-            tabStrip
-        }
-        .background(
-            GeometryReader { geo in
-                Color.clear.preference(key: TabBarWidthKey.self, value: geo.size.width)
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
+
+                tabStrip
             }
-        )
+        }
         .coordinateSpace(name: "brandTabBar")
         .onPreferenceChange(TabBarWidthKey.self) { availableWidth = $0 }
         .onPreferenceChange(BrandTabFramePreference.self) { tabFrames = $0 }
@@ -71,15 +92,15 @@ struct BrandTabView: View {
     @ViewBuilder
     private var tabStrip: some View {
         ZStack {
-            measuringRow
-                .hidden()
-                .allowsHitTesting(false)
-
             if needsScroll {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
                         tabRow(fill: false)
                     }
+                    .modifier(ScrollEdgeTracker(hiddenLeft: $hiddenLeft, hiddenRight: $hiddenRight))
+                    // Fade the edge(s) that have more tabs past them — the hint that the
+                    // strip scrolls. A fade disappears once you reach that end.
+                    .mask(edgeFadeMask)
                     .onAppear {
                         if let selection { proxy.scrollTo(selection, anchor: .center) }
                     }
@@ -94,6 +115,15 @@ struct BrandTabView: View {
                 tabRow(fill: true)
             }
         }
+        // Measure in the background so the hidden row's natural width never sizes
+        // the bar: inside the ZStack, a long row (many companies) stretched the bar
+        // past the popover's padding and the scroll view never got a narrower frame.
+        .background(
+            measuringRow
+                .hidden()
+                .allowsHitTesting(false),
+            alignment: .leading
+        )
         .onPreferenceChange(TabContentWidthKey.self) { contentWidth = $0 }
     }
 
@@ -138,10 +168,10 @@ struct BrandTabView: View {
         let label = tabLabel(brand: brand, showLabel: showLabel, isSelected: isSelected)
 
         Group {
-            if !fill {
+            if useIconOnly && isSelected {
+                label.frame(width: selectedTabWidth) // same width on every tab
+            } else if !fill {
                 label                              // natural width (scroll)
-            } else if useIconOnly && isSelected {
-                label.frame(width: 160)            // fill: selected reserves space
             } else {
                 label.frame(maxWidth: .infinity)   // fill: others share the rest
             }
@@ -191,15 +221,17 @@ struct BrandTabView: View {
                     dragStartX = value.startLocation.x
                 }
 
+                // Slot = how many other tabs' midpoints the cursor has passed. Tabs have
+                // different widths (the selected one is wide), so "which tab is under the
+                // cursor" made some slots unreachable and the drop point feel off.
                 let currentX = value.location.x
-                let targetIndex = brands.enumerated().first { _, id in
-                    guard let frame = tabFrames[id] else { return false }
-                    return currentX >= frame.minX && currentX <= frame.maxX
-                }?.offset
+                guard let dragged = draggedBrand else { return }
+                let target = brands
+                    .filter { $0 != dragged }
+                    .filter { (tabFrames[$0]?.midX ?? .infinity) < currentX }
+                    .count
 
-                guard let target = targetIndex,
-                      let dragged = draggedBrand,
-                      let sourceIndex = brands.firstIndex(of: dragged),
+                guard let sourceIndex = brands.firstIndex(of: dragged),
                       target != sourceIndex else { return }
 
                 onMove?(dragged, target)
@@ -218,7 +250,7 @@ struct BrandTabView: View {
         let label = tabLabel(brand: brand, showLabel: showLabel, isSelected: isSelected)
 
         if useIconOnly && isSelected {
-            label.frame(width: 160)
+            label.frame(width: selectedTabWidth)
         } else {
             label
         }
@@ -234,14 +266,64 @@ struct BrandTabView: View {
                 .frame(width: 12 * textSize.iconScale, height: 12 * textSize.iconScale)
                 .opacity(isSelected ? 0.9 : 0.5)
             if showLabel {
-                Text(brand.displayName)
+                Text(Self.tabName(for: brand))
                     .lineLimit(1)
             }
         }
         .scaledFont(.caption)
         .fontWeight(.medium)
         .padding(.vertical, 6)
-        .padding(.horizontal, showLabel ? 12 : 10)
+        .padding(.horizontal, showLabel ? 16 : 10)
+    }
+}
+
+extension BrandTabView {
+    /// Tab text. "GitHub Copilot" is too long for the fixed tab; the extension says
+    /// "Copilot" too.
+    static func tabName(for brand: BrandId) -> String {
+        brand == .copilot ? "Copilot" : brand.displayName
+    }
+
+    /// Opaque in the middle, fading out at an edge only when tabs are hidden past it.
+    fileprivate var edgeFadeMask: some View {
+        HStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                .frame(width: hiddenLeft ? edgeFade : 0)
+            Rectangle()
+            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: hiddenRight ? edgeFade : 0)
+        }
+        .animation(.easeInOut(duration: 0.15), value: hiddenLeft)
+        .animation(.easeInOut(duration: 0.15), value: hiddenRight)
+    }
+}
+
+/// Reports which edges of a horizontal ScrollView have content hidden past them.
+/// macOS 15+ reads the live scroll geometry; macOS 14 has no API for it, so the
+/// right edge stays faded (there's always more to the right when we scroll).
+private struct ScrollEdgeTracker: ViewModifier {
+    @Binding var hiddenLeft: Bool
+    @Binding var hiddenRight: Bool
+
+    private struct Edges: Equatable {
+        var left: Bool
+        var right: Bool
+    }
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.onScrollGeometryChange(for: Edges.self) { geo in
+                Edges(
+                    left: geo.contentOffset.x > 1,
+                    right: geo.contentOffset.x + geo.containerSize.width < geo.contentSize.width - 1
+                )
+            } action: { _, edges in
+                hiddenLeft = edges.left
+                hiddenRight = edges.right
+            }
+        } else {
+            content
+        }
     }
 }
 

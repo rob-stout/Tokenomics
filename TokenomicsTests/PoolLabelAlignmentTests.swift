@@ -114,6 +114,8 @@ final class PoolLabelAlignmentTests: XCTestCase {
             (.leonardo, .leonardo),
             (.grok, .grok),
             (.perplexity, .perplexity),
+            (.suno, .suno),
+            (.udio, .udio),
         ]
         for (pick, provider) in mapping {
             let rep = WidgetProviderSelection.caseDisplayRepresentations[pick]

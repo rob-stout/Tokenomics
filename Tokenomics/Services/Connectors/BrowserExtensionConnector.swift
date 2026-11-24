@@ -102,7 +102,7 @@ actor BrowserExtensionConnector: ProviderConnector {
     /// The dev-keypair extension ID is the stable identifier used in the
     /// NMH manifest's `allowed_origins`. The public listing URL uses the same ID.
     private static let webStoreURL = URL(
-        string: "https://chromewebstore.google.com/detail/gcjaebikgcbccgbnbcimccflcgoeefio"
+        string: "https://chromewebstore.google.com/detail/nolficmmhjkgmoclepbclpmefilhlejl"
     )!
 
     /// App Store listing URL for "Tokenomics for Safari" — the sandboxed Mac

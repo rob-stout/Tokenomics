@@ -192,6 +192,10 @@ struct SmallWidgetView: View {
             return providers.first(where: { $0.id == "grok" })
         case .perplexity:
             return providers.first(where: { $0.id == "perplexity" })
+        case .suno:
+            return providers.first(where: { $0.id == "suno" })
+        case .udio:
+            return providers.first(where: { $0.id == "udio" })
         }
     }
 

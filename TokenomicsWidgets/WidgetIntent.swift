@@ -35,6 +35,8 @@ enum WidgetProviderSelection: String, AppEnum {
     case leonardo        = "leonardo"
     case grok            = "grok"
     case perplexity      = "perplexity"
+    case suno            = "suno"
+    case udio            = "udio"
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -55,7 +57,9 @@ enum WidgetProviderSelection: String, AppEnum {
         .midjourney:      "Midjourney",
         .leonardo:        "Leonardo",
         .grok:            "Grok",
-        .perplexity:      "Perplexity"
+        .perplexity:      "Perplexity",
+        .suno:            "Suno",
+        .udio:            "Udio"
     ]
 }
 

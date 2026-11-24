@@ -14,7 +14,7 @@ final class SettingsServiceTests: XCTestCase {
     override func setUp() {
         super.setUp()
         preserved = PreservedDefaults(
-            keys: ["pinnedProviders", "providerOrder", "hiddenProviders"] + PreservedDefaults.notificationKeys)
+            keys: ["pinnedProviders", "providerOrder", "providerOrderChangedAt", "hiddenProviders"] + PreservedDefaults.notificationKeys)
     }
 
     override func tearDown() {

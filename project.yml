@@ -270,8 +270,8 @@ targets:
         CFBundleDisplayName: Tokenomics for Safari
         CFBundleIconFile: AppIcon
         CFBundleIconName: AppIcon
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "3"
         ATSApplicationFontsPath: ""
         # Required by the Mac App Store — a missing or non-UTI value is
         # rejected at upload (the archive's "No App Category" warning).
@@ -379,8 +379,8 @@ targets:
       path: TokenomicsSafariExtension/Info.plist
       properties:
         CFBundleDisplayName: Tokenomics for Safari
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "3"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.Safari.web-extension
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SafariWebExtensionHandler

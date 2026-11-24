@@ -40,8 +40,14 @@ final class UsageViewModel {
 
     /// Custom provider display order
     var providerOrder: [ProviderId] = [] {
-        didSet { SettingsService.providerOrder = providerOrder }
+        didSet {
+            SettingsService.providerOrder = providerOrder
+            // An order adopted from the extension must not be stamped "now" and
+            // echoed back as if the user had just made it.
+            if !isApplyingRemoteOrder { SettingsService.recordProviderOrderChange() }
+        }
     }
+    @ObservationIgnored private var isApplyingRemoteOrder = false
 
     /// Providers hidden from the tab bar
     var hiddenProviders: Set<ProviderId> = [] {
@@ -95,17 +101,25 @@ final class UsageViewModel {
 
     // MARK: - Providers
 
-    private let providers: [ProviderId: any UsageProvider] = [
-        .claude: ClaudeProvider(),
-        .copilot: CopilotProvider(),
-        .cursor: CursorProvider(),
-        .codex: CodexProvider(),
-        .gemini: GeminiProvider(),
-        .elevenlabs: ElevenLabsProvider(),
-        .runway: RunwayProvider(),
-        .stableDiffusion: StableDiffusionProvider()
-        // .midjourney, .suno, .udio have no API — omitted intentionally
-    ]
+    /// Native providers read the Mac's own credentials; web-only pools are fed by the
+    /// browser extension over the bridge (`WebCompanionProvider`). Claude stays native-only:
+    /// see `WebCompanionProvider.webOnlyPools`.
+    private let providers: [ProviderId: any UsageProvider] = {
+        var all: [ProviderId: any UsageProvider] = [
+            .claude: ClaudeProvider(),
+            .copilot: CopilotProvider(),
+            .cursor: CursorProvider(),
+            .codex: CodexProvider(),
+            .gemini: GeminiProvider(),
+            .elevenlabs: ElevenLabsProvider(),
+            .runway: RunwayProvider(),
+            .stableDiffusion: StableDiffusionProvider()
+        ]
+        for id in WebCompanionProvider.webOnlyPools {
+            all[id] = WebCompanionProvider(id: id)
+        }
+        return all
+    }()
 
     private let pollingService = PollingService()
     @ObservationIgnored private var activityMonitor: ActivityMonitor?
@@ -173,15 +187,7 @@ final class UsageViewModel {
 
     /// All providers in display order (custom order with fallback to enum order)
     var orderedProviders: [ProviderId] {
-        if providerOrder.isEmpty {
-            return ProviderId.allCases.map { $0 }
-        }
-        // Start with custom order, append any new providers not yet in the list
-        var result = providerOrder.filter { ProviderId.allCases.contains($0) }
-        for id in ProviderId.allCases where !result.contains(id) {
-            result.append(id)
-        }
-        return result
+        ProviderOrderSync.effectiveOrder(stored: providerOrder)
     }
 
     /// Providers to show as tabs (connected, not hidden, in custom order)
@@ -369,7 +375,11 @@ final class UsageViewModel {
     init() {
         self.hasCompletedOnboarding = SettingsService.hasCompletedOnboarding
         self.pinnedProviders = SettingsService.pinnedProviders
+        // Loading the saved order isn't a user reorder: don't stamp it "now", or every
+        // launch would override an order the user set in the extension meanwhile.
+        self.isApplyingRemoteOrder = true
         self.providerOrder = SettingsService.providerOrder
+        self.isApplyingRemoteOrder = false
         self.hiddenProviders = SettingsService.hiddenProviders
         self.selectedTab = SettingsService.selectedTab
 
@@ -487,7 +497,37 @@ final class UsageViewModel {
             }
         }
 
-        bridgeObservers = [refreshObserver, visibilityObserver]
+        // ext-side.json changed (FSEvents) → re-read the web pools right away so new numbers
+        // show in about a second instead of waiting for the next poll. Local file read only:
+        // no network, no native provider is touched.
+        let extStateObserver = NotificationCenter.default.addObserver(
+            forName: .tokenomicsExtSideStateChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.applyExtensionProviderOrder()
+                Task { await self.refreshBridgeProviders() }
+            }
+        }
+
+        // User reordered tabs → export it so the extension can follow.
+        let orderObserver = NotificationCenter.default.addObserver(
+            forName: .tokenomicsProviderOrderChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let setting = note.userInfo?["setting"] as? ProviderOrderSetting else { return }
+            MainActor.assumeIsolated {
+                guard let exporter = self?.macSideStateExporter else { return }
+                Task { await exporter.setProviderOrder(setting) }
+            }
+        }
+
+        bridgeObservers = [refreshObserver, visibilityObserver, extStateObserver, orderObserver]
+        // The extension may have reordered while the app was closed.
+        applyExtensionProviderOrder()
     }
 
     private func startActivityMonitor() {
@@ -518,6 +558,8 @@ final class UsageViewModel {
             applyDemoData(snapshots: DemoData.allSnapshots)
             return
         }
+        // Manual fallback for sync: pick up any order the extension saved.
+        applyExtensionProviderOrder()
         Task {
             // Manual refresh counts as activity — resets idle timer
             await pollingService.noteActivity()
@@ -592,6 +634,35 @@ final class UsageViewModel {
         // If we hid the selected tab, move to another
         if let tab = selectedTab, hiddenProviders.contains(tab) {
             selectedTab = visibleProviders.first
+        }
+    }
+
+    /// Adopts the extension's tab order if it is newer than ours. Non-matches are skipped
+    /// (see `ProviderOrderSync.applyIncomingOrder`). The adopted order keeps the
+    /// extension's timestamp, so the exporter's echo carries the same stamp and the
+    /// extension ignores it — no ping-pong.
+    func applyExtensionProviderOrder() {
+        guard let remote = WebCompanionService.readStateFromAppGroup()?.providerOrder,
+              remote.lastChangedAt > (SettingsService.providerOrderChangedAt ?? Date(timeIntervalSince1970: 0))
+        else { return }
+
+        let applied = ProviderOrderSync
+            .applyIncomingOrder(remote.order, to: orderedProviders.map(\.rawValue))
+            .compactMap { ProviderId(rawValue: $0) }
+        // One tab per brand here, so keep a brand's pools together; the brand sits
+        // where its first pool landed (the extension already sends them adjacent).
+        var merged: [ProviderId] = []
+        for id in applied where !merged.contains(id) {
+            merged.append(contentsOf: applied.filter { $0.brand == id.brand })
+        }
+        isApplyingRemoteOrder = true
+        providerOrder = merged
+        isApplyingRemoteOrder = false
+        SettingsService.providerOrderChangedAt = remote.lastChangedAt
+
+        if let exporter = macSideStateExporter {
+            let adopted = SettingsService.providerOrderSetting
+            Task { await exporter.setProviderOrder(adopted) }
         }
     }
 
@@ -888,6 +959,48 @@ final class UsageViewModel {
         pushToWidgets()
     }
 
+    /// Re-reads every extension-fed pool from `ext-side.json` and publishes the result.
+    ///
+    /// Triggered by the file watcher, so it must stay cheap and side-effect-free for native
+    /// providers: it only touches web pools (plus ElevenLabs when it has no Mac API key,
+    /// i.e. when its numbers come from the extension). Widgets are rewritten only if
+    /// something actually changed — the extension heartbeat rewrites the file every
+    /// minute, and reloading widget timelines that often would burn WidgetKit's budget.
+    func refreshBridgeProviders() async {
+        guard !demoModeEnabled, pollingStarted else { return }
+        var changed = false
+        for id in await bridgeFedProviderIds() {
+            guard let provider = providers[id] else { continue }
+            let before = providerStates[id] ?? .empty
+            var after = await fetchSingleProvider(id: id, provider: provider, currentState: before)
+            // A pool that just became connected has no numbers yet — fetch them now rather
+            // than on the next poll.
+            if !before.connection.isConnected, after.connection.isConnected, after.usage == nil {
+                after = await fetchSingleProvider(id: id, provider: provider, currentState: after)
+            }
+            if Self.bridgeStateDiffers(before, after) { changed = true }
+            applyFetched(after, id: id, startedFrom: before)
+        }
+        if changed { pushToWidgets() }
+    }
+
+    private func bridgeFedProviderIds() async -> [ProviderId] {
+        var ids = WebCompanionProvider.webOnlyPools
+        if let elevenLabs = providers[.elevenlabs] as? ElevenLabsProvider, await elevenLabs.isBridgeFed {
+            ids.append(.elevenlabs)
+        }
+        return ids
+    }
+
+    /// Whether a refresh produced something worth republishing (new reading, or the pool
+    /// appeared / disappeared). Compares the reading's capture time, not the numbers, so an
+    /// identical re-read is a no-op.
+    nonisolated static func bridgeStateDiffers(_ before: ProviderState, _ after: ProviderState) -> Bool {
+        before.connection != after.connection
+            || before.usage?.capturedAt != after.usage?.capturedAt
+            || (before.usage == nil) != (after.usage == nil)
+    }
+
     /// Fetch all providers concurrently (used by manual refresh)
     private func fetchAllProviders() async {
         for (id, _) in providerPairs {
@@ -949,6 +1062,15 @@ final class UsageViewModel {
         )
     }
 
+    /// True when the provider's latest reading came from the extension over the bridge
+    /// rather than from the Mac's own credentials. Web-only pools are always bridge-fed;
+    /// ElevenLabs is dual-source and reports which one it used.
+    nonisolated static func isBridgeSourced(_ provider: any UsageProvider) async -> Bool {
+        if provider is WebCompanionProvider { return true }
+        if let elevenLabs = provider as? ElevenLabsProvider { return await elevenLabs.lastSource == .bridge }
+        return false
+    }
+
     // MARK: - Widget Push
 
     /// Push current usage data to the shared App Group store for WidgetKit.
@@ -988,25 +1110,36 @@ final class UsageViewModel {
         do {
             let snapshot = try await provider.fetchUsage()
             SettingsService.cacheUsage(snapshot, for: id)
-            // Evaluate thresholds after every successful fetch
-            notificationService.evaluate(
-                providerId: id,
-                snapshot: snapshot,
-                connection: currentState.connection
-            )
+            // Evaluate thresholds after every successful fetch — except last-known web
+            // readings: an alert (or "ready again") hours after the fact is noise. The
+            // moment a fresh reading lands it is evaluated like any other.
+            if !WebPoolFreshness.isStale(snapshot, id: id) {
+                notificationService.evaluate(
+                    providerId: id,
+                    snapshot: snapshot,
+                    connection: currentState.connection
+                )
+            }
 
             // Push a fresh bridge snapshot alongside the widget write.
-            // chatgpt is web-companion-only; native pollers never produce it.
-            if id != .chatgpt, let exporter = macSideStateExporter {
-                let bridgeSnap = makeBridgeSnapshot(from: snapshot, provider: id)
-                await exporter.setNativeSnapshot(bridgeSnap)
+            // A reading that came FROM the extension must never go back to it as a
+            // "native" snapshot — it would loop (and the extension would show the Mac's
+            // echo as if the Mac had measured it). Only the Mac's own reads are exported.
+            if let exporter = macSideStateExporter {
+                if await Self.isBridgeSourced(provider) {
+                    await exporter.clearNativeSnapshot(provider: id.rawValue)
+                } else {
+                    let bridgeSnap = makeBridgeSnapshot(from: snapshot, provider: id)
+                    await exporter.setNativeSnapshot(bridgeSnap)
+                }
             }
 
             return ProviderState(
                 connection: currentState.connection,
                 usage: snapshot,
                 error: nil,
-                lastSynced: Date(),
+                // A relayed reading's age is when the extension read it, not when we looked.
+                lastSynced: snapshot.capturedAt ?? Date(),
                 isLoading: false
             )
         } catch let error as AppError {
@@ -1021,7 +1154,9 @@ final class UsageViewModel {
                     isLoading: false
                 )
             }
-            if id == .claude, case .notAuthenticated = error {
+            // ElevenLabs / web pools: key removed, or the extension's reading expired — same re-derive.
+            if id == .claude || id == .elevenlabs || provider is WebCompanionProvider,
+               case .notAuthenticated = error {
                 // Token disappeared (signed out / item removed): re-derive the real
                 // state (.installedNoAuth / .notInstalled) instead of staying "connected".
                 return ProviderState(
@@ -1081,7 +1216,14 @@ final class UsageViewModel {
     /// the live fetch path does — so the slam buttons can be used to test threshold
     /// notifications (slam to 0% to reset the hysteresis, then to 90/100% to fire).
     /// Plain demo-on leaves it false so toggling demo mode doesn't spam alerts.
-    func applyDemoData(snapshots: [ProviderId: ProviderUsageSnapshot], fireNotifications: Bool = false) {
+    ///
+    /// `widgetStoreURL` is a test seam: visual tests point it at a scratch file so they never
+    /// overwrite the running app's live widget data. Nil = the real App Group store.
+    func applyDemoData(
+        snapshots: [ProviderId: ProviderUsageSnapshot],
+        fireNotifications: Bool = false,
+        widgetStoreURL: URL? = nil
+    ) {
         let now = Date()
         for id in ProviderId.allCases {
             if let snapshot = snapshots[id] {
@@ -1115,7 +1257,7 @@ final class UsageViewModel {
             return (id, usage)
         }
         if !entries.isEmpty {
-            WidgetDataStore.write(providers: entries)
+            WidgetDataStore.write(providers: entries, to: widgetStoreURL)
         }
     }
 }

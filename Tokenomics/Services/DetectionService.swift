@@ -93,8 +93,6 @@ actor DetectionService {
 
     // MARK: - Configuration
 
-    private static let bridgeFreshnessWindow: TimeInterval = 5 * 60 // 5 minutes
-
     private let appLookup: any AppLookup
     private let fileManager: FileManager
     private let home: String
@@ -252,26 +250,21 @@ actor DetectionService {
 
     // MARK: - Bridge Freshness
 
-    /// Reads ext-side.json from the App Group container and returns the heartbeat
+    /// Reads ext-side.json (Chromium bridge dir + Safari's App Group container) and returns the heartbeat
     /// date if the given provider has a snapshot that is fresher than the window.
     ///
     /// Returns nil when the file is absent, unreadable, or stale.
     private func bridgeHeartbeat(for provider: ProviderId) -> Date? {
-        guard let containerURL = fileManager.containerURL(
-            forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId
-        ) else { return nil }
-
-        let fileURL = containerURL.appendingPathComponent("ext-side.json")
-        guard let data = try? Data(contentsOf: fileURL),
-              let state = try? JSONDecoder.bridge.decode(ExtSideState.self, from: data)
-        else { return nil }
+        guard let state = WebCompanionService.readStateFromAppGroup() else { return nil }
 
         // Use the snapshot's capturedAt, which reflects when the extension last
         // saw activity from this provider — more accurate than updatedAt, which
         // advances on every bridge IPC call regardless of provider.
         guard let snapshot = state.snapshots[provider.rawValue] else { return nil }
-        let age = Date().timeIntervalSince(snapshot.capturedAt)
-        guard age <= Self.bridgeFreshnessWindow else { return nil }
+        // Same per-pool rule the Mac's providers use (see WebPoolFreshness), so a pool the
+        // extension polls every 10 min, or only on a ChatGPT message, isn't "undetected"
+        // half the time under the old flat 5-minute window.
+        guard WebPoolFreshness.isUsable(snapshot, id: provider, now: Date()) else { return nil }
         return snapshot.capturedAt
     }
 

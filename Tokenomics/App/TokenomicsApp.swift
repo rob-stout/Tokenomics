@@ -108,10 +108,16 @@ extension Notification.Name {
     /// Posted by AppDelegate when the extension requests a native-provider refresh.
     /// Observed by UsageViewModel on the main actor to trigger re-polling.
     static let tokenomicsBridgeRefreshRequested = Notification.Name("tokenomicsBridgeRefreshRequested")
+    /// Posted whenever `ext-side.json` is re-read — new web-pool numbers are available.
+    static let tokenomicsExtSideStateChanged = Notification.Name("tokenomicsExtSideStateChanged")
 
     /// Posted by SettingsService.setVisibility after each provider visibility change.
     /// Object is the ProviderId.rawValue String; userInfo contains the ProviderVisibilitySetting.
     static let tokenomicsProviderVisibilityChanged = Notification.Name("tokenomicsProviderVisibilityChanged")
+
+    /// Posted by SettingsService.recordProviderOrderChange when the USER reorders tabs
+    /// (never for an order adopted from the extension). userInfo["setting"] is a ProviderOrderSetting.
+    static let tokenomicsProviderOrderChanged = Notification.Name("tokenomicsProviderOrderChanged")
 }
 
 // MARK: - AppDelegate
@@ -133,10 +139,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // WebCompanionService fires this on an arbitrary actor. Post a notification
         // so UsageViewModel (@MainActor) can pick it up safely on the main queue.
         NotificationCenter.default.post(name: .tokenomicsBridgeRefreshRequested, object: nil)
+    }, onStateChanged: {
+        NotificationCenter.default.post(name: .tokenomicsExtSideStateChanged, object: nil)
     })
 
     /// Writes mac-side.json with native snapshots, settings, and pending commands.
-    let macSideStateExporter = MacSideStateExporter()
+    /// Under unit tests (this app is their host) writes go to a throwaway dir, so a
+    /// test run never pushes test data to the user's real extension.
+    let macSideStateExporter: MacSideStateExporter = {
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("TokenomicsTestHostBridge", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return MacSideStateExporter(containerURL: dir)
+        }
+        return MacSideStateExporter(mirrorURLs: [BridgeFileIO.groupContainerURL()])
+    }()
 
     // MARK: - Lifecycle
 
@@ -155,6 +173,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Clicking a notification opens the popover (and any pending reset confetti).
         UNUserNotificationCenter.current().delegate = self
 
+        // Unit tests launch this app as their host. Skip the browser bridge there so a
+        // test run can't repoint the browsers' connector at the test build or push test
+        // data (e.g. a shuffled tab order) to the user's real extension.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         installNMHManifests()
         startBridgeServices()
     }
@@ -185,6 +207,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for (key, setting) in savedVisibility {
                 await macSideStateExporter.setVisibility(setting, for: key)
             }
+            // Always export the order (epoch-stamped if the user never reordered) so
+            // the extension adopts the Mac's order out of the box.
+            await macSideStateExporter.setProviderOrder(SettingsService.providerOrderSetting)
         }
 
         Task {

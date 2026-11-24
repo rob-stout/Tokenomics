@@ -1,0 +1,15 @@
+{
+  "subId": "<redacted>",
+  "customerId": "<redacted>",
+  "isCreditCard": false,
+  "isPaused": false,
+  "plan": "free",
+  "status": "inactive",
+  "isTrial": false,
+  "provider": "stripe",
+  "platform": "web",
+  "isActive": false,
+  "proPlan": false,
+  "paidPlan": false,
+  "canTrial": true
+}

@@ -11,6 +11,8 @@ struct ExtSideState: Codable, Sendable {
     var snapshots: [String: BridgeSnapshot]
     /// Per-provider visibility settings keyed by ProviderId.rawValue.
     var providerVisibility: [String: ProviderVisibilitySetting]
+    /// Tab order from the extension; newest `lastChangedAt` wins.
+    var providerOrder: ProviderOrderSetting? = nil
 }
 
 /// State written by the Mac app and read by the bridge to compose responses.
@@ -25,6 +27,8 @@ struct MacSideState: Codable, Sendable {
     /// Commands to deliver in the next bridge response.
     /// The bridge reads but does not mutate this array.
     var pendingCommands: [BridgeCommand]
+    /// The Mac's tab order. Optional: files written by older builds lack it.
+    var providerOrder: ProviderOrderSetting? = nil
 }
 
 // MARK: - BridgeFraming
@@ -142,8 +146,36 @@ enum BridgeMerger {
         return ExtSideState(
             updatedAt: now,
             snapshots: snapshots,
-            providerVisibility: providerVisibility
+            providerVisibility: providerVisibility,
+            providerOrder: newerOrder(existing?.providerOrder, request.settings?.providerOrder)
         )
+    }
+}
+
+extension BridgeMerger {
+    /// The order with the later `lastChangedAt`; on a tie the existing one stays,
+    /// so re-sending an already-applied order is a no-op (no ping-pong).
+    static func newerOrder(_ current: ProviderOrderSetting?, _ incoming: ProviderOrderSetting?) -> ProviderOrderSetting? {
+        guard let incoming else { return current }
+        guard let current else { return incoming }
+        return incoming.lastChangedAt > current.lastChangedAt ? incoming : current
+    }
+
+    /// Combines ext-side state from the Chromium and Safari locations: per key,
+    /// the newer `capturedAt` / `lastChangedAt` wins.
+    static func combine(_ states: [ExtSideState]) -> ExtSideState? {
+        guard var result = states.first else { return nil }
+        for other in states.dropFirst() {
+            for (key, snap) in other.snapshots where (result.snapshots[key]?.capturedAt ?? .distantPast) < snap.capturedAt {
+                result.snapshots[key] = snap
+            }
+            for (key, vis) in other.providerVisibility where (result.providerVisibility[key]?.lastChangedAt ?? .distantPast) < vis.lastChangedAt {
+                result.providerVisibility[key] = vis
+            }
+            result.providerOrder = newerOrder(result.providerOrder, other.providerOrder)
+            result.updatedAt = max(result.updatedAt, other.updatedAt)
+        }
+        return result
     }
 }
 
@@ -172,7 +204,10 @@ enum BridgeResponseComposer {
             macSide: macSide?.providerVisibility ?? [:],
             requestSettings: request.settings
         )
-        let settings = mergedVisibility.isEmpty ? nil : BridgeSettings(providerVisibility: mergedVisibility)
+        let mergedOrder = BridgeMerger.newerOrder(macSide?.providerOrder, request.settings?.providerOrder)
+        let settings = (mergedVisibility.isEmpty && mergedOrder == nil)
+            ? nil
+            : BridgeSettings(providerVisibility: mergedVisibility, providerOrder: mergedOrder)
 
         return BridgeResponse(
             ok: true,
@@ -228,26 +263,29 @@ enum BridgeFileIO {
     private static let macSideFilename = "mac-side.json"
     private static let lockFilename = "bridge.lock"
 
-    /// Resolves the App Group container URL.
+    /// Where the Chromium native-messaging helper and the Mac app share
+    /// ext-side.json / mac-side.json / bridge.lock.
     ///
-    /// This is a non-sandboxed Developer ID command-line tool, so it deliberately
-    /// does NOT carry the `com.apple.security.application-groups` entitlement —
-    /// tool targets can't bear a provisioning profile, and an unauthorized App
-    /// Group entitlement makes the embedding app fail Developer ID export
-    /// ("no valid distribution method"). The group container lives at a fixed
-    /// path that any non-sandboxed process can reach directly, so resolve it
-    /// manually rather than via the entitlement-gated
-    /// `containerURL(forSecurityApplicationGroupIdentifier:)` API (which returns
-    /// nil without the entitlement). The sandboxed widget and the main app reach
-    /// the identical path through the API, so all three share one directory.
+    /// Deliberately NOT the App Group container: on current macOS, a process
+    /// launched by Chrome (not by the app or a shell) is denied access to
+    /// `~/Library/Group Containers/<group>` with EPERM and no prompt, so every
+    /// bridge call failed silently. Application Support has no such protection
+    /// and the (unsandboxed) main app can use it too. This is the ONE place the
+    /// path is defined so the helper and the app can't drift.
     static func containerURL() -> URL? {
         let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Group Containers", isDirectory: true)
-            .appendingPathComponent(groupIdentifier, isDirectory: true)
-        // Ensure it exists — the bridge may run before an entitled process has
-        // created the container. Same path the API would hand back.
+            .appendingPathComponent("Library/Application Support/Tokenomics/Bridge", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+
+    /// The App Group container path, resolved manually for UNSANDBOXED callers
+    /// (the Mac app) that want to read what the sandboxed Safari handler writes.
+    /// The Chromium helper must not use this — see `containerURL()`.
+    static func groupContainerURL() -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Group Containers", isDirectory: true)
+            .appendingPathComponent(groupIdentifier, isDirectory: true)
     }
 
     /// Resolves the App Group container URL for SANDBOXED, entitled processes —
@@ -256,11 +294,10 @@ enum BridgeFileIO {
     /// `com.apple.security.application-groups` entitlement, which authorizes
     /// this API directly. Confirmed empirically (Phase-0 spike): a sandboxed
     /// process signed with the same team resolves to the IDENTICAL container
-    /// path `containerURL()` above computes manually, so all callers — this
+    /// path `groupContainerURL()` above computes manually, so all callers — this
     /// one, the manual one, and the widget/main-app's own use of this same
     /// API — share one directory. The non-sandboxed stdio bridge tool must
-    /// keep using `containerURL()` instead — it carries no App Group
-    /// entitlement (see that method's doc comment for why).
+    /// keep using `containerURL()` instead.
     static func sandboxedContainerURL() -> URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupIdentifier)
     }

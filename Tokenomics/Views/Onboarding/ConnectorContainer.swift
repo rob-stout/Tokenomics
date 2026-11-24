@@ -559,6 +559,6 @@ extension MultiSelectStep {
         .claude, .chatgpt, .gemini,
         .copilot, .cursor,
         .stableDiffusion, .midjourney, .leonardo, .runway, .elevenlabs,
-        .grok, .perplexity
+        .grok, .perplexity, .suno, .udio
     ]
 }

@@ -21,7 +21,7 @@ struct PlanBuilder {
 
     /// Brands whose only connection path is the browser extension (no CLI, no API key).
     private static let extensionOnlyBrands: Set<BrandId> = [
-        .openai, .midjourney, .grok, .perplexity, .leonardo
+        .openai, .midjourney, .grok, .perplexity, .leonardo, .suno, .udio
     ]
 
     /// Brands connected via a local CLI tool or desktop app credentials.

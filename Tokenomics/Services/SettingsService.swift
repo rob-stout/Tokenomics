@@ -228,6 +228,31 @@ enum SettingsService {
         }
     }
 
+    /// When the order was last changed (by the user here, or adopted from the extension).
+    /// Nil = never reordered; exported as the epoch so any real change on either side beats it.
+    static var providerOrderChangedAt: Date? {
+        get { defaults.object(forKey: "providerOrderChangedAt") as? Date }
+        set { defaults.set(newValue, forKey: "providerOrderChangedAt") }
+    }
+
+    /// The Mac's order as it goes on the wire: the displayed order plus its timestamp.
+    static var providerOrderSetting: ProviderOrderSetting {
+        ProviderOrderSetting(
+            order: ProviderOrderSync.effectiveOrder(stored: providerOrder).map(\.rawValue),
+            lastChangedAt: providerOrderChangedAt ?? Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    /// Stamps a user-made reorder and tells the bridge layer, mirroring `setVisibility`.
+    static func recordProviderOrderChange() {
+        providerOrderChangedAt = Date()
+        NotificationCenter.default.post(
+            name: .tokenomicsProviderOrderChanged,
+            object: nil,
+            userInfo: ["setting": providerOrderSetting]
+        )
+    }
+
     /// Providers hidden from the tab bar (still polled in background)
     static var hiddenProviders: Set<ProviderId> {
         get {

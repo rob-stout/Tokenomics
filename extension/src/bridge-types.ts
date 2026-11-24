@@ -13,6 +13,13 @@ export interface ProviderVisibilitySetting {
   lastChangedAt: string;
 }
 
+/** Provider tab order (provider ids). Newest `lastChangedAt` wins; the whole list shares one stamp. */
+export interface ProviderOrderSetting {
+  order: string[];
+  /** ISO 8601, whole seconds. */
+  lastChangedAt: string;
+}
+
 export interface BridgeWindow {
   label: string;
   /** Utilization expressed as a fraction in 0...1. */
@@ -32,12 +39,18 @@ export interface BridgeSnapshot {
   planLabel: string;
 }
 
+export interface BridgeSettings {
+  providerVisibility: Record<string, ProviderVisibilitySetting>;
+  /** Optional: older Mac apps neither send nor understand it. */
+  providerOrder?: ProviderOrderSetting;
+}
+
 export interface BridgeRequest {
   schemaVersion: number;
   envelopeSentAt: string;
   extensionId: string;
   snapshots: BridgeSnapshot[];
-  settings?: { providerVisibility: Record<string, ProviderVisibilitySetting> };
+  settings?: BridgeSettings;
   requestedActions?: { refreshNativeProviders?: boolean };
 }
 
@@ -47,7 +60,7 @@ export interface BridgeResponse {
   macAppVersion: string;
   ackedAt: string;
   nativeSnapshots: BridgeSnapshot[];
-  settings?: { providerVisibility: Record<string, ProviderVisibilitySetting> };
+  settings?: BridgeSettings;
   commands: { kind: string }[];
   error?: string;
 }

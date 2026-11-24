@@ -18,9 +18,11 @@ struct NMHManifestInstaller {
     /// The NMH name string used in the manifest and by the extension.
     static let hostName = "com.tokenomics.bridge"
 
-    /// Dev-keypair extension ID for the unpacked / sideloaded build.
-    /// When published to the Chrome Web Store a second entry will be added here.
+    /// Extension IDs allowed to launch the bridge: the Chrome Web Store and Edge
+    /// Add-ons listings, plus the dev-keypair ID used by unpacked / sideloaded builds.
     static let allowedOrigins = [
+        "chrome-extension://nolficmmhjkgmoclepbclpmefilhlejl/", // Chrome Web Store
+        "chrome-extension://akeboakoapnlcliaebljgefnihpmohhk/", // Edge Add-ons
         "chrome-extension://gcjaebikgcbccgbnbcimccflcgoeefio/"
     ]
 

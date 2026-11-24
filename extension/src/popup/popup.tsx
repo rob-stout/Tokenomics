@@ -1,7 +1,7 @@
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import browser from 'webextension-polyfill';
-import type { BridgeSnapshot, ProviderVisibilitySetting } from '../bridge-types';
+import type { BridgeSnapshot, ProviderOrderSetting, ProviderVisibilitySetting } from '../bridge-types';
 import type { BridgeState } from '../bridge';
 import type { ExtensionMessage, ExtensionResponse } from '../messages';
 import {
@@ -19,6 +19,8 @@ import {
   getGrokSnapshot,
   getPerplexitySnapshot,
   getLeonardoSnapshot,
+  getSunoSnapshot,
+  getUdioSnapshot,
   getPinnedProvider,
   getSelectedTab,
   grantConsent,
@@ -26,6 +28,8 @@ import {
   setPinnedProvider,
   setSelectedTab,
 } from '../storage';
+import { useTextLabels } from '../label-mode';
+import { applyIncomingOrder, effectiveOrder, groupByBrand, stampUserOrder } from '../provider-order';
 import { type ProviderId } from '../types';
 import { BridgeBanner } from './components/BridgeBanner';
 import { ConsentScreen } from './components/ConsentScreen';
@@ -105,7 +109,7 @@ function renderUsageBars(snapshot: ProviderUsageSnapshot) {
   );
 }
 
-function renderNativeBars(snap: BridgeSnapshot) {
+function renderNativeBars(snap: BridgeSnapshot, showFooter = true) {
   const short: WindowUsage = bridgeWindowToWindowUsage(snap.shortWindow);
   const long: WindowUsage | null = snap.longWindow
     ? bridgeWindowToWindowUsage(snap.longWindow)
@@ -130,7 +134,7 @@ function renderNativeBars(snap: BridgeSnapshot) {
           />
         </>
       ) : null}
-      <NativeFooter />
+      {showFooter ? <NativeFooter /> : null}
     </div>
   );
 }
@@ -145,8 +149,10 @@ function UsageApp() {
   const [webSnapshots, setWebSnapshots] = useState<WebSnapshotMap>({});
   const [nativeSnapshots, setNativeSnapshots] = useState<Record<string, BridgeSnapshot>>({});
   const [visibility, setVisibility] = useState<Record<string, ProviderVisibilitySetting>>({});
+  const [tabOrder, setTabOrder] = useState<string[] | undefined>(undefined);
   const [bridgeState, setBridgeState] = useState<BridgeState | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const textLabels = useTextLabels();
 
   // ── Initial load from storage ──────────────────────────────────
   useEffect(() => {
@@ -163,7 +169,9 @@ function UsageApp() {
       getGrokSnapshot(),
       getPerplexitySnapshot(),
       getLeonardoSnapshot(),
-    ]).then(([claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo]) => {
+      getSunoSnapshot(),
+      getUdioSnapshot(),
+    ]).then(([claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo, suno, udio]) => {
       setWebSnapshots({
         ...(claude ? { claude } : {}),
         ...(chatgpt ? { codex: chatgpt } : {}),
@@ -173,11 +181,20 @@ function UsageApp() {
         ...(grok ? { grok } : {}),
         ...(perplexity ? { perplexity } : {}),
         ...(leonardo ? { leonardo } : {}),
+        ...(suno ? { suno } : {}),
+        ...(udio ? { udio } : {}),
       });
     });
     void loadNativeSnapshots().then(setNativeSnapshots);
     void loadProviderVisibility().then(setVisibility);
+    void browser.storage.local.get('providerOrder').then((r) => {
+      setTabOrder((r['providerOrder'] as ProviderOrderSetting | undefined)?.order);
+    });
     void loadBridgeState().then(setBridgeState);
+    // Pull the Mac's latest (order, visibility, readings) as the popup opens; the
+    // storage listeners below update the view when it lands.
+    const sync: ExtensionMessage = { kind: 'SYNC_NOW' };
+    void browser.runtime.sendMessage(sync).catch(() => {});
   }, []);
 
   // ── Live storage updates ───────────────────────────────────────
@@ -220,6 +237,14 @@ function UsageApp() {
         const next = changes['leonardoSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
         setWebSnapshots((prev) => ({ ...prev, leonardo: next ?? undefined }));
       }
+      if ('sunoSnapshot' in changes) {
+        const next = changes['sunoSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, suno: next ?? undefined }));
+      }
+      if ('udioSnapshot' in changes) {
+        const next = changes['udioSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, udio: next ?? undefined }));
+      }
       if ('nativeSnapshots' in changes) {
         const next = changes['nativeSnapshots']?.newValue as Record<string, BridgeSnapshot> | undefined;
         if (next) setNativeSnapshots(next);
@@ -227,6 +252,9 @@ function UsageApp() {
       if ('providerVisibility' in changes) {
         const next = changes['providerVisibility']?.newValue as Record<string, ProviderVisibilitySetting> | undefined;
         if (next) setVisibility(next);
+      }
+      if ('providerOrder' in changes) {
+        setTabOrder((changes['providerOrder']?.newValue as ProviderOrderSetting | undefined)?.order);
       }
       if ('bridgeState' in changes) {
         const next = changes['bridgeState']?.newValue as BridgeState | undefined;
@@ -243,13 +271,24 @@ function UsageApp() {
     visibility,
     webSnapshots,
     nativeSnapshots,
+    order: tabOrder,
   });
 
-  const visibleProviderIds: readonly ProviderId[] = visibleProviders.map((vp) => vp.providerId);
+  // Google is one tab on the Mac ("Gemini": web first, then the Gemini CLI pool).
+  // When both are present, fold Google AI into the Gemini tab so the tabs match.
+  const googleAI = visibleProviders.find((vp) => vp.providerId === 'gemini');
+  const foldGoogle =
+    googleAI !== undefined && visibleProviders.some((vp) => vp.providerId === 'geminiConsumer');
+  const tabProviders = foldGoogle
+    ? visibleProviders.filter((vp) => vp.providerId !== 'gemini')
+    : visibleProviders;
+
+  const visibleProviderIds: readonly ProviderId[] = tabProviders.map((vp) => vp.providerId);
 
   // Guard selected tab — if visibility changes remove the current tab, fall back.
-  const safeSelected: ProviderId = visibleProviderIds.includes(selected)
-    ? selected
+  const wanted: ProviderId = foldGoogle && selected === 'gemini' ? 'geminiConsumer' : selected;
+  const safeSelected: ProviderId = visibleProviderIds.includes(wanted)
+    ? wanted
     : (visibleProviderIds[0] ?? WEB_PROVIDERS[0]);
 
   const currentEntry: VisibleProvider | undefined = visibleProviders.find(
@@ -260,6 +299,25 @@ function UsageApp() {
   const handleSelectTab = (provider: ProviderId) => {
     setSelected(provider);
     void setSelectedTab(provider);
+  };
+
+  // Cmd-drag on the tab bar. Only visible tabs move; hidden ones keep their slots in
+  // the full order, the same "skip what isn't shown" rule the Mac sync uses.
+  const handleReorder = (visibleOrder: ProviderId[], moved: ProviderId) => {
+    void (async () => {
+      const prev = (await browser.storage.local.get('providerOrder'))['providerOrder'] as
+        | ProviderOrderSetting
+        | undefined;
+      // Same-brand tabs (e.g. Gemini + Google AI) travel together, matching the Mac's
+      // single brand tab.
+      const full = groupByBrand(
+        applyIncomingOrder(visibleOrder, effectiveOrder(prev?.order)) as ProviderId[],
+        moved,
+      );
+      await browser.storage.local.set({ providerOrder: stampUserOrder(full, prev) });
+      const msg: ExtensionMessage = { kind: 'ORDER_CHANGED' };
+      await browser.runtime.sendMessage(msg).catch(() => {});
+    })();
   };
 
   const handleSetSmart = () => {
@@ -323,6 +381,31 @@ function UsageApp() {
       return renderNativeBars(currentNativeSnap);
     }
 
+    const googleAISnap = foldGoogle && safeSelected === 'geminiConsumer' ? googleAI?.nativeSnapshot : null;
+    if (currentEntry.source === 'web' && currentWebSnap && googleAISnap) {
+      // Same as the Mac's Google tab: a labelled group per pool, in the saved order.
+      const order = effectiveOrder(tabOrder);
+      const cliFirst = order.indexOf('gemini') < order.indexOf('geminiConsumer');
+      const web = (
+        <section class="pool-group">
+          <div class="pool-group__header">Gemini (app)</div>
+          {renderUsageBars(currentWebSnap)}
+        </section>
+      );
+      const cli = (
+        <section class="pool-group">
+          <div class="pool-group__header">Gemini CLI</div>
+          {renderNativeBars(googleAISnap)}
+        </section>
+      );
+      return (
+        <div class="pool-groups">
+          {cliFirst ? cli : web}
+          {cliFirst ? web : cli}
+        </div>
+      );
+    }
+
     if (currentEntry.source === 'web' && currentWebSnap) {
       return renderUsageBars(currentWebSnap);
     }
@@ -346,6 +429,8 @@ function UsageApp() {
         selected={safeSelected}
         visibleProviderIds={visibleProviderIds}
         onSelect={handleSelectTab}
+        textLabels={textLabels}
+        onReorder={handleReorder}
       />
 
       <main class="popup__body">{renderBody()}</main>

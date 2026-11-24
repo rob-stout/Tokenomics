@@ -6,8 +6,8 @@
  *
  * Auth has been corrected to Firebase Bearer token (api.us.elevenlabs.io).
  * The mapper is unchanged — character_count/character_limit → utilization%,
- * next_character_count_reset_unix → resetsAt. A past reset timestamp now falls
- * back to now + 30d instead of showing a negative countdown.
+ * next_character_count_reset_unix → resetsAt. A past reset timestamp is rolled
+ * forward by calendar months (free accounts report a stale first reset date).
  *
  * Real response (confirmed 2026-06-01):
  *   { "tier": "free", "character_count": 0, "character_limit": 10000,
@@ -17,7 +17,7 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 
-import { mapToSnapshot } from './elevenlabs';
+import { nextMonthlyReset, mapToSnapshot } from './elevenlabs';
 
 // Fixed "now" so reset-time assertions are deterministic.
 // 2026-06-02T00:00:00.000Z
@@ -170,15 +170,21 @@ test('shortWindow.windowDurationSec is 30 days', () => {
 
 // ── Past reset timestamp ─────────────────────────────────────
 
-test('past next_character_count_reset_unix → falls back to now + 30d', () => {
-  // Epoch 1 is 1970-01-01 — well in the past.
+test('past next_character_count_reset_unix → rolled forward by months', () => {
+  // Seen live on a Free account: reset reported as May 1 in late November.
+  const now = Date.UTC(2026, 10, 23, 15, 0, 0); // 2026-11-23
+  const stale = Date.UTC(2026, 4, 1, 3, 32, 5) / 1000; // 2026-05-01
   const snap = mapToSnapshot(
-    { character_count: 1000, character_limit: 10_000, next_character_count_reset_unix: 1 },
-    NOW,
+    { character_count: 0, character_limit: 10_000, next_character_count_reset_unix: stale },
+    now,
   );
-  // A past timestamp is treated as now + 30d (not a negative countdown).
-  const expectedResetsAt = new Date(NOW + THIRTY_DAY_SEC * 1000).toISOString();
-  assert.equal(snap.shortWindow.resetsAt, expectedResetsAt);
+  assert.equal(snap.shortWindow.resetsAt, '2026-12-01T03:32:05.000Z');
+});
+
+test('nextMonthlyReset clamps to the last day of shorter months', () => {
+  const now = Date.UTC(2026, 1, 10); // 2026-02-10
+  const jan31 = Date.UTC(2026, 0, 31, 12);
+  assert.equal(nextMonthlyReset(jan31, now), '2026-02-28T12:00:00.000Z');
 });
 
 // ── Confirmed real response fields ───────────────────────────
@@ -198,4 +204,58 @@ test('real fixture: free plan, 0/10000 characters, future reset', () => {
   assert.equal(snap.planLabel, 'Free');
   assert.equal(snap.shortWindow.utilization, 0);
   assert.equal(snap.shortWindow.resetsAt, new Date(resetSec * 1000).toISOString());
+});
+
+// ── API key path ────────────────────────────────────────────
+
+import { AuthError, authHeaders, fetchElevenLabsUsage } from './elevenlabs';
+
+/** Replaces global fetch for one test; returns the captured requests. */
+function stubFetch(status: number, body: unknown = {}) {
+  const calls: { url: string; headers: Record<string, string> }[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: { headers?: Record<string, string> }) => {
+    calls.push({ url, headers: init?.headers ?? {} });
+    return { status, ok: status >= 200 && status < 300, json: async () => body };
+  }) as unknown as typeof fetch;
+  return { calls, restore: () => { globalThis.fetch = original; } };
+}
+
+test('api key: sends only xi-api-key, never Authorization', () => {
+  const headers = authHeaders({ kind: 'apiKey', key: 'sk_test' });
+  assert.deepEqual(headers, { 'xi-api-key': 'sk_test' });
+  assert.equal('Authorization' in headers, false);
+});
+
+test('captured token: still sends Bearer only', () => {
+  assert.deepEqual(authHeaders({ kind: 'bearer', token: 'abc' }), { Authorization: 'Bearer abc' });
+});
+
+test('api key: hits the official endpoint and maps the response', async () => {
+  const stub = stubFetch(200, {
+    tier: 'creator', character_count: 900, character_limit: 1000,
+    next_character_count_reset_unix: Math.floor(Date.now() / 1000) + 86400,
+  });
+  try {
+    const snap = await fetchElevenLabsUsage({ kind: 'apiKey', key: 'sk_test' });
+    assert.equal(stub.calls[0]?.url, 'https://api.us.elevenlabs.io/v1/user/subscription');
+    assert.deepEqual(stub.calls[0]?.headers, { 'xi-api-key': 'sk_test' });
+    assert.equal(snap.shortWindow.utilization, 90);
+    assert.equal(snap.planLabel, 'Creator');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('api key: 401 → AuthError with a key-specific message', async () => {
+  const stub = stubFetch(401);
+  try {
+    await assert.rejects(
+      fetchElevenLabsUsage({ kind: 'apiKey', key: 'bad' }),
+      (err: unknown) =>
+        err instanceof AuthError && /API key/.test(err.message) && /User: read/.test(err.message),
+    );
+  } finally {
+    stub.restore();
+  }
 });

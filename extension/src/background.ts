@@ -10,8 +10,11 @@ import { AuthError, fetchClaudeUsage, RateLimitError } from './claude';
 import { AuthError as MJAuthError, fetchMidjourneyUsage, RateLimitError as MJRateLimitError } from './midjourney';
 import { AuthError as ELAuthError, fetchElevenLabsUsage, RateLimitError as ELRateLimitError } from './elevenlabs';
 import { AuthError as GrokAuthError, fetchGrokUsage, RateLimitError as GrokRateLimitError } from './grok';
+import { AuthError as UdioAuthError, fetchUdioUsage, RateLimitError as UdioRateLimitError } from './udio';
 import { AuthError as PxAuthError, fetchPerplexityUsage, RateLimitError as PxRateLimitError } from './perplexity';
-import { AuthError as LeoAuthError, fetchLeonardoUsage, RateLimitError as LeoRateLimitError } from './leonardo';
+import { AuthError as LeoAuthError, fetchLeonardoUsage, fetchLeonardoUsageWithApiKey, RateLimitError as LeoRateLimitError } from './leonardo';
+import { applyRenewal, trackRenewal } from './renewal';
+import { mapToSnapshot as mapSunoSnapshot, toRenewalPoll as sunoRenewalPoll } from './suno';
 import type { ExtensionMessage, ExtensionResponse } from './messages';
 import type { ProviderUsageSnapshot } from './snapshot';
 import { sendBridgeBatch, scheduleBridgeSend, registerRefreshWebProvidersHandler } from './bridge';
@@ -56,11 +59,24 @@ import {
   getPerplexityCaps,
   setPerplexityCaps,
   getLeonardoBackoff,
+  getRenewal,
+  setRenewal,
   getLeonardoSnapshot,
   setLeonardoAuth,
   setLeonardoBackoff,
   setLeonardoSnapshot,
   getLeonardoCredentials,
+  getApiKey,
+  setApiKey,
+  removeApiKey,
+  type ApiKeyProvider,
+  getSunoSnapshot,
+  setSunoSnapshot,
+  getUdioBackoff,
+  getUdioSnapshot,
+  setUdioAuth,
+  setUdioBackoff,
+  setUdioSnapshot,
   setLeonardoCredentials,
   hasConsent,
 } from './storage';
@@ -72,6 +88,7 @@ const ELEVENLABS_ALARM = 'elevenlabs-poll';
 const GROK_ALARM = 'grok-poll';
 const PERPLEXITY_ALARM = 'perplexity-poll';
 const LEONARDO_ALARM = 'leonardo-poll';
+const UDIO_ALARM = 'udio-poll';
 const PLAN_REDETECT_ALARM = 'chatgpt-plan-redetect';
 const BRIDGE_HEARTBEAT_ALARM = 'bridgeHeartbeat';
 const POLL_PERIOD_MIN = 5;
@@ -79,6 +96,7 @@ const MIDJOURNEY_POLL_PERIOD_MIN = 10; // less frequent — billing data changes
 const ELEVENLABS_POLL_PERIOD_MIN = 10; // monthly billing window, no need to poll rapidly
 const GROK_POLL_PERIOD_MIN = 5;        // daily rolling window — poll at standard cadence
 const PERPLEXITY_POLL_PERIOD_MIN = 5;  // daily window
+const UDIO_POLL_PERIOD_MIN = 10;       // daily/monthly counters change slowly
 const LEONARDO_POLL_PERIOD_MIN = 10;   // token balance changes slowly; gated on cached creds
 const PLAN_REDETECT_PERIOD_MIN = 60 * 24; // re-check plan once a day
 
@@ -98,6 +116,7 @@ registerRefreshWebProvidersHandler(async () => {
   void pollGrok('manual');
   void pollPerplexity('manual');
   void pollLeonardo('manual');
+  void pollUdio('manual');
   void recomputeChatGPTSnapshot();
   // geminiConsumer is content-script-driven — no manual re-fetch available.
   // leonardo re-fetches from cached creds (skips silently if none yet).
@@ -112,6 +131,7 @@ function startAllReaders(): void {
   void pollGrok('install');
   void pollPerplexity('install');
   void pollLeonardo('install');
+  void pollUdio('install');
   void redetectChatGPTPlan('install');
 }
 
@@ -139,6 +159,7 @@ browser.alarms.onAlarm.addListener(async (alarm) => {
   else if (alarm.name === GROK_ALARM) void pollGrok('alarm');
   else if (alarm.name === PERPLEXITY_ALARM) void pollPerplexity('alarm');
   else if (alarm.name === LEONARDO_ALARM) void pollLeonardo('alarm');
+  else if (alarm.name === UDIO_ALARM) void pollUdio('alarm');
   else if (alarm.name === PLAN_REDETECT_ALARM) void redetectChatGPTPlan('alarm');
   else if (alarm.name === BRIDGE_HEARTBEAT_ALARM) void sendBridgeBatch('heartbeat').catch(() => undefined);
 });
@@ -176,7 +197,34 @@ browser.runtime.onMessage.addListener(
       return { kind: 'ACK' };
     }
 
+    if (msg.kind === 'API_KEY_SAVE') return saveApiKey(msg.provider, msg.key);
+    if (msg.kind === 'API_KEY_REMOVE') {
+      await removeApiKey(msg.provider);
+      await updateBadge();
+      return { kind: 'ACK' };
+    }
+
+    if (msg.kind === 'SUNO_BILLING') {
+      // Billing numbers were fetched inside the suno.com page (no token reaches
+      // us). The API sends no reset date, so learn it from the refill.
+      const now = Date.now();
+      const poll = sunoRenewalPoll(msg.billing, now);
+      let snapshot = mapSunoSnapshot(msg.billing, now);
+      if (poll) {
+        const renewal = trackRenewal(await getRenewal('suno'), poll.balance, poll.purchased, now);
+        await setRenewal('suno', renewal);
+        snapshot = applyRenewal(poll, renewal, now);
+      }
+      await setSunoSnapshot(snapshot);
+      scheduleBridgeSend('snapshot');
+      await updateBadge();
+      console.log('[tokenomics] suno snapshot received', snapshot);
+      return { kind: 'ACK' };
+    }
+
     if (msg.kind === 'ELEVENLABS_TOKEN') {
+      // With an API key set we never keep the site's token.
+      if (await getApiKey('elevenlabs')) return { kind: 'ACK' };
       // Firebase token from the elevenlabs-grab content script. Cache it and
       // immediately trigger a usage poll with the fresh token.
       await setElevenLabsFirebaseToken(msg.token);
@@ -186,6 +234,7 @@ browser.runtime.onMessage.addListener(
     }
 
     if (msg.kind === 'LEONARDO_TOKEN') {
+      if (await getApiKey('leonardo')) return { kind: 'ACK' };
       // Cognito credentials from the leonardo-grab content script. Cache and poll.
       await setLeonardoCredentials(msg.idToken, msg.userSub);
       console.log('[tokenomics] leonardo cognito token received — triggering poll');
@@ -209,8 +258,21 @@ browser.runtime.onMessage.addListener(
       return { kind: 'ACK' };
     }
 
+    // The popup closes too soon to run the bridge's debounced send itself.
+    if (msg.kind === 'ORDER_CHANGED') {
+      scheduleBridgeSend('settings');
+      return { kind: 'ACK' };
+    }
+
+    if (msg.kind === 'SYNC_NOW') {
+      void sendBridgeBatch('settings').catch(() => undefined);
+      return { kind: 'ACK' };
+    }
+
     if (msg.kind === 'REFRESH_REQUESTED') {
-      const [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff] =
+      // Refresh also forces a sync with the Mac (the manual fallback).
+      void sendBridgeBatch('settings').catch(() => undefined);
+      const [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff, udioBackoff] =
         await Promise.all([
           getBackoff(),
           getMidjourneyBackoff(),
@@ -218,14 +280,15 @@ browser.runtime.onMessage.addListener(
           getGrokBackoff(),
           getPerplexityBackoff(),
           getLeonardoBackoff(),
+          getUdioBackoff(),
         ]);
       // Report the earliest active backoff expiry to the caller.
       const now = Date.now();
-      const activeBackoffs = [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff]
+      const activeBackoffs = [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff, udioBackoff]
         .filter((b): b is NonNullable<typeof b> => b !== null && now < b.until)
         .map((b) => b.until);
-      if (activeBackoffs.length === 6) {
-        // All six pollable web providers are backed off — surface the soonest expiry.
+      if (activeBackoffs.length === 7) {
+        // All seven pollable web providers are backed off — surface the soonest expiry.
         return { kind: 'REFRESH_BACKOFF', until: Math.min(...activeBackoffs) };
       }
       try {
@@ -236,6 +299,7 @@ browser.runtime.onMessage.addListener(
           pollGrok('manual'),
           pollPerplexity('manual'),
           pollLeonardo('manual'),
+          pollUdio('manual'),
           redetectChatGPTPlan('manual'),
         ]);
         await recomputeChatGPTSnapshot();
@@ -259,6 +323,7 @@ async function scheduleAlarms(): Promise<void> {
     browser.alarms.create(GROK_ALARM, { periodInMinutes: GROK_POLL_PERIOD_MIN }),
     browser.alarms.create(PERPLEXITY_ALARM, { periodInMinutes: PERPLEXITY_POLL_PERIOD_MIN }),
     browser.alarms.create(LEONARDO_ALARM, { periodInMinutes: LEONARDO_POLL_PERIOD_MIN }),
+    browser.alarms.create(UDIO_ALARM, { periodInMinutes: UDIO_POLL_PERIOD_MIN }),
     browser.alarms.create(PLAN_REDETECT_ALARM, { periodInMinutes: PLAN_REDETECT_PERIOD_MIN }),
     browser.alarms.create(BRIDGE_HEARTBEAT_ALARM, { periodInMinutes: 1 }),
   ]);
@@ -357,15 +422,18 @@ export async function pollElevenLabs(trigger: 'install' | 'alarm' | 'manual'): P
     return;
   }
 
-  const firebaseToken = await getElevenLabsFirebaseToken();
-  if (!firebaseToken) {
+  const apiKey = await getApiKey('elevenlabs');
+  const firebaseToken = apiKey ? null : await getElevenLabsFirebaseToken();
+  if (!apiKey && !firebaseToken) {
     // No token yet — the content script hasn't run (user hasn't visited elevenlabs.io).
     console.log('[tokenomics] elevenlabs: no firebase token cached yet, skipping poll');
     return;
   }
 
   try {
-    const snapshot = await fetchElevenLabsUsage(firebaseToken);
+    const snapshot = await fetchElevenLabsUsage(
+      apiKey ? { kind: 'apiKey', key: apiKey } : { kind: 'bearer', token: firebaseToken ?? '' },
+    );
     await setElevenLabsSnapshot(snapshot);
     scheduleBridgeSend('snapshot');
     await setElevenLabsAuth('authenticated');
@@ -459,6 +527,40 @@ export async function pollPerplexity(trigger: 'install' | 'alarm' | 'manual'): P
   }
 }
 
+// ── Udio poll ───────────────────────────────────────────────
+
+export async function pollUdio(trigger: 'install' | 'alarm' | 'manual'): Promise<void> {
+  const existing = await getUdioBackoff();
+  if (existing && Date.now() < existing.until && trigger !== 'manual') {
+    console.log(`[tokenomics] skipping udio ${trigger} poll, backoff until`, new Date(existing.until));
+    return;
+  }
+
+  try {
+    const snapshot = await fetchUdioUsage();
+    await setUdioSnapshot(snapshot);
+    scheduleBridgeSend('snapshot');
+    await setUdioAuth('authenticated');
+    await setUdioBackoff(null);
+    await updateBadge();
+    console.log(`[tokenomics] udio poll ok (${trigger})`, snapshot);
+  } catch (err) {
+    if (err instanceof UdioAuthError) {
+      await setUdioAuth('unauthenticated');
+      await updateBadge();
+      console.log('[tokenomics] udio not signed in');
+    } else if (err instanceof UdioRateLimitError) {
+      const next = nextBackoff(existing);
+      await setUdioBackoff(next);
+      console.warn('[tokenomics] udio rate limited until', new Date(next.until));
+      throw err;
+    } else {
+      console.error('[tokenomics] udio poll failed', err);
+      throw err;
+    }
+  }
+}
+
 // ── Leonardo poll ───────────────────────────────────────────
 
 /**
@@ -475,15 +577,22 @@ export async function pollLeonardo(trigger: 'install' | 'alarm' | 'manual'): Pro
     return;
   }
 
-  const creds = await getLeonardoCredentials();
-  if (!creds) {
+  const apiKey = await getApiKey('leonardo');
+  const creds = apiKey ? null : await getLeonardoCredentials();
+  if (!apiKey && !creds) {
     // No credentials yet — the content script hasn't run (user hasn't visited app.leonardo.ai).
     console.log('[tokenomics] leonardo: no cognito credentials cached yet, skipping poll');
     return;
   }
 
   try {
-    const snapshot = await fetchLeonardoUsage(creds.idToken, creds.userSub);
+    const poll = apiKey
+      ? await fetchLeonardoUsageWithApiKey(apiKey)
+      : await fetchLeonardoUsage(creds?.idToken ?? '', creds?.userSub ?? '');
+    const now = Date.now();
+    const renewal = trackRenewal(await getRenewal('leonardo'), poll.balance, poll.purchased, now);
+    await setRenewal('leonardo', renewal);
+    const snapshot = applyRenewal(poll, renewal, now);
     await setLeonardoSnapshot(snapshot);
     scheduleBridgeSend('snapshot');
     await setLeonardoAuth('authenticated');
@@ -505,6 +614,36 @@ export async function pollLeonardo(trigger: 'install' | 'alarm' | 'manual'): Pro
       throw err;
     }
   }
+}
+
+// ── API keys (options page) ─────────────────────────────────
+
+/**
+ * Verify a pasted key with a real call, and only then store it. Storing a bad
+ * key would switch off the capture fallback and leave the user with nothing.
+ */
+async function saveApiKey(provider: ApiKeyProvider, rawKey: string): Promise<ExtensionResponse> {
+  const key = rawKey.trim();
+  if (key.length === 0) return { kind: 'API_KEY_RESULT', ok: false, error: 'Paste a key first.' };
+
+  try {
+    if (provider === 'elevenlabs') await fetchElevenLabsUsage({ kind: 'apiKey', key });
+    else await fetchLeonardoUsageWithApiKey(key);
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Could not verify the key.';
+    return { kind: 'API_KEY_RESULT', ok: false, error };
+  }
+
+  await setApiKey(provider, key);
+  // Clear stale state from the old credential source, then poll with the key.
+  if (provider === 'elevenlabs') {
+    await setElevenLabsBackoff(null);
+    void pollElevenLabs('manual').catch(() => undefined);
+  } else {
+    await setLeonardoBackoff(null);
+    void pollLeonardo('manual').catch(() => undefined);
+  }
+  return { kind: 'API_KEY_RESULT', ok: true };
 }
 
 // ── ChatGPT counter ─────────────────────────────────────────
@@ -554,7 +693,7 @@ async function redetectChatGPTPlan(trigger: 'install' | 'alarm' | 'manual'): Pro
 // ── Toolbar badge ───────────────────────────────────────────
 
 async function updateBadge(): Promise<void> {
-  const [pinned, claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo] =
+  const [pinned, claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo, suno, udio] =
     await Promise.all([
       getPinnedProvider(),
       getClaudeSnapshot(),
@@ -565,6 +704,8 @@ async function updateBadge(): Promise<void> {
       getGrokSnapshot(),
       getPerplexitySnapshot(),
       getLeonardoSnapshot(),
+      getSunoSnapshot(),
+      getUdioSnapshot(),
     ]);
   const live: Partial<Record<ProviderId, ProviderUsageSnapshot>> = {};
   if (claude) live.claude = claude;
@@ -575,6 +716,8 @@ async function updateBadge(): Promise<void> {
   if (grok) live.grok = grok;
   if (perplexity) live.perplexity = perplexity;
   if (leonardo) live.leonardo = leonardo;
+  if (suno) live.suno = suno;
+  if (udio) live.udio = udio;
 
   let value: number | null = null;
   if (pinned && live[pinned]) {

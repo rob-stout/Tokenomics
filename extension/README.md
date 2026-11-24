@@ -3,8 +3,8 @@
 Chrome (MV3) extension that surfaces AI usage in a popup mirroring the
 Tokenomics menu bar widget.
 
-The extension reads usage from eight AI sites: Claude, ChatGPT, Gemini,
-Midjourney, ElevenLabs, Grok, Perplexity and Leonardo. Notes on the first three:
+The extension reads usage from ten AI sites: Claude, ChatGPT, Gemini,
+Midjourney, ElevenLabs, Grok, Perplexity, Leonardo, Suno and Udio. Notes on the first three:
 
 - **Claude** — real usage via `claude.ai/api/organizations/{id}/usage`,
   cookie auth, polled every 5 min.
@@ -33,6 +33,7 @@ cd extension
 npm install
 npm run build       # bundle to extension/dist/
 npm run watch       # rebuild on save
+node build.mjs --text-labels   # logo-free build: site names instead of vendor logos (combine with --safari / --store)
 npm run typecheck   # tsc --noEmit
 ```
 
@@ -126,14 +127,23 @@ the chat tab's own requests via a content script).
 More generally: the extension uses your existing signed-in session to ask
 each site for your own usage numbers. For ElevenLabs and Leonardo it also
 saves the access token the site gives your browser, unencrypted, in the
-browser's extension storage so numbers can keep refreshing. Nothing is sent
+browser's extension storage so numbers can keep refreshing. Suno is different:
+a content script on `suno.com` reads the short-lived (~60 s) session token that
+suno.com keeps in its `__session` cookie, uses it once to call
+`studio-api.prod.suno.com/api/billing/info/` from inside the page, and passes
+only the credit numbers on. The token is never stored. Suno gives no reset date,
+so the reset day is learned from the first monthly refill the extension sees
+(shown as "resets in Nd" afterwards). Udio is read from the service worker with
+your signed-in cookies (`/api/users/current/api-usage`, `/api/subscriptions`);
+it reports monthly credits and the daily cap, both with real reset times.
+Nothing is sent
 to us. Nothing is read until the user agrees on the first-run consent screen.
 
 Manifest permissions:
 
 - `storage` — persisting tab selection, pin state, snapshots, event log
 - `alarms` — periodic Claude poll + daily ChatGPT plan re-detect
-- `host_permissions: ["https://claude.ai/*", "https://chatgpt.com/*", "https://www.midjourney.com/*", "https://gemini.google.com/*", "https://api.us.elevenlabs.io/*", "https://elevenlabs.io/*", "https://grok.com/*", "https://www.perplexity.ai/*", "https://app.leonardo.ai/*", "https://api.leonardo.ai/*"]`
+- `host_permissions: ["https://claude.ai/*", "https://chatgpt.com/*", "https://www.midjourney.com/*", "https://gemini.google.com/*", "https://api.us.elevenlabs.io/*", "https://elevenlabs.io/*", "https://grok.com/*", "https://www.perplexity.ai/*", "https://app.leonardo.ai/*", "https://api.leonardo.ai/*", "https://cloud.leonardo.ai/*", "https://suno.com/*", "https://www.udio.com/*"]`
   — limited to the sites we read
 - `content_scripts` on `chatgpt.com/*` — observes the page's own
   `/backend-api/conversation` calls (does not initiate them)

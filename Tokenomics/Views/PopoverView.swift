@@ -7,6 +7,7 @@ struct PopoverView: View {
     var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
+    @State private var groupByCompany = FeatureFlags.brandAggregation
     @State private var isRequestingKeychainAccess = false
     /// Set only after an attempt in this view session fails, so the note never
     /// shows before the user has tried.
@@ -261,13 +262,19 @@ struct PopoverView: View {
                     let (providerId, state) = pair
 
                     // Pool header label + inline plan pill (tappable for Gemini pools)
-                    poolSectionHeader(for: providerId, planLabel: planBadgeLabel(for: providerId, usage: state.usage))
+                    poolSectionHeader(
+                        for: providerId,
+                        planLabel: planBadgeLabel(for: providerId, usage: state.usage),
+                        isFirst: index == 0
+                    )
 
                     providerContent(state, providerId: providerId)
 
                     if index < pairs.count - 1 {
+                        // Extra air around the break between pools so each reads as its own group.
                         Divider()
                             .padding(.horizontal, 16)
+                            .padding(.top, 8)
                     }
                 }
             }
@@ -277,7 +284,7 @@ struct PopoverView: View {
     /// Slim label row identifying a pool within a multi-pool brand tab.
     /// Uses the pool's `tabLabel` which carries the tool-specific name
     /// (e.g. "ChatGPT", "OpenAI" for codex).
-    private func poolSectionHeader(for providerId: ProviderId, planLabel: String?) -> some View {
+    private func poolSectionHeader(for providerId: ProviderId, planLabel: String?, isFirst: Bool = true) -> some View {
         HStack {
             Text(providerId.poolLabel)
                 .font(.system(size: 10, weight: .semibold))
@@ -289,7 +296,9 @@ struct PopoverView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
+        // Center the pool divider: 20pt sits above it (12 content padding + 8), and the
+        // plan pill already adds ~5pt above this label, so 14 here lands ~20 below.
+        .padding(.top, isFirst ? 10 : 14)
         .padding(.bottom, 2)
     }
 
@@ -441,14 +450,14 @@ struct PopoverView: View {
         } else if let error = state.error, state.usage == nil {
             errorView(error)
         } else if let usage = state.usage {
-            usageContent(usage)
+            usageContent(usage, providerId: providerId)
         } else {
             loadingView
         }
     }
 
     @ViewBuilder
-    private func usageContent(_ usage: ProviderUsageSnapshot) -> some View {
+    private func usageContent(_ usage: ProviderUsageSnapshot, providerId: ProviderId) -> some View {
         VStack(spacing: 12) {
             UsageBarView(
                 label: usage.shortWindow.label,
@@ -468,6 +477,13 @@ struct PopoverView: View {
                     sublabel: longWindow.timeUntilReset,
                     replayTrigger: viewModel.refreshCount
                 )
+            }
+
+            if let note = Self.webReadingNote(for: usage, providerId: providerId) {
+                Text(note)
+                    .scaledFont(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // Extra usage (Claude Max)
@@ -493,6 +509,22 @@ struct PopoverView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    /// Caption under a browser-fed pool: how old the reading is when the browser has
+    /// stopped reporting, and a heads-up when the numbers are an estimate. Nil for the
+    /// Mac's own live reads and for fresh exact readings, so most cards look unchanged.
+    static func webReadingNote(
+        for usage: ProviderUsageSnapshot,
+        providerId: ProviderId,
+        now: Date = Date()
+    ) -> String? {
+        var parts: [String] = []
+        if let capturedAt = usage.capturedAt, WebPoolFreshness.isStale(usage, id: providerId, now: now) {
+            parts.append("Last read \(WebPoolFreshness.ageText(since: capturedAt, now: now)) ago")
+        }
+        if usage.estimated == true { parts.append("Estimated from your browser activity") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func extraUsageSection(_ extra: ExtraUsage) -> some View {
@@ -796,19 +828,6 @@ struct PopoverView: View {
                 // ── Preferences ──
                 sectionLabel("Preferences")
 
-                settingsRow(icon: "checkmark.square", label: "Launch at Login") {
-                    Toggle("", isOn: $launchAtLogin)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .labelsHidden()
-                        .onChange(of: launchAtLogin) { _, newValue in
-                            LaunchAtLoginService.setEnabled(newValue)
-                            launchAtLogin = LaunchAtLoginService.isEnabled
-                        }
-                }
-
-                Divider().padding(.horizontal, 16)
-
                 settingsNavRow(
                     icon: "bell",
                     label: "Notifications",
@@ -825,6 +844,34 @@ struct PopoverView: View {
                     detail: textSize.displayName
                 ) {
                     viewModel.showTextSize = true
+                }
+
+                Divider().padding(.horizontal, 16)
+
+                // One tab per company (e.g. Gemini app + Gemini CLI under Google), like
+                // the Providers list. Off = one tab per tool.
+                settingsRow(icon: "rectangle.3.group", label: "Group by Company") {
+                    Toggle("", isOn: $groupByCompany)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .onChange(of: groupByCompany) { _, newValue in
+                            FeatureFlags.brandAggregation = newValue
+                            viewModel.refresh() // redraw tabs, menu bar and widgets in the new layout
+                        }
+                }
+
+                Divider().padding(.horizontal, 16)
+
+                settingsRow(icon: "checkmark.square", label: "Launch at Login") {
+                    Toggle("", isOn: $launchAtLogin)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .onChange(of: launchAtLogin) { _, newValue in
+                            LaunchAtLoginService.setEnabled(newValue)
+                            launchAtLogin = LaunchAtLoginService.isEnabled
+                        }
                 }
 
                 // ── Learn ──

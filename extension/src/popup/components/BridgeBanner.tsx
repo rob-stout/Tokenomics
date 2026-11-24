@@ -14,13 +14,13 @@ interface Props {
  * - No bridge data yet or stale (>5min): a neutral note pointing to the Mac
  *   app. Not a warning — the extension works on its own. Shown only once
  *   storage has been loaded (bridgeState !== null).
- * - Recent success: "Connected to Tokenomics x.y.z" in a subtle footer chip.
+ * - Recent success: "Mac app connected" in a subtle footer chip.
  * - Recent success but with error entries: small warning indicator instead.
  */
 export function BridgeBanner({ bridgeState }: Props) {
   if (!bridgeState) return null;
 
-  const { lastSuccessAt, lastMacAppVersion, status } = bridgeState;
+  const { lastSuccessAt, status } = bridgeState;
   const now = Date.now();
   const isConnected = lastSuccessAt !== null && now - lastSuccessAt < STALE_THRESHOLD_MS;
 
@@ -56,10 +56,10 @@ export function BridgeBanner({ bridgeState }: Props) {
 
   // Happy path — subtle connected chip (uses footer slot visually).
   return (
-    <div class="bridge-banner bridge-banner--ok" role="status" aria-label={`Connected to Tokenomics ${lastMacAppVersion ?? ''}`}>
+    <div class="bridge-banner bridge-banner--ok" role="status" aria-label="Mac app connected">
       <span class="bridge-banner__connected-dot" aria-hidden="true" />
       <span class="bridge-banner__text">
-        Tokenomics {lastMacAppVersion ?? 'connected'}
+        Mac app connected
       </span>
     </div>
   );

@@ -14,6 +14,11 @@
  * this token and posts it to the service worker via `{ kind: 'ELEVENLABS_TOKEN' }`.
  * The SW caches the token and uses it for all subsequent API calls.
  *
+ * ── API KEY (optional, preferred) ────────────────────────────────────────────
+ * The user may paste an ElevenLabs API key in settings (needs the "User: read"
+ * permission). Same endpoint, sent as `xi-api-key` and NO Authorization header.
+ * Same response shape. When a key is stored the captured token is deleted.
+ *
  * ── API HOST ─────────────────────────────────────────────────────────────────
  * The regional endpoint `api.us.elevenlabs.io` is used (confirmed live 2026-06-01).
  * `api.elevenlabs.io` (global) would work as a fallback but the token is only
@@ -31,13 +36,22 @@
  */
 
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
+import { nextMonthlyReset } from './snapshot';
 
 const SUBSCRIPTION_URL = 'https://api.us.elevenlabs.io/v1/user/subscription';
 const THIRTY_DAY_SEC = 30 * 24 * 3600;
 
+export type ElevenLabsCredential =
+  | { kind: 'bearer'; token: string }
+  | { kind: 'apiKey'; key: string };
+
 export class AuthError extends Error {
-  constructor(status: number) {
-    super(`Not signed in to elevenlabs.io (status ${status})`);
+  constructor(status: number, viaApiKey = false) {
+    super(
+      viaApiKey
+        ? `ElevenLabs rejected the API key (status ${status}). Check it is correct and has the "User: read" permission. Keys from other data-residency regions may not work.`
+        : `Not signed in to elevenlabs.io (status ${status})`,
+    );
     this.name = 'AuthError';
   }
 }
@@ -71,19 +85,29 @@ interface SubscriptionResponse {
 // ── Fetch layer ───────────────────────────────────────────────
 
 /**
- * Fetch the subscription response using a Firebase Bearer token.
+ * Exactly one auth header per credential: the API rejects requests that carry
+ * both `xi-api-key` and `Authorization`.
+ */
+export function authHeaders(credential: ElevenLabsCredential): Record<string, string> {
+  return credential.kind === 'apiKey'
+    ? { 'xi-api-key': credential.key }
+    : { Authorization: `Bearer ${credential.token}` };
+}
+
+/**
+ * Fetch the subscription response using a Firebase Bearer token or API key.
  *
  * The token is obtained by the elevenlabs-grab content script (IndexedDB read
  * on elevenlabs.io) and passed here after the SW caches it.
  *
- * @param firebaseToken - Firebase ID token from IndexedDB stsTokenManager.accessToken.
+ * @param credential - Firebase ID token (captured) or the user's pasted API key.
  */
-async function fetchSubscription(firebaseToken: string): Promise<SubscriptionResponse> {
-  const res = await fetch(SUBSCRIPTION_URL, {
-    headers: { Authorization: `Bearer ${firebaseToken}` },
-  });
+async function fetchSubscription(credential: ElevenLabsCredential): Promise<SubscriptionResponse> {
+  const res = await fetch(SUBSCRIPTION_URL, { headers: authHeaders(credential) });
 
-  if (res.status === 401 || res.status === 403) throw new AuthError(res.status);
+  if (res.status === 401 || res.status === 403) {
+    throw new AuthError(res.status, credential.kind === 'apiKey');
+  }
   if (res.status === 429) throw new RateLimitError();
   if (!res.ok) throw new Error(`elevenlabs subscription fetch failed: ${res.status}`);
 
@@ -95,12 +119,15 @@ async function fetchSubscription(firebaseToken: string): Promise<SubscriptionRes
 // ── Public API ────────────────────────────────────────────────
 
 /**
- * Fetch ElevenLabs subscription usage using a Firebase Bearer token.
+ * Fetch ElevenLabs subscription usage. An API key (`xi-api-key`, official
+ * endpoint) is preferred by the caller over the captured Firebase token.
  *
- * @param firebaseToken - The access token from the elevenlabs-grab content script.
+ * @param credential - API key, or the access token from the elevenlabs-grab content script.
  */
-export async function fetchElevenLabsUsage(firebaseToken: string): Promise<ProviderUsageSnapshot> {
-  const raw = await fetchSubscription(firebaseToken);
+export async function fetchElevenLabsUsage(
+  credential: ElevenLabsCredential,
+): Promise<ProviderUsageSnapshot> {
+  const raw = await fetchSubscription(credential);
   return mapToSnapshot(raw, Date.now());
 }
 
@@ -123,13 +150,7 @@ export function mapToSnapshot(
     limit > 0 ? Math.min(100, Math.max(0, Math.round((used / limit) * 100))) : 0;
 
   const resetSec = num(raw.next_character_count_reset_unix);
-  // A past or missing reset timestamp is not meaningful — fall back to now + 30d.
-  // This prevents the UI from showing a negative or "resets now" countdown.
-  const resetMs = resetSec > 0 ? resetSec * 1000 : 0;
-  const resetsAt =
-    resetMs > now
-      ? new Date(resetMs).toISOString()
-      : new Date(now + THIRTY_DAY_SEC * 1000).toISOString();
+  const resetsAt = nextMonthlyReset(resetSec > 0 ? resetSec * 1000 : 0, now);
 
   const shortWindow: WindowUsage = {
     label: 'Characters',
@@ -179,3 +200,5 @@ function num(v: unknown): number {
   }
   return 0;
 }
+
+export { nextMonthlyReset };

@@ -11,11 +11,11 @@ import {
   buildVisibleProviders,
   bridgeWindowToWindowUsage,
   WEB_PROVIDERS,
-  NATIVE_ONLY_PROVIDERS,
   SIGN_IN,
   COUNT_LOCALLY,
 } from './popup-logic';
 import type { BridgeSnapshot } from '../bridge-types';
+import { PROVIDERS } from '../types';
 import type { ProviderUsageSnapshot } from '../snapshot';
 
 // ── Empty-state coverage guard ───────────────────────────────────
@@ -174,10 +174,10 @@ test('buildVisibleProviders: native-only provider appears when bridge has data',
   assert.equal(copilotEntry.source, 'native');
 });
 
-// ── Test 7: ordering — web providers before native-only ─────────
+// ── Test 7: ordering — default follows the Mac-aligned PROVIDERS order; saved order wins ──
 
-test('buildVisibleProviders: web providers appear before native-only providers', () => {
-  const result = buildVisibleProviders({
+test('buildVisibleProviders: default order mirrors the Mac app (PROVIDERS order)', () => {
+  const args = {
     visibility: {},
     webSnapshots: {
       claude: makeWebSnapshot('claude', Date.now()),
@@ -187,21 +187,16 @@ test('buildVisibleProviders: web providers appear before native-only providers',
       copilot: makeNativeSnapshot('copilot', '2026-05-14T18:00:00.000Z'),
       cursor: makeNativeSnapshot('cursor', '2026-05-14T18:00:00.000Z'),
     },
-  });
+  };
+  const ids = buildVisibleProviders(args).map((e) => e.providerId as string);
+  const rank = (id: string) => (PROVIDERS as readonly string[]).indexOf(id);
+  const defaults = ids.filter((id) => ['claude', 'midjourney', 'copilot', 'cursor'].includes(id));
+  assert.deepEqual(defaults, [...defaults].sort((a, b) => rank(a) - rank(b)));
+  assert.ok(ids.indexOf('copilot') < ids.indexOf('midjourney'), 'native copilot sits before midjourney, as on the Mac');
 
-  const ids = result.map((e) => e.providerId);
-  const idStrings = ids as readonly string[];
-  const webIds = (WEB_PROVIDERS as readonly string[]).filter((id) => idStrings.includes(id));
-  const nativeIds = (NATIVE_ONLY_PROVIDERS as readonly string[]).filter((id) => idStrings.includes(id));
-
-  // All web providers must appear before any native-only provider.
-  const lastWebIndex = Math.max(...webIds.map((id) => idStrings.indexOf(id)));
-  const firstNativeIndex = Math.min(...nativeIds.map((id) => idStrings.indexOf(id)));
-
-  assert.ok(
-    lastWebIndex < firstNativeIndex,
-    `Web providers (last at ${lastWebIndex}) must precede native providers (first at ${firstNativeIndex})`,
-  );
+  const reordered = buildVisibleProviders({ ...args, order: ['midjourney', 'cursor'] }).map((e) => e.providerId as string);
+  assert.equal(reordered[0], 'midjourney');
+  assert.ok(reordered.indexOf('cursor') < reordered.indexOf('claude'));
 });
 
 // ── Test 8: bridgeWindowToWindowUsage multiplies utilization ────

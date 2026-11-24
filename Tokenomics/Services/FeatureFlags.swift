@@ -6,19 +6,20 @@ import Foundation
 ///
 ///     defaults write com.robstout.tokenomics tokenomics.brandAggregation.enabled -bool true
 ///
-/// Flags default to `false` — the new code path stays opt-in until the build
-/// has been validated. A hidden Settings toggle (Option-held while opening
-/// Settings) is the primary user-facing flip mechanism.
+/// Brand aggregation shipped ON by default in 2.10.4 (Settings groups by company,
+/// and so does the browser extension); users can turn it off in Settings →
+/// Preferences → "Group by company".
 enum FeatureFlags {
     /// When true, the popover renders tabs by brand with per-pool sub-sections,
     /// the medium/large widgets render brand parent rows + per-pool sub-rows,
     /// and the Pin Tracker dropdown flattens to per-pool entries.
     ///
-    /// When false (default), every surface keeps today's per-ProviderId
-    /// rendering exactly as-is. Toggling the flag never alters underlying
+    /// When false (user opted out), every surface keeps the per-ProviderId
+    /// rendering. Toggling the flag never alters underlying
     /// usage data — only how it's grouped for display.
     static var brandAggregation: Bool {
-        get { UserDefaults.standard.bool(forKey: brandAggregationKey) }
+        // On unless the user turned it off (Settings → Preferences → Group by company).
+        get { UserDefaults.standard.object(forKey: brandAggregationKey) as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: brandAggregationKey) }
     }
 

@@ -62,8 +62,8 @@ struct MultiSelectStep: View {
     /// and surface the pools as separate progress sections; widgets render
     /// per-pool because their layout is more constrained.
     ///
-    /// Suno and Udio are omitted until they have working data paths — adding
-    /// them here when their connectors land is the only change needed.
+    /// Every provider with a working data path is listed here; add new
+    /// connectors as they land.
     private var groups: [(CategoryGroup, [Row])] {
         [
             (.multiPurpose, [
@@ -80,6 +80,8 @@ struct MultiSelectStep: View {
                 Row(provider: .midjourney,      label: "Midjourney",   subLabel: nil),
                 Row(provider: .runway,          label: "Runway",       subLabel: nil),
                 Row(provider: .elevenlabs,      label: "ElevenLabs",   subLabel: nil),
+                Row(provider: .suno,            label: "Suno",         subLabel: nil),
+                Row(provider: .udio,            label: "Udio",         subLabel: nil),
             ]),
         ]
     }

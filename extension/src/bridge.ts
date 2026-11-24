@@ -14,6 +14,9 @@
  *                              after being included in the next outbound envelope.
  *   providerVisibility       — Record<string, ProviderVisibilitySetting> — per-provider enabled
  *                              flag + lastChangedAt; merged with the Mac side on every round trip.
+ *   providerOrder            — ProviderOrderSetting — tab order + lastChangedAt; newest wins, the
+ *                              Mac's is adopted via adoptIncomingOrder (keeps its timestamp so the
+ *                              echo is a no-op).
  */
 
 import {
@@ -23,8 +26,10 @@ import {
   type BridgeResponse,
   type BridgeSnapshot,
   type BridgeWindow,
+  type ProviderOrderSetting,
   type ProviderVisibilitySetting,
 } from './bridge-types';
+import { adoptIncomingOrder } from './provider-order';
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
 
 // Storage keys for provider snapshots — must stay in sync with storage.ts KEYS.
@@ -33,8 +38,11 @@ import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
 // old hard-coded 3-key list silently dropped geminiConsumer/grok/perplexity/
 // leonardo (computed + badged but never sent to the Mac).
 //
-// elevenlabs is intentionally omitted: the Mac reads it via API key, so we don't
-// override that with the web reading (yet).
+// elevenlabs IS sent (from either the user's web sign-in or an API key pasted into
+// the extension — both are just numbers; the key itself never crosses). The Mac
+// decides which source wins: its own API-key reader always takes precedence, and
+// the bridge reading is only used when no Mac key is configured. See
+// ElevenLabsProvider.swift (ElevenLabsSourceResolver).
 const SNAPSHOT_KEYS = {
   claude: 'claudeSnapshot',
   chatgpt: 'chatgptSnapshot',
@@ -43,6 +51,9 @@ const SNAPSHOT_KEYS = {
   grok: 'grokSnapshot',
   perplexity: 'perplexitySnapshot',
   leonardo: 'leonardoSnapshot',
+  elevenlabs: 'elevenLabsSnapshot',
+  suno: 'sunoSnapshot',
+  udio: 'udioSnapshot',
 } as const;
 
 // ── Command handler registry ─────────────────────────────────────
@@ -121,6 +132,22 @@ function toBridgeWindow(w: WindowUsage): BridgeWindow {
  * Converts a ProviderUsageSnapshot (capturedAt as ms epoch, utilization 0-100)
  * to a BridgeSnapshot (capturedAt as ISO 8601, utilization 0-1).
  */
+function hasValidReset(w: WindowUsage): boolean {
+  return w.resetsAt !== '' && !Number.isNaN(new Date(w.resetsAt).getTime());
+}
+
+/**
+ * The Mac decodes resetsAt as a Date, so one empty or bad date (Gemini sends ''
+ * when it can't parse the reset) would make it reject the WHOLE message and
+ * drop every provider. Send what's valid: a bad long window becomes null; a
+ * snapshot whose main window has no valid reset is left out. Exported for tests.
+ */
+export function toBridgeSnapshotSafe(snap: ProviderUsageSnapshot): BridgeSnapshot | null {
+  if (!hasValidReset(snap.shortWindow)) return null;
+  const longWindow = snap.longWindow && hasValidReset(snap.longWindow) ? snap.longWindow : null;
+  return toBridgeSnapshot({ ...snap, longWindow });
+}
+
 function toBridgeSnapshot(snap: ProviderUsageSnapshot): BridgeSnapshot {
   return {
     provider: snap.provider,
@@ -212,11 +239,13 @@ async function doSend(_reason: BridgeSendReason): Promise<BridgeResponse | null>
   const snapshots: BridgeSnapshot[] = [];
   for (const key of allSnapshotKeys) {
     const snap = parseSnap(snapshotResult[key]);
-    if (snap) snapshots.push(toBridgeSnapshot(snap));
+    const wire = snap ? toBridgeSnapshotSafe(snap) : null;
+    if (wire) snapshots.push(wire);
   }
 
   // 2. Gather settings and pending actions from storage
-  const stored = await storageGet(['providerVisibility', 'pendingRequestedActions', 'nativeSnapshots']);
+  const stored = await storageGet(['providerVisibility', 'providerOrder', 'pendingRequestedActions', 'nativeSnapshots']);
+  const providerOrder = stored['providerOrder'] as ProviderOrderSetting | undefined;
   const providerVisibility = (stored['providerVisibility'] as Record<string, ProviderVisibilitySetting>) ?? {};
   const requestedActions = (stored['pendingRequestedActions'] as Record<string, boolean>) ?? {};
   const existingNativeSnapshots = (stored['nativeSnapshots'] as Record<string, BridgeSnapshot>) ?? {};
@@ -230,7 +259,7 @@ async function doSend(_reason: BridgeSendReason): Promise<BridgeResponse | null>
     envelopeSentAt: new Date().toISOString(),
     extensionId: chrome.runtime.id,
     snapshots,
-    settings: { providerVisibility },
+    settings: { providerVisibility, ...(providerOrder ? { providerOrder } : {}) },
     requestedActions: Object.keys(requestedActions).length > 0 ? requestedActions : undefined,
   };
 
@@ -269,6 +298,15 @@ async function doSend(_reason: BridgeSendReason): Promise<BridgeResponse | null>
   const responseVisibility = response.settings?.providerVisibility ?? {};
   const mergedVisibility = mergeVisibility(providerVisibility, responseVisibility);
   await storageSet({ providerVisibility: mergedVisibility });
+
+  // Adopt the Mac's order if newer. Re-read storage first: the options page may have
+  // saved a reorder while this round trip was in flight, and that must not be clobbered.
+  const incomingOrder = response.settings?.providerOrder;
+  if (incomingOrder) {
+    const latest = (await storageGet(['providerOrder']))['providerOrder'] as ProviderOrderSetting | undefined;
+    const adopted = adoptIncomingOrder(latest, incomingOrder);
+    if (adopted) await storageSet({ providerOrder: adopted });
+  }
 
   // Dispatch commands
   for (const cmd of response.commands ?? []) {

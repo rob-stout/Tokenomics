@@ -14,7 +14,7 @@ protocol WebCompanionStateProvider: Actor {
 
 // MARK: - WebCompanionService
 
-/// Reads `ext-side.json` from the App Group container and exposes the extension's
+/// Reads `ext-side.json` from the bridge directories and exposes the extension's
 /// latest state to the Mac app. Watches the container directory via FSEvents so
 /// atomic writes (which replace the file inode) are picked up reliably.
 ///
@@ -29,17 +29,22 @@ actor WebCompanionService: WebCompanionStateProvider {
     /// - Parameter onRefreshRequested: Called when an incoming ExtSideState signals
     ///   that the extension wants the Mac to re-poll native providers.
     ///   Wired by Agent 5: ConnectorContainer / TokenomicsApp.swift
-    init(onRefreshRequested: (@Sendable () -> Void)? = nil) {
+    /// - Parameter onStateChanged: Called after every reload of `ext-side.json` (FSEvents
+    ///   or `handleStateChange`), so the Mac can show new web-pool numbers within about
+    ///   a second of the extension writing them instead of waiting for the next poll.
+    init(
+        onRefreshRequested: (@Sendable () -> Void)? = nil,
+        onStateChanged: (@Sendable () -> Void)? = nil,
+        directories: [URL]? = nil
+    ) {
         self.onRefreshRequested = onRefreshRequested
-        self.containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId
-        )
+        self.onStateChanged = onStateChanged
+        // Tests pass an empty temp dir so they never read the user's live bridge files.
+        self.watchedDirectories = directories ?? Self.sourceDirectories()
 
         // Read initial state synchronously before FSEvents starts so callers
         // get real data on first access without waiting for a filesystem event.
-        if let url = containerURL {
-            self.cachedState = Self.readFromDisk(containerURL: url)
-        }
+        self.cachedState = Self.readFromDisk(directories: watchedDirectories)
     }
 
     // MARK: - Public API
@@ -63,14 +68,9 @@ actor WebCompanionService: WebCompanionStateProvider {
 
     /// Starts watching the App Group container directory. Call once at app launch.
     func startWatching() {
-        guard let url = containerURL else {
-            Self.log.warning("App Group container unavailable — FSEvents watch skipped")
-            return
-        }
         guard eventStream == nil else { return } // already watching
 
-        let path = url.path as CFString
-        let pathArray: CFArray = [path] as CFArray
+        let pathArray: CFArray = watchedDirectories.map { $0.path as CFString } as CFArray
 
         // We capture `self` as an unmanaged reference because FSEventStream
         // C callbacks can't capture Swift actors directly.
@@ -115,7 +115,7 @@ actor WebCompanionService: WebCompanionStateProvider {
             FSEventStreamSetDispatchQueue(stream, .main)
             FSEventStreamStart(stream)
             self.eventStream = stream
-            Self.log.info("FSEvents watch started on \(url.path)")
+            Self.log.info("FSEvents watch started on \(self.watchedDirectories.map(\.path))")
         } else {
             // Release the retained self if stream creation failed
             Unmanaged<WebCompanionService>.fromOpaque(selfPtr).release()
@@ -138,12 +138,15 @@ actor WebCompanionService: WebCompanionStateProvider {
     func handleStateChange(_ newState: ExtSideState) {
         cachedState = newState
         scheduleWidgetReload()
+        onStateChanged?()
     }
 
     // MARK: - Private
 
     private let onRefreshRequested: (@Sendable () -> Void)?
-    private let containerURL: URL?
+    private let onStateChanged: (@Sendable () -> Void)?
+    /// Chromium bridge dir + Safari's App Group container (see `sourceDirectories()`).
+    private let watchedDirectories: [URL]
     private var cachedState: ExtSideState?
     private var eventStream: FSEventStreamRef?
 
@@ -159,8 +162,7 @@ actor WebCompanionService: WebCompanionStateProvider {
             // The 50ms latency on the FSEventStream handles coalescing at the
             // stream level; this Task-based debounce handles any residual bursts.
             guard !Task.isCancelled else { return }
-            guard let url = containerURL else { return }
-            guard let newState = Self.readFromDisk(containerURL: url) else { return }
+            guard let newState = Self.readFromDisk(directories: watchedDirectories) else { return }
             handleStateChange(newState)
         }
     }
@@ -173,6 +175,27 @@ actor WebCompanionService: WebCompanionStateProvider {
         widgetReloadItem = item
         // 5-second debounce — last write wins
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0, execute: item)
+    }
+
+    /// Two writers feed the Mac: the Chromium helper (Application Support — the App
+    /// Group container is blocked for processes Chrome launches) and the sandboxed
+    /// Safari extension (which can only use the App Group container). Read both.
+    nonisolated static func sourceDirectories() -> [URL] {
+        var dirs: [URL] = []
+        if let chromium = BridgeFileIO.containerURL() { dirs.append(chromium) }
+        dirs.append(BridgeFileIO.groupContainerURL())
+        return dirs
+    }
+
+    /// One-shot read of `ext-side.json` from every source directory, merged, for
+    /// callers (providers) that don't hold the live service. Nil when absent/unreadable.
+    nonisolated static func readStateFromAppGroup() -> ExtSideState? {
+        readFromDisk(directories: sourceDirectories())
+    }
+
+    /// Reads each directory's `ext-side.json` and merges them (newest entry per key wins).
+    static func readFromDisk(directories: [URL]) -> ExtSideState? {
+        BridgeMerger.combine(directories.compactMap { readFromDisk(containerURL: $0) })
     }
 
     private static func readFromDisk(containerURL: URL) -> ExtSideState? {
@@ -203,19 +226,22 @@ extension ExtSideState {
         now.timeIntervalSince(updatedAt) <= window
     }
 
-    /// Provider IDs with a snapshot captured within `window` seconds of `now`.
+    /// Provider IDs the extension is feeding, for the onboarding "Connected" badge.
+    ///
+    /// Uses the same rule as the Mac's own connection check (`WebPoolFreshness.isUsable`)
+    /// so the badge never disagrees with whether the pool actually shows up in the
+    /// popover. The old flat 5-minute window flapped for pools the extension polls every
+    /// 10 minutes, or only when you send a ChatGPT message.
     ///
     /// Deliberately checks each snapshot's own `capturedAt`, not the whole-state
     /// `updatedAt` that `isFresh` uses — the bridge heartbeats every ~60s
     /// regardless of which provider's usage it last saw, so a stale provider's
-    /// snapshot can sit alongside a fresh `updatedAt`. Mirrors
-    /// `DetectionService.bridgeHeartbeat(for:)`'s per-provider freshness rule
-    /// (same 5-minute default window) — used by `ProviderChooserView` to show
-    /// "Connected" for extension-fed providers actively feeding usage.
-    func freshlyConnectedProviderIds(at now: Date = Date(), within window: TimeInterval = 300) -> Set<ProviderId> {
+    /// snapshot can sit alongside a fresh `updatedAt`. Used by `ProviderChooserView`
+    /// to show "Connected" for extension-fed providers.
+    func freshlyConnectedProviderIds(at now: Date = Date()) -> Set<ProviderId> {
         Set(snapshots.compactMap { rawId, snapshot -> ProviderId? in
-            guard let id = ProviderId(rawValue: rawId) else { return nil }
-            guard now.timeIntervalSince(snapshot.capturedAt) <= window else { return nil }
+            guard let id = ProviderId(rawValue: rawId),
+                  WebPoolFreshness.isUsable(snapshot, id: id, now: now) else { return nil }
             return id
         })
     }
