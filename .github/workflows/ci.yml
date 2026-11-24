@@ -25,6 +25,12 @@ jobs:
         CODE_SIGN_IDENTITY=-
         CODE_SIGNING_REQUIRED=NO
         CODE_SIGNING_ALLOWED=NO
+      # A hung test fails by name after a minute instead of eating the
+      # whole job timeout with no clue which test it was.
+      TEST_TIMEOUT_FLAGS: >-
+        -test-timeouts-enabled YES
+        -default-test-execution-time-allowance 60
+        -maximum-test-execution-time-allowance 120
 
     steps:
       - name: Checkout
@@ -62,7 +68,8 @@ jobs:
             -project Tokenomics.xcodeproj \
             -scheme Tokenomics \
             -destination 'platform=macOS' \
-            $XCODEBUILD_FLAGS
+            $XCODEBUILD_FLAGS \
+            $TEST_TIMEOUT_FLAGS
 
       # Widget-sync tests use a temp file (no App Group entitlement needed),
       # so they run in CI alongside NotificationPostingTests. Set repository variable
@@ -74,4 +81,5 @@ jobs:
             -project Tokenomics.xcodeproj \
             -scheme TokenomicsIntegration \
             -destination 'platform=macOS' \
-            $XCODEBUILD_FLAGS
+            $XCODEBUILD_FLAGS \
+            $TEST_TIMEOUT_FLAGS

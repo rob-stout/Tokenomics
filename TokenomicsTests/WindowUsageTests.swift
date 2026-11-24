@@ -52,8 +52,12 @@ final class WindowUsageTests: XCTestCase {
             resetsAt: .distantFuture,
             windowDuration: 5 * 3600
         )
-        XCTAssertEqual(window.timeUntilReset, "Resets Sunday",
-            "distantFuture formats as Sunday — this is why every nil-resetsAt window must set sublabelOverride")
+        // distantFuture's weekday depends on the time zone (Sunday in US zones,
+        // Monday in UTC as on CI), so compare against the local weekday.
+        let weekday = DateFormatter()
+        weekday.dateFormat = "EEEE"
+        XCTAssertEqual(window.timeUntilReset, "Resets \(weekday.string(from: .distantFuture))",
+            "distantFuture formats as a weekday — this is why every nil-resetsAt window must set sublabelOverride")
     }
 
     /// With the override in place, no weekday name can leak into the sublabel —
