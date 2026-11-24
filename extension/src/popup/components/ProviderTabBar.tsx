@@ -59,7 +59,7 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
   useEffect(() => {
     barRef.current
       ?.querySelector<HTMLElement>('[aria-selected="true"]')
-      ?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      ?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); // matches the Mac's animated centering
   }, [textLabels, selected, visibleProviderIds.length]);
 
   // Let a plain mouse wheel scroll the bar sideways (trackpads already can).
