@@ -126,6 +126,24 @@ function buildOptions(autoPlan: ChatGPTPlan): RadioOption[] {
 
 const IS_MAC = /Mac/i.test(navigator.platform);
 
+/** What each row tracks. Same-brand pairs (OpenAI/ChatGPT, Google AI/Gemini) are separate limits. */
+const PROVIDER_ABOUT: Record<ProviderId, string> = {
+  claude: 'Chats and Claude Code share these limits',
+  codex: 'Codex, the coding agent',
+  chatgpt: 'Chats on chatgpt.com, separate from Codex',
+  gemini: 'Gemini CLI, the coding agent',
+  geminiConsumer: 'Chats in the Gemini app, separate from Gemini CLI',
+  copilot: 'Coding assistant in your editor',
+  cursor: 'AI code editor',
+  midjourney: 'Image generation (Fast hours)',
+  elevenlabs: 'Voice generation credits',
+  grok: 'Chats on grok.com (daily queries)',
+  perplexity: 'Pro searches and research',
+  leonardo: 'Image generation credits',
+  suno: 'Music generation credits',
+  udio: 'Music generation credits',
+};
+
 function ProviderVisibilitySection() {
   const [visibility, setVisibility] = useState<Record<string, ProviderVisibilitySetting>>({});
   const [orderSetting, setOrderSetting] = useState<ProviderOrderSetting | undefined>(undefined);
@@ -256,7 +274,7 @@ function ProviderVisibilitySection() {
         <h2 class="options-section__title">Providers</h2>
       </div>
       <p class="options-section__description">
-        Choose which providers appear, and drag them to set the tab order. In the toolbar
+        Turn a provider off to hide it from the menu bar and popup. Drag to set the tab order. In the toolbar
         popup, {IS_MAC ? '⌘' : 'Ctrl'}-drag a tab ({IS_MAC ? 'Ctrl' : '⌘'}-drag on{' '}
         {IS_MAC ? 'Windows' : 'Mac'}). Both sync automatically when the Mac app is connected;
         providers only one side has are skipped.
@@ -296,9 +314,7 @@ function ProviderVisibilitySection() {
               <span class={`toggle-row__icon toggle-row__icon--${id}`} aria-hidden="true" />
               <span class="toggle-row__body">
                 <span class="toggle-row__label">{meta.displayName}</span>
-                <span class="toggle-row__helper">
-                  Hidden in menu bar and popup when off
-                </span>
+                <span class="toggle-row__helper">{PROVIDER_ABOUT[id]}</span>
               </span>
               <button
                 type="button"
