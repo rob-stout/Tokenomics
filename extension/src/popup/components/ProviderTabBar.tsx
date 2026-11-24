@@ -55,6 +55,21 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
     if (moved && finalOrder) onReorder?.(finalOrder, movedId);
   };
 
+  // Fade the edge(s) with more tabs past them, the hint that the strip scrolls.
+  const [fade, setFade] = useState<'none' | 'left' | 'right' | 'both'>('none');
+  const updateFade = () => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const left = bar.scrollLeft > 1;
+    const right = bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 1;
+    setFade(left && right ? 'both' : left ? 'left' : right ? 'right' : 'none');
+  };
+  useEffect(() => {
+    updateFade();
+    window.addEventListener('resize', updateFade);
+    return () => window.removeEventListener('resize', updateFade);
+  }, [visibleProviderIds.length, selected, textLabels]);
+
   // When the tabs overflow and scroll, keep the selected one in view.
   useEffect(() => {
     barRef.current
@@ -75,6 +90,8 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
       ref={barRef}
       class={`tab-bar${textLabels ? ' tab-bar--text' : ''}`}
       role="tablist"
+      data-fade={fade}
+      onScroll={updateFade}
       onWheel={handleWheel}
     >
       {ids.map((provider) => {

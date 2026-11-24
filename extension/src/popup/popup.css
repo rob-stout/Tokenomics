@@ -149,6 +149,17 @@ body {
   display: none;
 }
 
+/* Scroll hint: fade whichever edge has more tabs past it (set from JS). */
+.tab-bar[data-fade='right'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+.tab-bar[data-fade='left'] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+}
+.tab-bar[data-fade='both'] {
+  mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+}
+
 .tab {
   flex: 1 0 auto;
   min-width: 32px;
@@ -181,7 +192,9 @@ body {
 }
 
 .tab--selected {
-  flex: 0 0 160px;
+  /* Fixed so the strip doesn't shift between tabs: fits the longest name
+     ("ElevenLabs") with 12px either side. */
+  flex: 0 0 100px;
   gap: 5px;
   padding: 6px 12px;
   color: var(--widget-name);

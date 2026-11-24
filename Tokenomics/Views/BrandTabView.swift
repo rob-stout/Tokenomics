@@ -26,6 +26,18 @@ struct BrandTabView: View {
     @State private var availableWidth: CGFloat = 0
     @State private var contentWidth: CGFloat = 0
 
+    /// Scroll position of the overflowing strip, for the edge fades.
+    @State private var scrollContentFrame: CGRect = .zero
+    @State private var scrollViewportWidth: CGFloat = 0
+
+    /// The selected tab's fixed width: fits the longest name ("ElevenLabs") with
+    /// 12pt either side, and stays the same on every tab so the strip doesn't
+    /// shift when you switch. Grows with the Text Size setting.
+    private var selectedTabWidth: CGFloat { 110 * textSize.iconScale }
+
+    /// Width of the fade at a scrollable edge.
+    private let edgeFade: CGFloat = 28
+
     /// Icon-only mode kicks in at 4+ brands to keep the popover compact.
     private var useIconOnly: Bool { brands.count >= 4 }
 
@@ -84,7 +96,26 @@ struct BrandTabView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
                         tabRow(fill: false)
+                            .background(
+                                GeometryReader { geo in
+                                    Color.clear.preference(
+                                        key: ScrollContentFrameKey.self,
+                                        value: geo.frame(in: .named("brandTabScroll"))
+                                    )
+                                }
+                            )
                     }
+                    .coordinateSpace(name: "brandTabScroll")
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.preference(key: ScrollViewportWidthKey.self, value: geo.size.width)
+                        }
+                    )
+                    .onPreferenceChange(ScrollContentFrameKey.self) { scrollContentFrame = $0 }
+                    .onPreferenceChange(ScrollViewportWidthKey.self) { scrollViewportWidth = $0 }
+                    // Fade the edge(s) that have more tabs past them — the hint that the
+                    // strip scrolls. A fade disappears once you reach that end.
+                    .mask(edgeFadeMask)
                     .onAppear {
                         if let selection { proxy.scrollTo(selection, anchor: .center) }
                     }
@@ -152,10 +183,10 @@ struct BrandTabView: View {
         let label = tabLabel(brand: brand, showLabel: showLabel, isSelected: isSelected)
 
         Group {
-            if !fill {
+            if useIconOnly && isSelected {
+                label.frame(width: selectedTabWidth) // same width on every tab
+            } else if !fill {
                 label                              // natural width (scroll)
-            } else if useIconOnly && isSelected {
-                label.frame(width: 160)            // fill: selected reserves space
             } else {
                 label.frame(maxWidth: .infinity)   // fill: others share the rest
             }
@@ -234,7 +265,7 @@ struct BrandTabView: View {
         let label = tabLabel(brand: brand, showLabel: showLabel, isSelected: isSelected)
 
         if useIconOnly && isSelected {
-            label.frame(width: 160)
+            label.frame(width: selectedTabWidth)
         } else {
             label
         }
@@ -250,7 +281,7 @@ struct BrandTabView: View {
                 .frame(width: 12 * textSize.iconScale, height: 12 * textSize.iconScale)
                 .opacity(isSelected ? 0.9 : 0.5)
             if showLabel {
-                Text(brand.displayName)
+                Text(Self.tabName(for: brand))
                     .lineLimit(1)
             }
         }
@@ -259,6 +290,39 @@ struct BrandTabView: View {
         .padding(.vertical, 6)
         .padding(.horizontal, showLabel ? 12 : 10)
     }
+}
+
+extension BrandTabView {
+    /// Tab text. "GitHub Copilot" is too long for the fixed tab; the extension says
+    /// "Copilot" too.
+    static func tabName(for brand: BrandId) -> String {
+        brand == .copilot ? "Copilot" : brand.displayName
+    }
+
+    /// Opaque in the middle, fading out at an edge only when tabs are hidden past it.
+    fileprivate var edgeFadeMask: some View {
+        let hiddenLeft = scrollContentFrame.minX < -1
+        let hiddenRight = scrollContentFrame.maxX > scrollViewportWidth + 1
+        return HStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                .frame(width: hiddenLeft ? edgeFade : 0)
+            Rectangle()
+            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: hiddenRight ? edgeFade : 0)
+        }
+        .animation(.easeInOut(duration: 0.15), value: hiddenLeft)
+        .animation(.easeInOut(duration: 0.15), value: hiddenRight)
+    }
+}
+
+private struct ScrollContentFrameKey: PreferenceKey {
+    static let defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
+}
+
+private struct ScrollViewportWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 // MARK: - Width measurement
