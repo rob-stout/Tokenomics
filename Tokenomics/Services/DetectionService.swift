@@ -250,19 +250,12 @@ actor DetectionService {
 
     // MARK: - Bridge Freshness
 
-    /// Reads ext-side.json from the App Group container and returns the heartbeat
+    /// Reads ext-side.json (Chromium bridge dir + Safari's App Group container) and returns the heartbeat
     /// date if the given provider has a snapshot that is fresher than the window.
     ///
     /// Returns nil when the file is absent, unreadable, or stale.
     private func bridgeHeartbeat(for provider: ProviderId) -> Date? {
-        guard let containerURL = fileManager.containerURL(
-            forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId
-        ) else { return nil }
-
-        let fileURL = containerURL.appendingPathComponent("ext-side.json")
-        guard let data = try? Data(contentsOf: fileURL),
-              let state = try? JSONDecoder.bridge.decode(ExtSideState.self, from: data)
-        else { return nil }
+        guard let state = WebCompanionService.readStateFromAppGroup() else { return nil }
 
         // Use the snapshot's capturedAt, which reflects when the extension last
         // saw activity from this provider — more accurate than updatedAt, which

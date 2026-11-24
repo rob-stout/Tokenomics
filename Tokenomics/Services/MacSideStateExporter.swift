@@ -19,11 +19,14 @@ actor MacSideStateExporter {
 
     // MARK: - Init
 
-    /// - Parameter containerURL: App Group container URL. Pass a temp directory in tests.
-    init(containerURL: URL? = FileManager.default.containerURL(
-        forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId
-    )) {
+    /// - Parameters:
+    ///   - containerURL: The Chromium bridge directory (primary; also where state is reloaded
+    ///     from). Pass a temp directory in tests.
+    ///   - mirrorURLs: Extra directories that get the same file — the App Group container,
+    ///     because the sandboxed Safari extension can't read anywhere else.
+    init(containerURL: URL? = BridgeFileIO.containerURL(), mirrorURLs: [URL] = []) {
         self.containerURL = containerURL
+        self.mirrorURLs = mirrorURLs
         // Load existing mac-side.json on startup so state survives relaunches.
         if let url = containerURL {
             self.currentMacSideState = Self.readFromDisk(containerURL: url) ?? Self.emptyState()
@@ -78,6 +81,7 @@ actor MacSideStateExporter {
     // MARK: - Private
 
     private let containerURL: URL?
+    private let mirrorURLs: [URL]
     private var currentMacSideState: MacSideState
     private var _lastWrittenAt: Date?
     private var pendingWriteTask: Task<Void, Never>?
@@ -94,7 +98,7 @@ actor MacSideStateExporter {
 
     private func performWrite() async {
         guard let container = containerURL else {
-            Self.log.warning("No App Group container — skipping mac-side.json write")
+            Self.log.warning("No bridge directory — skipping mac-side.json write")
             return
         }
 
@@ -107,11 +111,18 @@ actor MacSideStateExporter {
             return
         }
 
+        if write(data, to: container) { _lastWrittenAt = Date() }
+        for mirror in mirrorURLs { write(data, to: mirror) }
+    }
+
+    @discardableResult
+    private func write(_ data: Data, to container: URL) -> Bool {
+        try? FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         let lockPath = container.appendingPathComponent("bridge.lock").path
         let lockFD = open(lockPath, O_RDWR | O_CREAT, 0o666)
         guard lockFD >= 0 else {
             Self.log.error("Failed to open bridge.lock: errno \(errno)")
-            return
+            return false
         }
         defer {
             flock(lockFD, LOCK_UN)
@@ -120,7 +131,7 @@ actor MacSideStateExporter {
 
         guard flock(lockFD, LOCK_EX) == 0 else {
             Self.log.error("flock acquire failed: errno \(errno)")
-            return
+            return false
         }
 
         let pid = ProcessInfo.processInfo.processIdentifier
@@ -131,17 +142,17 @@ actor MacSideStateExporter {
             try data.write(to: tmpURL, options: .atomic)
         } catch {
             Self.log.error("Failed to write mac-side.json tmp: \(error)")
-            return
+            return false
         }
 
         let result = rename(tmpURL.path, destURL.path)
         if result == 0 {
-            _lastWrittenAt = Date()
             Self.log.debug("mac-side.json written (\(data.count) bytes)")
-        } else {
-            Self.log.error("rename mac-side.json failed: errno \(errno)")
-            try? FileManager.default.removeItem(at: tmpURL)
+            return true
         }
+        Self.log.error("rename mac-side.json failed: errno \(errno)")
+        try? FileManager.default.removeItem(at: tmpURL)
+        return false
     }
 
     // MARK: - Helpers

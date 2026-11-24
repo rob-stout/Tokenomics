@@ -140,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     })
 
     /// Writes mac-side.json with native snapshots, settings, and pending commands.
-    let macSideStateExporter = MacSideStateExporter()
+    let macSideStateExporter = MacSideStateExporter(mirrorURLs: [BridgeFileIO.groupContainerURL()])
 
     // MARK: - Lifecycle
 

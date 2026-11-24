@@ -72,10 +72,14 @@ private func exitWithError(_ message: String, code: Int32) -> Never {
 // MARK: - Version helper
 
 private func macAppVersion() -> String {
-    // Bundle.main in a CLI tool points at the tool bundle, not the host app.
-    // The host app embeds us, but we can't reliably read its Info.plist from here.
-    // Fall back to "unknown" gracefully.
-    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+    // Bundle.main is the tool itself, so walk up from
+    // <App>.app/Contents/Helpers/TokenomicsBridge to the enclosing app bundle.
+    let exe = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath()
+    let appURL = exe.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    guard appURL.pathExtension == "app",
+          let version = Bundle(url: appURL)?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    else { return "unknown" }
+    return version
 }
 
 // MARK: - Entry point
@@ -124,9 +128,9 @@ guard request.schemaVersion <= supportedSchemaVersion else {
     exitWithError("unsupported schemaVersion \(request.schemaVersion)", code: 1)
 }
 
-// Step 6 — Resolve App Group container.
+// Step 6 — Resolve the shared bridge directory.
 guard let container = BridgeFileIO.containerURL() else {
-    exitWithError("no app group: containerURL(forSecurityApplicationGroupIdentifier:) returned nil", code: 1)
+    exitWithError("no bridge directory", code: 1)
 }
 
 // Step 7 — Acquire exclusive flock on bridge.lock.
