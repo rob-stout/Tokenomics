@@ -383,12 +383,26 @@ function UsageApp() {
 
     const googleAISnap = foldGoogle && safeSelected === 'geminiConsumer' ? googleAI?.nativeSnapshot : null;
     if (currentEntry.source === 'web' && currentWebSnap && googleAISnap) {
-      return (
-        <>
+      // Same as the Mac's Google tab: a labelled group per pool, in the saved order.
+      const order = effectiveOrder(tabOrder);
+      const cliFirst = order.indexOf('gemini') < order.indexOf('geminiConsumer');
+      const web = (
+        <section class="pool-group">
+          <div class="pool-group__header">Gemini (app)</div>
           {renderUsageBars(currentWebSnap)}
-          <div class="usage-stack__divider" />
+        </section>
+      );
+      const cli = (
+        <section class="pool-group">
+          <div class="pool-group__header">Gemini CLI</div>
           {renderNativeBars(googleAISnap)}
-        </>
+        </section>
+      );
+      return (
+        <div class="pool-groups">
+          {cliFirst ? cli : web}
+          {cliFirst ? web : cli}
+        </div>
       );
     }
 

@@ -261,13 +261,19 @@ struct PopoverView: View {
                     let (providerId, state) = pair
 
                     // Pool header label + inline plan pill (tappable for Gemini pools)
-                    poolSectionHeader(for: providerId, planLabel: planBadgeLabel(for: providerId, usage: state.usage))
+                    poolSectionHeader(
+                        for: providerId,
+                        planLabel: planBadgeLabel(for: providerId, usage: state.usage),
+                        isFirst: index == 0
+                    )
 
                     providerContent(state, providerId: providerId)
 
                     if index < pairs.count - 1 {
+                        // Extra air around the break between pools so each reads as its own group.
                         Divider()
                             .padding(.horizontal, 16)
+                            .padding(.top, 8)
                     }
                 }
             }
@@ -277,7 +283,7 @@ struct PopoverView: View {
     /// Slim label row identifying a pool within a multi-pool brand tab.
     /// Uses the pool's `tabLabel` which carries the tool-specific name
     /// (e.g. "ChatGPT", "OpenAI" for codex).
-    private func poolSectionHeader(for providerId: ProviderId, planLabel: String?) -> some View {
+    private func poolSectionHeader(for providerId: ProviderId, planLabel: String?, isFirst: Bool = true) -> some View {
         HStack {
             Text(providerId.poolLabel)
                 .font(.system(size: 10, weight: .semibold))
@@ -289,7 +295,7 @@ struct PopoverView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
+        .padding(.top, isFirst ? 10 : 18)
         .padding(.bottom, 2)
     }
 
