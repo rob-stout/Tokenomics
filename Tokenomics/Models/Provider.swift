@@ -197,24 +197,26 @@ extension ProviderId {
         return true
     }
 
-    /// Subtitle clarifying what this row actually tracks. Anthropic's row covers the
-    /// full subscription pool; Codex/Gemini rows are scoped to their CLI tool only
-    /// (chat/image/video usage on those platforms is a separate quota with no public
-    /// read API).
+    /// One plain line on what this AI does and what's tracked, shown under the name
+    /// in onboarding and Connections. Same-brand pools (Codex CLI vs ChatGPT, Gemini CLI
+    /// vs the Gemini app) are separate quotas, so their lines say which is which.
     var scopeDescription: String? {
         switch self {
-        case .claude: return "Claude · Claude Code"
-        case .chatgpt: return "ChatGPT · via browser session"
-        case .geminiConsumer: return "Gemini · via browser session"
-        case .codex: return "Codex CLI"
-        case .gemini: return "Gemini CLI"
-        case .stableDiffusion: return "Stable Diffusion · Stable Image · Stable Video"
-        case .grok: return "Grok · via browser session"
-        case .perplexity: return "Perplexity · via browser session"
-        case .leonardo: return "Leonardo · via browser session"
-        case .suno: return "Suno · via browser session"
-        case .udio: return "Udio · via browser session"
-        default: return nil
+        case .claude: return "Chats and Claude Code share these limits"
+        case .chatgpt: return "Chats on chatgpt.com"
+        case .geminiConsumer: return "Chats on gemini.google.com"
+        case .codex: return "OpenAI's coding agent, in Terminal"
+        case .gemini: return "Google's coding agent, in Terminal"
+        case .copilot: return "Coding assistant in your editor"
+        case .cursor: return "AI code editor"
+        case .stableDiffusion: return "Image and video generation credits"
+        case .midjourney: return "Image generation (Fast hours)"
+        case .runway: return "Video generation credits"
+        case .elevenlabs: return "Voice generation credits"
+        case .grok: return "Chats on grok.com"
+        case .perplexity: return "Pro searches and research"
+        case .leonardo: return "Image generation credits"
+        case .suno, .udio: return "Music generation credits"
         }
     }
 
