@@ -264,7 +264,14 @@ browser.runtime.onMessage.addListener(
       return { kind: 'ACK' };
     }
 
+    if (msg.kind === 'SYNC_NOW') {
+      void sendBridgeBatch('settings').catch(() => undefined);
+      return { kind: 'ACK' };
+    }
+
     if (msg.kind === 'REFRESH_REQUESTED') {
+      // Refresh also forces a sync with the Mac (the manual fallback).
+      void sendBridgeBatch('settings').catch(() => undefined);
       const [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff, udioBackoff] =
         await Promise.all([
           getBackoff(),

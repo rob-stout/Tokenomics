@@ -558,6 +558,8 @@ final class UsageViewModel {
             applyDemoData(snapshots: DemoData.allSnapshots)
             return
         }
+        // Manual fallback for sync: pick up any order the extension saved.
+        applyExtensionProviderOrder()
         Task {
             // Manual refresh counts as activity — resets idle timer
             await pollingService.noteActivity()
@@ -644,9 +646,15 @@ final class UsageViewModel {
               remote.lastChangedAt > (SettingsService.providerOrderChangedAt ?? Date(timeIntervalSince1970: 0))
         else { return }
 
-        let merged = ProviderOrderSync
+        let applied = ProviderOrderSync
             .applyIncomingOrder(remote.order, to: orderedProviders.map(\.rawValue))
             .compactMap { ProviderId(rawValue: $0) }
+        // One tab per brand here, so keep a brand's pools together; the brand sits
+        // where its first pool landed (the extension already sends them adjacent).
+        var merged: [ProviderId] = []
+        for id in applied where !merged.contains(id) {
+            merged.append(contentsOf: applied.filter { $0.brand == id.brand })
+        }
         isApplyingRemoteOrder = true
         providerOrder = merged
         isApplyingRemoteOrder = false

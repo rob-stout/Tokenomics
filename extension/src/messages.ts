@@ -10,6 +10,8 @@ export type ExtensionMessage =
   | { kind: 'REFRESH_REQUESTED' }
   /** The user reordered tabs in the popup; the order is already in storage. */
   | { kind: 'ORDER_CHANGED' }
+  /** Popup opened: sync with the Mac now instead of waiting for the next heartbeat. */
+  | { kind: 'SYNC_NOW' }
   | { kind: 'CONSENT_GRANTED' }
   | { kind: 'CHATGPT_MESSAGE'; model: string | null; ts: number }
   | { kind: 'CHATGPT_SET_PLAN'; plan: 'free' | 'plus' | 'pro' | 'team' | 'auto' }

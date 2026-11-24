@@ -18,7 +18,7 @@ import { useTextLabels } from '../label-mode';
 import { TEXT_LABELS_ONLY } from '../labels';
 import { ConsentScreen } from '../popup/components/ConsentScreen';
 import { PROVIDER_META, type ProviderId } from '../types';
-import { effectiveOrder, moveInOrder, moveToPosition } from '../provider-order';
+import { effectiveOrder, groupByBrand, moveInOrder, moveToPosition } from '../provider-order';
 import { TRYTOKENOMICS_URL } from '../urls';
 import { applyOrderChange, applyVisibilityToggle } from './options-logic';
 
@@ -168,7 +168,9 @@ function ProviderVisibilitySection() {
     void applyVisibilityToggle(id, enabled, visibility, browserSaveVisibility).then(setVisibility);
   };
 
-  const commitOrder = (next: ProviderId[]) => {
+  const commitOrder = (moved: ProviderId[], movedId: ProviderId) => {
+    // Same-brand rows travel together so the Mac's single brand tab matches.
+    const next = groupByBrand(moved, movedId);
     // Optimistic so the row moves immediately; the stamped setting replaces it.
     setOrderSetting({ order: next, lastChangedAt: orderSetting?.lastChangedAt ?? '' });
     void applyOrderChange(next, orderSetting, saveOrder).then(setOrderSetting);
@@ -203,7 +205,7 @@ function ProviderVisibilitySection() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                if (dragId && dragId !== id) commitOrder(moveToPosition(order, dragId, id));
+                if (dragId && dragId !== id) commitOrder(moveToPosition(order, dragId, id), dragId);
                 setDragId(null);
               }}
             >
@@ -221,7 +223,7 @@ function ProviderVisibilitySection() {
                   class="order-button"
                   aria-label={`Move ${meta.displayName} up`}
                   disabled={index === 0}
-                  onClick={() => commitOrder(moveInOrder(order, id, -1))}
+                  onClick={() => commitOrder(moveInOrder(order, id, -1), id)}
                 >
                   ↑
                 </button>
@@ -230,7 +232,7 @@ function ProviderVisibilitySection() {
                   class="order-button"
                   aria-label={`Move ${meta.displayName} down`}
                   disabled={index === order.length - 1}
-                  onClick={() => commitOrder(moveInOrder(order, id, 1))}
+                  onClick={() => commitOrder(moveInOrder(order, id, 1), id)}
                 >
                   ↓
                 </button>

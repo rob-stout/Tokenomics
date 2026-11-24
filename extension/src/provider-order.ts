@@ -96,7 +96,7 @@ export function adoptIncomingOrder(
   if (!incoming) return null;
   if (local && toMillis(incoming.lastChangedAt) <= toMillis(local.lastChangedAt)) return null;
   return {
-    order: applyIncomingOrder(incoming.order, effectiveOrder(local?.order)),
+    order: groupByBrand(applyIncomingOrder(incoming.order, effectiveOrder(local?.order))),
     lastChangedAt: incoming.lastChangedAt,
   };
 }
@@ -114,4 +114,41 @@ export function sortByOrder<T>(
 /** Drag slot = how many other tabs' midpoints the pointer has passed (tabs differ in width). */
 export function dropIndex(otherMidpoints: readonly number[], pointerX: number): number {
   return otherMidpoints.filter((mid) => mid < pointerX).length;
+}
+
+/**
+ * Brands whose pools share ONE tab on the Mac (mirrors `ProviderId.brand` in Swift).
+ * Everything else is its own brand. Keeping a brand's ids side by side in the order
+ * makes the Mac's single brand tab and the extension's separate tabs line up.
+ */
+const BRAND_OF: Partial<Record<ProviderId, string>> = {
+  codex: 'openai',
+  chatgpt: 'openai',
+  gemini: 'google',
+  geminiConsumer: 'google',
+};
+
+export function brandOf(id: string): string {
+  return BRAND_OF[id as ProviderId] ?? id;
+}
+
+/**
+ * Makes each brand's ids contiguous. A brand's block goes where `anchor` sits if
+ * `anchor` belongs to it (the tab the user just moved), else at its first member.
+ */
+export function groupByBrand<T extends string>(order: readonly T[], anchor?: string): T[] {
+  const anchorBrand = anchor !== undefined ? brandOf(anchor) : undefined;
+  const out: T[] = [];
+  const done = new Set<string>();
+  for (const id of order) {
+    const brand = brandOf(id);
+    if (done.has(brand)) continue;
+    if (brand === anchorBrand && id !== anchor) continue; // wait for the moved tab
+    done.add(brand);
+    const members = order.filter((x) => brandOf(x) === brand);
+    // The moved tab leads its block; the rest keep their relative order.
+    if (brand === anchorBrand) out.push(id, ...members.filter((x) => x !== id));
+    else out.push(...members);
+  }
+  return out;
 }

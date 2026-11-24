@@ -5,6 +5,7 @@ import {
   adoptIncomingOrder,
   applyIncomingOrder,
   dropIndex,
+  groupByBrand,
   effectiveOrder,
   moveInOrder,
   moveToPosition,
@@ -110,4 +111,18 @@ test('dropIndex: one slot left of a wide tab is reachable (midpoint rule)', () =
   assert.equal(dropIndex([20, 60, 260], 61), 2);
   assert.equal(dropIndex([20, 60, 260], 300), 3);
   assert.equal(dropIndex([], 50), 0);
+});
+
+test('groupByBrand: moved Gemini pulls Google AI along (Mac has one Google tab)', () => {
+  const order = ['claude', 'codex', 'gemini', 'leonardo', 'udio', 'geminiConsumer', 'midjourney'];
+  assert.deepEqual(groupByBrand(order, 'geminiConsumer'),
+    ['claude', 'codex', 'leonardo', 'udio', 'geminiConsumer', 'gemini', 'midjourney']);
+});
+
+test('groupByBrand: no anchor keeps each brand at its first member', () => {
+  assert.deepEqual(groupByBrand(['chatgpt', 'claude', 'codex', 'suno']), ['chatgpt', 'codex', 'claude', 'suno']);
+});
+
+test('groupByBrand: anchor outside a pair leaves pairs at their first member', () => {
+  assert.deepEqual(groupByBrand(['gemini', 'suno', 'geminiConsumer'], 'suno'), ['gemini', 'geminiConsumer', 'suno']);
 });

@@ -10,7 +10,7 @@ interface Props {
   /** Show every tab as its site name (no logos). The bar scrolls sideways. */
   textLabels?: boolean;
   /** Cmd-drag reorder (same gesture as the Mac popover). Gets the new visible order on drop. */
-  onReorder?: (visibleOrder: ProviderId[]) => void;
+  onReorder?: (visibleOrder: ProviderId[], moved: ProviderId) => void;
 }
 
 
@@ -46,12 +46,13 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
 
   const handlePointerUp = () => {
     if (!dragged) return;
+    const movedId = dragged;
     const finalOrder = preview;
     setDragged(null);
     setPreview(null);
     const moved = !!finalOrder && finalOrder.join() !== visibleProviderIds.join();
     justDragged.current = moved; // swallow the click that follows a drop
-    if (moved && finalOrder) onReorder?.(finalOrder);
+    if (moved && finalOrder) onReorder?.(finalOrder, movedId);
   };
 
   // Text tabs don't all fit in 368px, so keep the selected one in view.
