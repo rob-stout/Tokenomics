@@ -154,6 +154,7 @@ final class NMHManifestInstallerTests: XCTestCase {
         let origins = json["allowed_origins"] as? [String] ?? []
         XCTAssertTrue(origins.contains("chrome-extension://gcjaebikgcbccgbnbcimccflcgoeefio/"))
         XCTAssertTrue(origins.contains("chrome-extension://nolficmmhjkgmoclepbclpmefilhlejl/"))
+        XCTAssertTrue(origins.contains("chrome-extension://akeboakoapnlcliaebljgefnihpmohhk/"))
     }
 }
 
