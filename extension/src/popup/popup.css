@@ -132,13 +132,19 @@ body {
 
 /* ── Tab bar ────────────────────────────────────────── */
 
+.tab-bar-wrap {
+  /* Draws the rounded field. Kept separate from the scrolling strip so the edge
+     fade below dims the icons, not the field itself. */
+  margin: 0 var(--s-4);
+  padding: 2px;
+  background: var(--widget-hover);
+  border-radius: 8px;
+}
+
 .tab-bar {
   display: flex;
   gap: 2px;
-  padding: 2px;
-  margin: 0 var(--s-4);
-  background: var(--widget-hover);
-  border-radius: 8px;
+  border-radius: 6px;
   /* Like the Mac popover: tabs keep their size and the strip scrolls sideways
      when they don't fit (web sites plus the Mac's coding tools). */
   overflow-x: auto;

@@ -86,43 +86,45 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
   };
 
   return (
-    <div
-      ref={barRef}
-      class={`tab-bar${textLabels ? ' tab-bar--text' : ''}`}
-      role="tablist"
-      data-fade={fade}
-      onScroll={updateFade}
-      onWheel={handleWheel}
-    >
-      {ids.map((provider) => {
-        const meta = PROVIDER_META[provider];
-        const isSelected = provider === selected;
-        return (
-          <button
-            key={provider}
-            type="button"
-            role="tab"
-            aria-selected={isSelected}
-            class={`tab${isSelected ? ' tab--selected' : ''}${dragged === provider ? ' tab--dragging' : ''}`}
-            title={meta.tabLabel}
-            data-provider={provider}
-            onPointerDown={(e) => handlePointerDown(e, provider)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onClick={() => {
-              if (justDragged.current) {
-                justDragged.current = false;
-                return;
-              }
-              onSelect(provider);
-            }}
-          >
-            {textLabels ? null : <span class={`tab__icon tab__icon--${provider}`} aria-hidden="true" />}
-            {textLabels || isSelected ? <span class="tab__label">{meta.tabLabel}</span> : null}
-          </button>
-        );
-      })}
+    <div class="tab-bar-wrap">
+      <div
+        ref={barRef}
+        class={`tab-bar${textLabels ? ' tab-bar--text' : ''}`}
+        role="tablist"
+        data-fade={fade}
+        onScroll={updateFade}
+        onWheel={handleWheel}
+      >
+        {ids.map((provider) => {
+          const meta = PROVIDER_META[provider];
+          const isSelected = provider === selected;
+          return (
+            <button
+              key={provider}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              class={`tab${isSelected ? ' tab--selected' : ''}${dragged === provider ? ' tab--dragging' : ''}`}
+              title={meta.tabLabel}
+              data-provider={provider}
+              onPointerDown={(e) => handlePointerDown(e, provider)}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onClick={() => {
+                if (justDragged.current) {
+                  justDragged.current = false;
+                  return;
+                }
+                onSelect(provider);
+              }}
+            >
+              {textLabels ? null : <span class={`tab__icon tab__icon--${provider}`} aria-hidden="true" />}
+              {textLabels || isSelected ? <span class="tab__label">{meta.tabLabel}</span> : null}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
