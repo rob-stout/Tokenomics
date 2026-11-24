@@ -45,6 +45,8 @@ struct ContentView: View {
         Text("Turn on Tokenomics in Safari")
             .font(Tokens.Typography.Onboarding.h1)
             .foregroundStyle(Tokens.DynamicColor.text)
+            // Wraps instead of truncating to "…in S…" in the 440 pt window.
+            .fixedSize(horizontal: false, vertical: true)
 
         Text("Turn it on, then allow it on the sites you want it to read. Tokenomics shows your web AI usage — ChatGPT, Gemini, Claude and more — right in Safari.")
             .font(Tokens.Typography.Onboarding.lede)
