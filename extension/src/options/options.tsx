@@ -1,5 +1,5 @@
 import { render } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import browser from 'webextension-polyfill';
 import type { ExtensionMessage, ExtensionResponse } from '../messages';
 import type { ChatGPTPlan } from '../chatgpt';
@@ -18,7 +18,7 @@ import { useTextLabels } from '../label-mode';
 import { TEXT_LABELS_ONLY } from '../labels';
 import { ConsentScreen } from '../popup/components/ConsentScreen';
 import { PROVIDER_META, type ProviderId } from '../types';
-import { effectiveOrder, groupByBrand, moveInOrder, moveToPosition } from '../provider-order';
+import { dropIndex, effectiveOrder, groupByBrand, moveInOrder } from '../provider-order';
 import { TRYTOKENOMICS_URL } from '../urls';
 import { applyOrderChange, applyVisibilityToggle } from './options-logic';
 
@@ -124,11 +124,38 @@ function buildOptions(autoPlan: ChatGPTPlan): RadioOption[] {
 
 // ── ProviderVisibilitySection ─────────────────────────
 
+const IS_MAC = /Mac/i.test(navigator.platform);
+
+/** What each row tracks. Same-brand pairs (Codex CLI/ChatGPT, Gemini CLI/Gemini app) are separate limits. */
+const PROVIDER_ABOUT: Record<ProviderId, string> = {
+  claude: 'Chats and Claude Code share these limits',
+  codex: 'OpenAI’s coding agent, in Terminal',
+  chatgpt: 'Chats on chatgpt.com, separate from Codex CLI',
+  gemini: 'Google’s coding agent, in Terminal',
+  geminiConsumer: 'Chats on gemini.google.com, separate from Gemini CLI',
+  copilot: 'Coding assistant in your editor',
+  cursor: 'AI code editor',
+  midjourney: 'Image generation (Fast hours)',
+  elevenlabs: 'Voice generation credits',
+  grok: 'Chats on grok.com (daily queries)',
+  perplexity: 'Pro searches and research',
+  leonardo: 'Image generation credits',
+  suno: 'Music generation credits',
+  udio: 'Music generation credits',
+};
+
 function ProviderVisibilitySection() {
   const [visibility, setVisibility] = useState<Record<string, ProviderVisibilitySetting>>({});
   const [orderSetting, setOrderSetting] = useState<ProviderOrderSetting | undefined>(undefined);
   const [dragId, setDragId] = useState<ProviderId | null>(null);
-  const order = effectiveOrder(orderSetting?.order);
+  // Live order while dragging, so the other rows slide out of the way under the pointer.
+  const [preview, setPreview] = useState<ProviderId[] | null>(null);
+  const [pointerY, setPointerY] = useState(0);
+  const grabOffset = useRef(0);
+  const groupRef = useRef<HTMLDivElement>(null);
+  const lastTops = useRef(new Map<string, number>());
+  const savedOrder = effectiveOrder(orderSetting?.order);
+  const order = preview ?? savedOrder;
 
   useEffect(() => {
     void loadVisibility().then(setVisibility);
@@ -176,6 +203,70 @@ function ProviderVisibilitySection() {
     void applyOrderChange(next, orderSetting, saveOrder).then(setOrderSetting);
   };
 
+  const rows = () =>
+    Array.from(groupRef.current?.querySelectorAll<HTMLElement>('[data-provider]') ?? []);
+
+  const startDrag = (e: PointerEvent, id: ProviderId) => {
+    // The switch keeps its click; everything else on the row picks the row up.
+    if (e.button !== 0 || (e.target as HTMLElement).closest('[role="switch"]')) return;
+    const row = e.currentTarget as HTMLElement;
+    row.setPointerCapture(e.pointerId);
+    grabOffset.current = e.clientY - row.getBoundingClientRect().top;
+    setPointerY(e.clientY);
+    setDragId(id);
+    setPreview([...savedOrder]);
+  };
+
+  const moveDrag = (e: PointerEvent) => {
+    if (!dragId || !preview || !groupRef.current) return;
+    setPointerY(e.clientY);
+    // Same midpoint rule as the popup tabs and the Mac popover: a row only moves once
+    // the pointer passes its middle, so it can't flip back and forth under the cursor.
+    const top = groupRef.current.getBoundingClientRect().top;
+    const mids = rows()
+      .filter((r) => r.dataset.provider !== dragId)
+      .map((r) => top + r.offsetTop + r.offsetHeight / 2);
+    const to = dropIndex(mids, e.clientY);
+    if (preview.indexOf(dragId) === to) return;
+    const next = preview.filter((p) => p !== dragId);
+    next.splice(to, 0, dragId);
+    setPreview(next);
+  };
+
+  const endDrag = () => {
+    if (!dragId) return;
+    const final = preview;
+    const moved = dragId;
+    setDragId(null);
+    setPreview(null);
+    if (final && final.join() !== savedOrder.join()) commitOrder(final, moved);
+  };
+
+  // The dragged row follows the pointer; the rest slide (FLIP) into their new slots.
+  useLayoutEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    const top = group.getBoundingClientRect().top;
+    for (const row of rows()) {
+      const id = row.dataset.provider ?? '';
+      const prev = lastTops.current.get(id);
+      lastTops.current.set(id, row.offsetTop);
+      if (id === dragId) {
+        row.style.transition = 'none';
+        row.style.transform = `translateY(${pointerY - grabOffset.current - (top + row.offsetTop)}px)`;
+      } else if (prev !== undefined && prev !== row.offsetTop) {
+        row.style.transition = 'none';
+        row.style.transform = `translateY(${prev - row.offsetTop}px)`;
+        void row.offsetHeight; // commit the start position before animating
+        row.style.transition = '';
+        row.style.transform = '';
+      } else if (!dragId) {
+        row.style.transform = '';
+        row.style.transition = '';
+      }
+    }
+  });
+
   return (
     <section class="options-section">
       <div class="options-section__header">
@@ -183,11 +274,13 @@ function ProviderVisibilitySection() {
         <h2 class="options-section__title">Providers</h2>
       </div>
       <p class="options-section__description">
-        Choose which providers appear, and drag them (or use the arrows) to set the tab order.
-        Both sync automatically when the Mac app is connected; providers only one side has are skipped.
+        Turn a provider off to hide it from the menu bar and popup. Drag to set the tab order. In the toolbar
+        popup, {IS_MAC ? '⌘' : 'Ctrl'}-drag a tab ({IS_MAC ? 'Ctrl' : '⌘'}-drag on{' '}
+        {IS_MAC ? 'Windows' : 'Mac'}). Both sync automatically when the Mac app is connected;
+        providers only one side has are skipped.
       </p>
 
-      <div class="toggle-group">
+      <div class="toggle-group" ref={groupRef}>
         {order.map((id, index) => {
           const meta = PROVIDER_META[id];
           const entry = visibility[id];
@@ -198,44 +291,30 @@ function ProviderVisibilitySection() {
             // A div, not a label: a label would forward body clicks to the first button inside it.
             <div
               key={id}
+              data-provider={id}
               class={`toggle-row toggle-row--sortable${dragId === id ? ' toggle-row--dragging' : ''}`}
-              draggable
-              onDragStart={() => setDragId(id)}
-              onDragEnd={() => setDragId(null)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (dragId && dragId !== id) commitOrder(moveToPosition(order, dragId, id), dragId);
-                setDragId(null);
-              }}
+              onPointerDown={(e) => startDrag(e, id)}
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
             >
-              <span class="order-handle" aria-hidden="true" title="Drag to reorder">⠿</span>
+              <button
+                type="button"
+                class="order-handle"
+                aria-label={`Reorder ${meta.displayName}. Use the up and down arrow keys.`}
+                onKeyDown={(e) => {
+                  const delta = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+                  if (!delta || (delta < 0 && index === 0) || (delta > 0 && index === order.length - 1)) return;
+                  e.preventDefault();
+                  commitOrder(moveInOrder(order, id, delta), id);
+                }}
+              >
+                ⠿
+              </button>
               <span class={`toggle-row__icon toggle-row__icon--${id}`} aria-hidden="true" />
               <span class="toggle-row__body">
                 <span class="toggle-row__label">{meta.displayName}</span>
-                <span class="toggle-row__helper">
-                  Hidden in menu bar and popup when off
-                </span>
-              </span>
-              <span class="order-buttons">
-                <button
-                  type="button"
-                  class="order-button"
-                  aria-label={`Move ${meta.displayName} up`}
-                  disabled={index === 0}
-                  onClick={() => commitOrder(moveInOrder(order, id, -1), id)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  class="order-button"
-                  aria-label={`Move ${meta.displayName} down`}
-                  disabled={index === order.length - 1}
-                  onClick={() => commitOrder(moveInOrder(order, id, 1), id)}
-                >
-                  ↓
-                </button>
+                <span class="toggle-row__helper">{PROVIDER_ABOUT[id]}</span>
               </span>
               <button
                 type="button"

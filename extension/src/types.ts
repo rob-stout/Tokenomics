@@ -27,15 +27,15 @@ export interface ProviderMeta {
 
 export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   claude: { tabLabel: 'Claude', displayName: 'Claude', iconBase: 'Claude' },
-  codex: { tabLabel: 'OpenAI', displayName: 'OpenAI', iconBase: 'Codex' },
+  codex: { tabLabel: 'OpenAI', displayName: 'Codex CLI', iconBase: 'Codex' },
   // chatgpt = the consumer ChatGPT web pool (chat.openai.com). Separate usage
   // meter from Codex CLI; shares the OpenAI mark. Routed to its own pool on the
   // Mac side (was incorrectly riding the 'codex' key before this).
   chatgpt: { tabLabel: 'ChatGPT', displayName: 'ChatGPT', iconBase: 'Codex' },
-  gemini: { tabLabel: 'Google AI', displayName: 'Google AI', iconBase: 'Gemini' },
+  gemini: { tabLabel: 'Google AI', displayName: 'Gemini CLI', iconBase: 'Gemini' },
   // geminiConsumer = the web app (gemini.google.com) reader.
   // Shares the Gemini icon with the CLI pool — same brand, separate usage meter.
-  geminiConsumer: { tabLabel: 'Gemini', displayName: 'Gemini', iconBase: 'Gemini' },
+  geminiConsumer: { tabLabel: 'Gemini', displayName: 'Gemini (app)', iconBase: 'Gemini' },
   copilot: { tabLabel: 'Copilot', displayName: 'GitHub Copilot', iconBase: 'Copilot' },
   cursor: { tabLabel: 'Cursor', displayName: 'Cursor', iconBase: 'Cursor' },
   midjourney: { tabLabel: 'Midjourney', displayName: 'Midjourney', iconBase: 'midjourney' },

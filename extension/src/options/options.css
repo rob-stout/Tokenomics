@@ -155,6 +155,24 @@ body {
 [data-theme='dark'] .toggle-row__icon--cursor    { background-image: url(../icons/providers/Cursor-white.svg); }
 [data-theme='dark'] .toggle-row__icon--midjourney { background-image: url(../icons/providers/midjourney-white.svg); }
 
+.toggle-row__icon--chatgpt { background-image: url(../icons/providers/Codex-d.blue.svg); }
+.toggle-row__icon--geminiConsumer { background-image: url(../icons/providers/Gemini-d.blue.svg); }
+.toggle-row__icon--elevenlabs { background-image: url(../icons/providers/elevenlabs-d.blue.svg); }
+.toggle-row__icon--grok { background-image: url(../icons/providers/grok-d.blue.svg); }
+.toggle-row__icon--perplexity { background-image: url(../icons/providers/perplexity-d.blue.svg); }
+.toggle-row__icon--leonardo { background-image: url(../icons/providers/leonardo-d.blue.svg); }
+.toggle-row__icon--suno { background-image: url(../icons/providers/suno-d.blue.svg); }
+.toggle-row__icon--udio { background-image: url(../icons/providers/udio-d.blue.svg); }
+
+[data-theme='dark'] .toggle-row__icon--chatgpt { background-image: url(../icons/providers/Codex-white.svg); }
+[data-theme='dark'] .toggle-row__icon--geminiConsumer { background-image: url(../icons/providers/Gemini-white.svg); }
+[data-theme='dark'] .toggle-row__icon--elevenlabs { background-image: url(../icons/providers/elevenlabs-white.svg); }
+[data-theme='dark'] .toggle-row__icon--grok { background-image: url(../icons/providers/grok-white.svg); }
+[data-theme='dark'] .toggle-row__icon--perplexity { background-image: url(../icons/providers/perplexity-white.svg); }
+[data-theme='dark'] .toggle-row__icon--leonardo { background-image: url(../icons/providers/leonardo-white.svg); }
+[data-theme='dark'] .toggle-row__icon--suno { background-image: url(../icons/providers/suno-white.svg); }
+[data-theme='dark'] .toggle-row__icon--udio { background-image: url(../icons/providers/udio-white.svg); }
+
 /* Site-name mode hides every vendor logo on the options page too. */
 [data-labels='text'] .toggle-row__icon,
 [data-labels='text'] .options-section__icon--chatgpt {
@@ -164,6 +182,7 @@ body {
 /* ── Toggle group ────────────────────────────────────────── */
 
 .toggle-group {
+  position: relative; /* rows measure offsetTop from here while dragging */
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -512,47 +531,35 @@ body {
 /* ── Tab reordering (same list as visibility) ────────────── */
 
 .toggle-row--sortable {
-  cursor: default;
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background: var(--surface);
+  transition: transform 180ms var(--ease);
 }
 
-.toggle-row--dragging {
-  opacity: 0.5;
+.toggle-row.toggle-row--dragging {
+  z-index: 1;
+  background: var(--surface);
+  cursor: grabbing;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
 .order-handle {
   flex-shrink: 0;
-  color: var(--text-subtle);
-  cursor: grab;
-  user-select: none;
-}
-
-.order-buttons {
-  flex-shrink: 0;
-  display: flex;
-  gap: 2px;
-}
-
-.order-button {
-  width: 24px;
-  height: 24px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text-subtle);
+  font: inherit;
+  cursor: inherit;
 }
 
-.order-button:hover:not(:disabled) {
-  background: var(--bg-2);
-}
-
-.order-button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.order-button:focus-visible {
+.order-handle:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
 }
+
+

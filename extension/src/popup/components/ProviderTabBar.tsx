@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { dropIndex } from '../../provider-order';
 import { PROVIDER_META, type ProviderId } from '../../types';
 
+const IS_MAC = /Mac/i.test(navigator.platform);
+
 interface Props {
   selected: ProviderId;
   /** Ordered list of visible provider IDs to render as tabs. */
@@ -9,7 +11,7 @@ interface Props {
   onSelect: (provider: ProviderId) => void;
   /** Show every tab as its site name (no logos). The bar scrolls sideways. */
   textLabels?: boolean;
-  /** Cmd-drag reorder (same gesture as the Mac popover). Gets the new visible order on drop. */
+  /** ⌘-drag (Ctrl-drag off Mac) reorder (same gesture as the Mac popover). Gets the new visible order on drop. */
   onReorder?: (visibleOrder: ProviderId[], moved: ProviderId) => void;
 }
 
@@ -22,7 +24,8 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
   const ids = preview ?? visibleProviderIds;
 
   const handlePointerDown = (e: PointerEvent, provider: ProviderId) => {
-    if (!onReorder || !e.metaKey || e.button !== 0) return;
+    // ⌘ on Mac; Ctrl elsewhere (Ctrl-click on a Mac is a right-click).
+    if (!onReorder || !(IS_MAC ? e.metaKey : e.ctrlKey) || e.button !== 0) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     setDragged(provider);
     setPreview([...visibleProviderIds]);
