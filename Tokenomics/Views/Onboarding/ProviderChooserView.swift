@@ -123,10 +123,22 @@ struct ProviderChooserView: View {
             HStack(alignment: .center, spacing: Tokens.Spacing.s4 - 2) { // 14pt — mockup gap: 14px
                 // 32×32 provider icon — mockup .provider-icon (lines 414–423):
                 //   width/height 32, border-radius 8, bg surface, 1px border
-                // Nested pools sit under their brand header's icon, so they skip their own
-                // and indent to line up with the brand name.
-                if nested {
-                    Color.clear.frame(width: 32, height: 1)
+                // Nested pools indent under the brand name and show the surface glyph
+                // (extension vs Terminal) instead of the logo, as in Settings.
+                if nested, let symbol = provider.surfaceSymbol {
+                    HStack(spacing: 0) {
+                        Color.clear.frame(width: 32 + Tokens.Spacing.s4 - 2, height: 1)
+                        Image(systemName: symbol)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Tokens.Color.text(scheme))
+                            .frame(width: 26, height: 26)
+                            .background(Tokens.Color.surface(scheme))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(Tokens.Color.border(scheme), lineWidth: 1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
                 } else {
                     chooserProviderIcon(for: provider)
                 }
