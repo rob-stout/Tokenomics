@@ -15,6 +15,8 @@ import { PROVIDERS, type ProviderId } from '../types';
 // is stored locally and bridged the same way as claude/midjourney — it belongs
 // in WEB_PROVIDERS so the popup shows it with an empty state when no data yet.
 // leonardo is also content-script-driven (Cognito token grab) — same pattern.
+// suno is content-script-driven too (in-page billing fetch with the Clerk cookie).
+// udio is a plain SW poll (cookie auth), like grok / perplexity.
 export const WEB_PROVIDERS: readonly ProviderId[] = [
   'claude',
   'codex',
@@ -24,6 +26,8 @@ export const WEB_PROVIDERS: readonly ProviderId[] = [
   'grok',
   'perplexity',
   'leonardo',
+  'suno',
+  'udio',
 ];
 
 // Native-only providers — rendered from Mac-bridge snapshots only.
@@ -43,6 +47,8 @@ export const SIGN_IN: Partial<Record<ProviderId, { url: string; site: string }>>
   grok: { url: 'https://grok.com', site: 'grok.com' },
   perplexity: { url: 'https://www.perplexity.ai', site: 'perplexity.ai' },
   leonardo: { url: 'https://app.leonardo.ai', site: 'leonardo.ai' },
+  suno: { url: 'https://suno.com', site: 'suno.com' },
+  udio: { url: 'https://www.udio.com', site: 'udio.com' },
   elevenlabs: { url: 'https://elevenlabs.io', site: 'elevenlabs.io' },
   geminiConsumer: { url: 'https://gemini.google.com', site: 'gemini.google.com' },
 };

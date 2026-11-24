@@ -71,3 +71,23 @@ export function formatTimeUntilReset(usage: WindowUsage, now: number = Date.now(
   if (hours > 0) return `Resets in ${hours}h ${minutes}m`;
   return `Resets in ${minutes}m`;
 }
+
+/**
+ * Free accounts keep reporting the first reset date long after it passed
+ * (seen live: a May 1 date in November). Credits still refresh monthly on
+ * that day, so roll a past date forward by calendar months instead of
+ * inventing "30 days from now", which would never count down.
+ * Missing date: fall back to now + 30d (the pace marker is then ~0, hidden).
+ */
+export function nextMonthlyReset(resetMs: number, now: number): string {
+  if (resetMs <= 0) return new Date(now + 30 * 86_400_000).toISOString();
+  const d = new Date(resetMs);
+  const day = d.getUTCDate();
+  for (let i = 0; d.getTime() <= now && i < 600; i++) {
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    d.setUTCDate(Math.min(day, lastDay));
+  }
+  return d.toISOString();
+}

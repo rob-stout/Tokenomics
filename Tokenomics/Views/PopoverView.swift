@@ -441,14 +441,14 @@ struct PopoverView: View {
         } else if let error = state.error, state.usage == nil {
             errorView(error)
         } else if let usage = state.usage {
-            usageContent(usage)
+            usageContent(usage, providerId: providerId)
         } else {
             loadingView
         }
     }
 
     @ViewBuilder
-    private func usageContent(_ usage: ProviderUsageSnapshot) -> some View {
+    private func usageContent(_ usage: ProviderUsageSnapshot, providerId: ProviderId) -> some View {
         VStack(spacing: 12) {
             UsageBarView(
                 label: usage.shortWindow.label,
@@ -468,6 +468,13 @@ struct PopoverView: View {
                     sublabel: longWindow.timeUntilReset,
                     replayTrigger: viewModel.refreshCount
                 )
+            }
+
+            if let note = Self.webReadingNote(for: usage, providerId: providerId) {
+                Text(note)
+                    .scaledFont(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // Extra usage (Claude Max)
@@ -493,6 +500,22 @@ struct PopoverView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    /// Caption under a browser-fed pool: how old the reading is when the browser has
+    /// stopped reporting, and a heads-up when the numbers are an estimate. Nil for the
+    /// Mac's own live reads and for fresh exact readings, so most cards look unchanged.
+    static func webReadingNote(
+        for usage: ProviderUsageSnapshot,
+        providerId: ProviderId,
+        now: Date = Date()
+    ) -> String? {
+        var parts: [String] = []
+        if let capturedAt = usage.capturedAt, WebPoolFreshness.isStale(usage, id: providerId, now: now) {
+            parts.append("Last read \(WebPoolFreshness.ageText(since: capturedAt, now: now)) ago")
+        }
+        if usage.estimated == true { parts.append("Estimated from your browser activity") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func extraUsageSection(_ extra: ExtraUsage) -> some View {

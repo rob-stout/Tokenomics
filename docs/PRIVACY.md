@@ -32,8 +32,10 @@ Tokenomics makes outbound API calls only to the provider endpoints that own your
 | Stability AI | `https://api.stability.ai/v1/user/balance` |
 | Runway | `https://api.dev.runwayml.com/v1/credits` |
 | ElevenLabs | `https://api.elevenlabs.io/v1/user/subscription` |
+| Suno (via the browser extension) | `https://studio-api.prod.suno.com/api/billing/info/` — requested by the extension from your own signed-in suno.com tab; the Mac app itself makes no Suno calls |
+| Udio (via the browser extension) | `https://www.udio.com/api/users/current/api-usage` and `https://www.udio.com/api/subscriptions` — requested by the extension using your signed-in udio.com session; the Mac app itself makes no Udio calls |
 
-OpenAI and Google usage data is read from local CLI session files — no network calls are made for those providers. Midjourney, Suno, and Udio currently ship as placeholder tiles; Tokenomics does not read credentials or make network calls for them.
+OpenAI and Google usage data is read from local CLI session files — no network calls are made for those providers. Midjourney currently ships as a placeholder tile; Tokenomics does not read credentials or make network calls for it. Suno and Udio usage is read only by the optional browser extension, from your own signed-in suno.com tab and udio.com session (the Mac app receives just the usage numbers).
 
 Tokenomics also checks for app updates via [Sparkle](https://sparkle-project.org), which contacts:
 

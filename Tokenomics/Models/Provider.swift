@@ -125,11 +125,10 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         // chatgpt and geminiConsumer data arrives via the NMH bridge (browser-session)
         case .chatgpt, .geminiConsumer: return true
         // Web-companion readers via NMH bridge
-        case .midjourney, .grok, .perplexity, .leonardo: return true
-        // When flipping any of these to `true`, update docs/PRIVACY.md —
-        // the placeholder note currently tells users Tokenomics makes no
-        // network calls or credential reads for these providers.
-        case .suno, .udio: return false
+        case .midjourney, .grok, .perplexity, .leonardo, .suno, .udio: return true
+        // If a provider is ever flipped back to a placeholder, update
+        // docs/PRIVACY.md. (.suno and .udio are read by the browser extension;
+        // PRIVACY.md describes both.)
         }
     }
 
@@ -194,10 +193,8 @@ extension ProviderId {
     var hasAPI: Bool {
         // geminiConsumer data comes via the NMH bridge — counts as "has API"
         // for the purposes of showing the setup CTA in the chooser.
-        switch self {
-        case .suno, .udio: return false
-        default: return true
-        }
+        // Every provider now has a data path (.suno and .udio via the extension).
+        return true
     }
 
     /// Subtitle clarifying what this row actually tracks. Anthropic's row covers the
@@ -215,6 +212,8 @@ extension ProviderId {
         case .grok: return "Grok · via browser session"
         case .perplexity: return "Perplexity · via browser session"
         case .leonardo: return "Leonardo · via browser session"
+        case .suno: return "Suno · via browser session"
+        case .udio: return "Udio · via browser session"
         default: return nil
         }
     }
@@ -230,8 +229,7 @@ extension ProviderId {
         case .copilot: return "#copilot"
         case .cursor: return "#cursor"
         case .stableDiffusion, .runway, .elevenlabs: return "#api-key"
-        case .midjourney, .grok, .perplexity, .leonardo: return "#browser-extension"
-        case .suno, .udio: return ""
+        case .midjourney, .grok, .perplexity, .leonardo, .suno, .udio: return "#browser-extension"
         }
     }
 
@@ -534,6 +532,33 @@ struct ProviderUsageSnapshot: Codable, Sendable {
     let planLabel: String
     let extraUsage: ExtraUsage?
     let creditsBalance: String?
+    /// When the numbers were read. Nil for the Mac's own live reads; set for readings
+    /// relayed by the browser extension, which can be older than "now" (browser closed,
+    /// tab idle). Drives the popover's "Last read 3h ago" note and notification gating.
+    let capturedAt: Date?
+    /// True when the extension derived the numbers from a local counter rather than
+    /// the provider's usage endpoint (ChatGPT fallback). Nil = not applicable / exact.
+    let estimated: Bool?
+
+    /// Optional trailing fields default to nil so every existing call site (and every
+    /// cached/widget JSON written before these fields existed) keeps working.
+    init(
+        shortWindow: WindowUsage,
+        longWindow: WindowUsage?,
+        planLabel: String,
+        extraUsage: ExtraUsage?,
+        creditsBalance: String?,
+        capturedAt: Date? = nil,
+        estimated: Bool? = nil
+    ) {
+        self.shortWindow = shortWindow
+        self.longWindow = longWindow
+        self.planLabel = planLabel
+        self.extraUsage = extraUsage
+        self.creditsBalance = creditsBalance
+        self.capturedAt = capturedAt
+        self.estimated = estimated
+    }
 }
 
 /// A single usage window (e.g. 5-hour or 7-day)

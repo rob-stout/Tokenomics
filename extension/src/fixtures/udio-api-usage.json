@@ -1,0 +1,23 @@
+{
+  "data": {
+    "tier": "free",
+    "concurrent_used": 0,
+    "daily_used": 2,
+    "two_min_daily_used": 0,
+    "monthly_used": 2,
+    "disabled": false,
+    "discretionary": 0,
+    "monthly_discretionary": 100,
+    "start_day": "2026-11-23T15:17:51.795824Z",
+    "start_month": "2026-11-23T15:17:51.795824Z",
+    "last_use": "2026-11-23T15:18:24.636702Z",
+    "concurrent_limit": 2,
+    "daily_throttle_limit": 10,
+    "daily_throttled": false,
+    "monthly_limit": 310,
+    "two_min_daily_throttle_limit": 3,
+    "renew_time": "2026-12-23T15:17:51.795824Z",
+    "subscription_status": null,
+    "trial_end": null
+  }
+}

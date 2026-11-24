@@ -108,6 +108,8 @@ extension Notification.Name {
     /// Posted by AppDelegate when the extension requests a native-provider refresh.
     /// Observed by UsageViewModel on the main actor to trigger re-polling.
     static let tokenomicsBridgeRefreshRequested = Notification.Name("tokenomicsBridgeRefreshRequested")
+    /// Posted whenever `ext-side.json` is re-read — new web-pool numbers are available.
+    static let tokenomicsExtSideStateChanged = Notification.Name("tokenomicsExtSideStateChanged")
 
     /// Posted by SettingsService.setVisibility after each provider visibility change.
     /// Object is the ProviderId.rawValue String; userInfo contains the ProviderVisibilitySetting.
@@ -133,6 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // WebCompanionService fires this on an arbitrary actor. Post a notification
         // so UsageViewModel (@MainActor) can pick it up safely on the main queue.
         NotificationCenter.default.post(name: .tokenomicsBridgeRefreshRequested, object: nil)
+    }, onStateChanged: {
+        NotificationCenter.default.post(name: .tokenomicsExtSideStateChanged, object: nil)
     })
 
     /// Writes mac-side.json with native snapshots, settings, and pending commands.

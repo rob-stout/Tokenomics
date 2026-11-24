@@ -33,14 +33,32 @@
  * Utilization is computed from a plan→cap table (see PLAN_CAPS below) because
  * the API returns tokens *remaining* but no cap.
  *
+ * ── API KEY PATH (optional, preferred) ───────────────────────────────────────
+ * With a user-pasted API key the reader calls the official REST endpoint
+ *   GET https://cloud.leonardo.ai/api/rest/v1/me   (Authorization: Bearer <key>)
+ * which returns `{ user_details: [{ subscriptionTokens, paidTokens,
+ * subscriptionGptTokens, subscriptionModelTokens, apiSubscriptionTokens,
+ * tokenRenewalDate, user: { id, username } }] }` (field list from Leonardo's
+ * official SDK models for getUserSelf).
+ *
+ * DIFFERENCES vs the web GraphQL path (see mapMeToSnapshot):
+ *  - /me has NO `plan` and NO `rolloverTokens`, so the plan→cap table cannot be
+ *    applied: utilization is not derivable and is reported as 0 (same as the
+ *    existing unknown-plan behavior). The honest number is "N tokens left".
+ *  - tokens left = subscriptionTokens + paidTokens (rollover is not exposed;
+ *    it is likely folded into those balances, unverified).
+ *  - The GPT / model / API pools are separate and excluded, as before.
+ *
  * NOTE: `apiCredit` / `apiSubscriptionTokens` fields are a SEPARATE developer-API
  * pool and are intentionally excluded from this reader.
  */
 
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
+import type { RenewalPoll } from './renewal';
 
 const GRAPHQL_URL = 'https://api.leonardo.ai/v1/graphql';
 const DAY_SEC = 86400;
+const ME_URL = 'https://cloud.leonardo.ai/api/rest/v1/me';
 
 // Per-plan token caps for the utilization ring. The Leonardo API returns
 // tokens *remaining* but no cap, so we map the plan to its known allotment.
@@ -62,8 +80,12 @@ function capForPlan(plan: string | undefined): number {
 }
 
 export class AuthError extends Error {
-  constructor(status: number) {
-    super(`Not signed in to leonardo.ai (status ${status})`);
+  constructor(status: number, viaApiKey = false) {
+    super(
+      viaApiKey
+        ? `Leonardo rejected the API key (status ${status}). Check that it is correct.`
+        : `Not signed in to leonardo.ai (status ${status})`,
+    );
     this.name = 'AuthError';
   }
 }
@@ -140,6 +162,75 @@ async function fetchUserDetails(idToken: string, userSub: string): Promise<UserD
   return details;
 }
 
+// ── Official API-key endpoint (/me) ───────────────────────────
+
+/** Subset of `user_details[0]` from GET /api/rest/v1/me. */
+export interface MeUserDetails {
+  subscriptionTokens?: number | null;
+  paidTokens?: number | null;
+  tokenRenewalDate?: string | null;
+}
+
+interface MeResponse {
+  user_details?: MeUserDetails[];
+}
+
+/** Fetch the token balance with the user's own Leonardo API key. */
+/** Renewal inputs: balance = subscriptionTokens, purchased = paidTokens (see renewal.ts). */
+export type LeoPoll = RenewalPoll;
+
+export async function fetchLeonardoUsageWithApiKey(apiKey: string): Promise<LeoPoll> {
+  const res = await fetch(ME_URL, {
+    headers: { Authorization: `Bearer ${apiKey}`, accept: 'application/json' },
+  });
+
+  if (res.status === 401 || res.status === 403) throw new AuthError(res.status, true);
+  if (res.status === 429) throw new RateLimitError();
+  if (!res.ok) throw new Error(`leonardo /me fetch failed: ${res.status}`);
+
+  const body = (await res.json()) as MeResponse;
+  const d = body.user_details?.[0] ?? null;
+  const now = Date.now();
+  return {
+    snapshot: mapMeToSnapshot(d, now),
+    balance: num(d?.subscriptionTokens),
+    purchased: num(d?.paidTokens),
+    renewalKnown: isFutureDate(d?.tokenRenewalDate, now),
+  };
+}
+
+/**
+ * Pure mapper from /me `user_details[0]` to a snapshot. Exported for tests.
+ * See the API KEY PATH note in the file header for why utilization is 0.
+ */
+export function mapMeToSnapshot(
+  details: MeUserDetails | null,
+  now: number = Date.now(),
+): ProviderUsageSnapshot {
+  const totalLeft = num(details?.subscriptionTokens) + num(details?.paidTokens);
+  const resetsAt = renewalDateToIso(details?.tokenRenewalDate ?? undefined, now);
+  // No plan to tell daily (Free) from monthly (paid) allotments, so infer the
+  // window from how far away the renewal is. Only affects the pace marker.
+  const untilResetSec = (new Date(resetsAt).getTime() - now) / 1000;
+  const windowDurationSec = untilResetSec > 36 * 3600 ? 30 * DAY_SEC : DAY_SEC;
+
+  return {
+    provider: 'leonardo',
+    shortWindow: {
+      label: 'Tokens',
+      utilization: 0,
+      resetsAt,
+      windowDurationSec,
+      sublabelOverride: `${totalLeft} tokens left`,
+    },
+    longWindow: null,
+    extras: {},
+    planLabel: 'Leonardo',
+    capturedAt: now,
+    estimated: false,
+  };
+}
+
 // ── Public API ────────────────────────────────────────────────
 
 /**
@@ -151,9 +242,15 @@ async function fetchUserDetails(idToken: string, userSub: string): Promise<UserD
 export async function fetchLeonardoUsage(
   idToken: string,
   userSub: string,
-): Promise<ProviderUsageSnapshot> {
+): Promise<LeoPoll> {
   const details = await fetchUserDetails(idToken, userSub);
-  return mapToSnapshot(details, Date.now());
+  const now = Date.now();
+  return {
+    snapshot: mapToSnapshot(details, now),
+    balance: num(details?.subscriptionTokens),
+    purchased: num(details?.paidTokens),
+    renewalKnown: isFutureDate(details?.tokenRenewalDate, now),
+  };
 }
 
 /**
@@ -183,7 +280,8 @@ export function mapToSnapshot(
     label: 'Tokens',
     utilization,
     resetsAt: renewalDateToIso(details?.tokenRenewalDate, now),
-    windowDurationSec: DAY_SEC,
+    // Token allotments renew monthly (leonardo.ai/buy), including Free.
+    windowDurationSec: 30 * DAY_SEC,
     sublabelOverride: `${totalLeft} tokens left`,
   };
 
@@ -204,12 +302,21 @@ export function mapToSnapshot(
  * Convert `tokenRenewalDate` (ISO 8601 string from the API) to an ISO string
  * for resetsAt. Falls back to now + 24h when the field is absent or unparseable.
  */
+function isFutureDate(date: string | null | undefined, now: number): boolean {
+  if (typeof date !== 'string' || date.length === 0) return false;
+  const ms = new Date(date).getTime();
+  return Number.isFinite(ms) && ms > now;
+}
+
 function renewalDateToIso(renewalDate: string | undefined, now: number): string {
   if (typeof renewalDate === 'string' && renewalDate.length > 0) {
     const ms = new Date(renewalDate).getTime();
     if (Number.isFinite(ms) && ms > now) return new Date(ms).toISOString();
   }
-  return new Date(now + DAY_SEC * 1000).toISOString();
+  // No renewal date (seen live on a Free account via /me). Plans renew
+  // monthly, but the day is unknown, so use now + 30d: the pace marker is
+  // then 0 (hidden) and the popup shows "N tokens left" instead of a reset.
+  return new Date(now + 30 * DAY_SEC * 1000).toISOString();
 }
 
 /**

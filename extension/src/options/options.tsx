@@ -1,16 +1,21 @@
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import browser from 'webextension-polyfill';
-import type { ExtensionMessage } from '../messages';
+import type { ExtensionMessage, ExtensionResponse } from '../messages';
 import type { ChatGPTPlan } from '../chatgpt';
 import type { ProviderVisibilitySetting } from '../bridge-types';
 import {
+  getApiKey,
   getChatGPTPlanAuto,
   getChatGPTPlanOverride,
+  getShowSiteNames,
   grantConsent,
   hasConsent,
   revokeConsentAndClear,
+  setShowSiteNames,
 } from '../storage';
+import { useTextLabels } from '../label-mode';
+import { TEXT_LABELS_ONLY } from '../labels';
 import { ConsentScreen } from '../popup/components/ConsentScreen';
 import { PROVIDERS, PROVIDER_META, type ProviderId } from '../types';
 import { TRYTOKENOMICS_URL } from '../urls';
@@ -187,9 +192,156 @@ function ProviderVisibilitySection() {
   );
 }
 
+// ── ApiKeySection ─────────────────────────────────────
+
+interface ApiKeySectionProps {
+  provider: 'elevenlabs' | 'leonardo';
+  title: string;
+  hint: string;
+}
+
+type KeyStatus = { tone: 'ok' | 'error' | 'busy'; text: string } | null;
+
+/**
+ * Optional API key for a provider. The background worker verifies the key with
+ * a real call before storing it, so a typo never replaces a working setup.
+ * The stored key is never shown again — only "saved" is.
+ */
+function ApiKeySection({ provider, title, hint }: ApiKeySectionProps) {
+  const [hasKey, setHasKey] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [status, setStatus] = useState<KeyStatus>(null);
+
+  useEffect(() => {
+    void getApiKey(provider).then((key) => {
+      setHasKey(key !== null);
+      if (key !== null) setStatus({ tone: 'ok', text: 'Connected with your API key.' });
+    });
+  }, [provider]);
+
+  const send = (message: ExtensionMessage): Promise<ExtensionResponse | undefined> =>
+    browser.runtime.sendMessage(message) as Promise<ExtensionResponse | undefined>;
+
+  const handleSave = async () => {
+    setStatus({ tone: 'busy', text: 'Checking key…' });
+    try {
+      const res = await send({ kind: 'API_KEY_SAVE', provider, key: draft });
+      if (res?.kind === 'API_KEY_RESULT' && res.ok) {
+        setHasKey(true);
+        setDraft('');
+        setStatus({ tone: 'ok', text: 'Connected.' });
+      } else if (res?.kind === 'API_KEY_RESULT') {
+        setStatus({ tone: 'error', text: res.error });
+      } else {
+        setStatus({ tone: 'error', text: 'No response from the extension. Try again.' });
+      }
+    } catch {
+      setStatus({ tone: 'error', text: 'Could not reach the extension. Try again.' });
+    }
+  };
+
+  const handleRemove = async () => {
+    await send({ kind: 'API_KEY_REMOVE', provider }).catch(() => undefined);
+    setHasKey(false);
+    setStatus({ tone: 'ok', text: 'Key removed. Tokenomics will use your signed-in session again.' });
+  };
+
+  return (
+    <section class="options-section">
+      <div class="options-section__header">
+        <span class={`options-section__icon options-section__icon--${provider}`} aria-hidden="true" />
+        <h2 class="options-section__title">{title}</h2>
+      </div>
+      <p class="options-section__description">
+        API key (optional). {hint} When a key is saved, Tokenomics uses it instead
+        of your signed-in session and deletes any session token it saved earlier.
+      </p>
+      <div class="key-row">
+        <input
+          class="key-row__input"
+          type="password"
+          autocomplete="off"
+          spellcheck={false}
+          aria-label={`${title} API key`}
+          placeholder={hasKey ? 'Key saved — paste a new one to replace it' : 'Paste API key'}
+          value={draft}
+          onInput={(e) => setDraft((e.currentTarget as HTMLInputElement).value)}
+        />
+        <button
+          type="button"
+          class="key-row__button"
+          disabled={draft.trim().length === 0 || status?.tone === 'busy'}
+          onClick={() => void handleSave()}
+        >
+          Save
+        </button>
+        {hasKey ? (
+          <button type="button" class="options-section__danger" onClick={() => void handleRemove()}>
+            Remove
+          </button>
+        ) : null}
+      </div>
+      {status ? (
+        <p class={`key-row__status key-row__status--${status.tone}`} role="status">
+          {status.text}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+// ── LabelModeSection ──────────────────────────────────
+
+/** "Show site names instead of logos" — hidden in logo-free (--text-labels) builds. */
+function LabelModeSection() {
+  const effective = useTextLabels();
+  const [stored, setStored] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void getShowSiteNames().then(setStored);
+  }, []);
+
+  if (TEXT_LABELS_ONLY) return null;
+
+  const isOn = stored ?? effective;
+  const handleToggle = () => {
+    setStored(!isOn);
+    void setShowSiteNames(!isOn);
+  };
+
+  return (
+    <section class="options-section">
+      <div class="options-section__header">
+        <h2 class="options-section__title">Appearance</h2>
+      </div>
+      <div class="toggle-group">
+        <label class="toggle-row">
+          <span class="toggle-row__body">
+            <span class="toggle-row__label">Show site names instead of logos</span>
+            <span class="toggle-row__helper">
+              Popup tabs show plain text names; no logos are displayed
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isOn}
+            class={`toggle-switch${isOn ? ' toggle-switch--on' : ''}`}
+            aria-label="Show site names instead of logos"
+            onClick={handleToggle}
+          >
+            <span class="toggle-switch__thumb" />
+          </button>
+        </label>
+      </div>
+    </section>
+  );
+}
+
 // ── Component ────────────────────────────────────────
 
 function Options({ onStop }: { onStop: () => void }) {
+  useTextLabels(); // applies <html data-labels> so CSS hides logos in text mode
   const [autoPlan, setAutoPlan] = useState<ChatGPTPlan>('unknown');
   // null means no override is set (radio shows 'auto').
   // 'unknown' is never a valid override value so we narrow to PlanChoice.
@@ -257,6 +409,8 @@ function Options({ onStop }: { onStop: () => void }) {
 
       <ProviderVisibilitySection />
 
+      <LabelModeSection />
+
       <section class="options-section">
         <div class="options-section__header">
           <span class="options-section__icon options-section__icon--chatgpt" aria-hidden="true" />
@@ -292,6 +446,18 @@ function Options({ onStop }: { onStop: () => void }) {
           ))}
         </div>
       </section>
+
+      <ApiKeySection
+        provider="elevenlabs"
+        title="ElevenLabs"
+        hint="Create one at elevenlabs.io under Developers → API Keys. If you restrict the key, set “User” to “Access”."
+      />
+
+      <ApiKeySection
+        provider="leonardo"
+        title="Leonardo"
+        hint="Create one at app.leonardo.ai under API Access (a Leonardo API plan may be required)."
+      />
 
       <section class="options-section">
         <div class="options-section__header">

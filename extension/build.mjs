@@ -16,6 +16,11 @@ const safari = process.argv.includes('--safari');
 // manifest `key` (the stores assign the ID and reject a pinned one), zipped
 // into release/ ready to upload.
 const store = process.argv.includes('--store');
+// Logo-free build: site names replace vendor logos everywhere, the provider
+// logo files are left out of the package, and the options toggle is hidden.
+// Combinable with --safari / --store. Output dirs are unchanged, so don't ship
+// a --text-labels build from a dir you also use for the logo build.
+const textLabels = process.argv.includes('--text-labels');
 const outdir = safari ? 'dist-safari' : store ? 'dist-store' : 'dist';
 
 await rm(outdir, { recursive: true, force: true });
@@ -38,6 +43,7 @@ const shared = {
   // `pure` calls are only removed during syntax minification; this keeps
   // names and whitespace intact so the store build stays readable.
   minifySyntax: !watch,
+  define: { __TEXT_LABELS_ONLY__: String(textLabels) },
 };
 
 // SW + popup ship as ES modules (the SW manifest declares `type: module`).
@@ -76,6 +82,7 @@ const contentCtx = await esbuild.context({
     'content/elevenlabs-grab': 'src/content/elevenlabs-grab.ts',
     'content/leonardo-main': 'src/content/leonardo-main.ts',
     'content/leonardo-watch': 'src/content/leonardo-watch.ts',
+    'content/suno-watch': 'src/content/suno-watch.ts',
   },
   format: 'iife',
 });
@@ -117,7 +124,12 @@ await cp('src/popup/tokens.css', `${outdir}/options/tokens.css`);
 // entrypoint); the browser also needs the raw file for the HTML <link>.
 await cp('src/options/options.css', `${outdir}/options/options.css`);
 if (existsSync('src/icons')) {
-  await cp('src/icons', `${outdir}/icons`, { recursive: true });
+  await cp('src/icons', `${outdir}/icons`, {
+    recursive: true,
+    // Vendor logos stay out of a --text-labels package entirely (the Tokenomics
+    // app icons at icons/*.png are ours and stay).
+    filter: (src) => !(textLabels && src.includes('/icons/providers')),
+  });
 }
 
 if (watch) {

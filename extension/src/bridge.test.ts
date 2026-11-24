@@ -163,6 +163,7 @@ test('gather: extension-only readers reach the Mac', async () => {
         grokSnapshot: mkSnap('grok'),
         perplexitySnapshot: mkSnap('perplexity'),
         leonardoSnapshot: mkSnap('leonardo'),
+        elevenLabsSnapshot: mkSnap('elevenlabs'),
       },
       resolve,
     );
@@ -172,7 +173,7 @@ test('gather: extension-only readers reach the Mac', async () => {
 
   const req = capturedRequest as Record<string, unknown>;
   const ids = (req['snapshots'] as BridgeSnapshot[]).map((s) => s.provider);
-  for (const id of ['geminiConsumer', 'grok', 'perplexity', 'leonardo']) {
+  for (const id of ['geminiConsumer', 'grok', 'perplexity', 'leonardo', 'elevenlabs']) {
     assert.ok(ids.includes(id), `bridge must transmit ${id} (was being silently dropped)`);
   }
 });
@@ -394,4 +395,35 @@ test('schema version cached: bridgeState.lastBridgeSchemaVersion reflects respon
   });
   const state = stored['bridgeState'] as { lastBridgeSchemaVersion: number };
   assert.equal(state.lastBridgeSchemaVersion, 1, 'Schema version should be cached after successful handshake');
+});
+
+// ── A bad reset date must not poison the whole message ──────
+
+import { toBridgeSnapshotSafe } from './bridge';
+
+test('toBridgeSnapshotSafe: empty short-window reset → snapshot left out', () => {
+  const snap = {
+    provider: 'geminiConsumer' as const,
+    shortWindow: { label: '5-Hour', utilization: 10, resetsAt: '', windowDurationSec: 18000 },
+    longWindow: null,
+    extras: {},
+    planLabel: 'Pro',
+    capturedAt: Date.UTC(2026, 10, 23),
+  };
+  assert.equal(toBridgeSnapshotSafe(snap), null);
+});
+
+test('toBridgeSnapshotSafe: empty long-window reset → long window dropped, rest kept', () => {
+  const snap = {
+    provider: 'geminiConsumer' as const,
+    shortWindow: { label: '5-Hour', utilization: 10, resetsAt: '2026-11-23T20:00:00.000Z', windowDurationSec: 18000 },
+    longWindow: { label: 'Weekly', utilization: 5, resetsAt: '', windowDurationSec: 604800 },
+    extras: {},
+    planLabel: 'Pro',
+    capturedAt: Date.UTC(2026, 10, 23),
+  };
+  const wire = toBridgeSnapshotSafe(snap);
+  assert.ok(wire);
+  assert.equal(wire.longWindow, null);
+  assert.equal(wire.shortWindow.utilization, 0.1);
 });

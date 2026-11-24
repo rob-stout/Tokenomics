@@ -11,6 +11,8 @@ export const PROVIDERS = [
   'grok',
   'perplexity',
   'leonardo',
+  'suno',
+  'udio',
 ] as const;
 
 export type ProviderId = (typeof PROVIDERS)[number];
@@ -43,6 +45,8 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   grok: { tabLabel: 'Grok', displayName: 'Grok', iconBase: 'grok' },
   perplexity: { tabLabel: 'Perplexity', displayName: 'Perplexity', iconBase: 'perplexity' },
   leonardo: { tabLabel: 'Leonardo', displayName: 'Leonardo', iconBase: 'leonardo' },
+  suno: { tabLabel: 'Suno', displayName: 'Suno', iconBase: 'suno' },
+  udio: { tabLabel: 'Udio', displayName: 'Udio', iconBase: 'udio' },
 };
 
 export function isProviderId(value: unknown): value is ProviderId {

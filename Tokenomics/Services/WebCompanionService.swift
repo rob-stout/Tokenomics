@@ -29,8 +29,15 @@ actor WebCompanionService: WebCompanionStateProvider {
     /// - Parameter onRefreshRequested: Called when an incoming ExtSideState signals
     ///   that the extension wants the Mac to re-poll native providers.
     ///   Wired by Agent 5: ConnectorContainer / TokenomicsApp.swift
-    init(onRefreshRequested: (@Sendable () -> Void)? = nil) {
+    /// - Parameter onStateChanged: Called after every reload of `ext-side.json` (FSEvents
+    ///   or `handleStateChange`), so the Mac can show new web-pool numbers within about
+    ///   a second of the extension writing them instead of waiting for the next poll.
+    init(
+        onRefreshRequested: (@Sendable () -> Void)? = nil,
+        onStateChanged: (@Sendable () -> Void)? = nil
+    ) {
         self.onRefreshRequested = onRefreshRequested
+        self.onStateChanged = onStateChanged
         self.containerURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId
         )
@@ -138,11 +145,13 @@ actor WebCompanionService: WebCompanionStateProvider {
     func handleStateChange(_ newState: ExtSideState) {
         cachedState = newState
         scheduleWidgetReload()
+        onStateChanged?()
     }
 
     // MARK: - Private
 
     private let onRefreshRequested: (@Sendable () -> Void)?
+    private let onStateChanged: (@Sendable () -> Void)?
     private let containerURL: URL?
     private var cachedState: ExtSideState?
     private var eventStream: FSEventStreamRef?
@@ -175,6 +184,15 @@ actor WebCompanionService: WebCompanionStateProvider {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0, execute: item)
     }
 
+    /// One-shot read of `ext-side.json` straight from the App Group container, for
+    /// callers (providers) that don't hold the live service. Nil when absent/unreadable.
+    nonisolated static func readStateFromAppGroup() -> ExtSideState? {
+        guard let url = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: WidgetDataStore.appGroupId
+        ) else { return nil }
+        return readFromDisk(containerURL: url)
+    }
+
     private static func readFromDisk(containerURL: URL) -> ExtSideState? {
         let fileURL = containerURL.appendingPathComponent("ext-side.json")
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
@@ -203,19 +221,22 @@ extension ExtSideState {
         now.timeIntervalSince(updatedAt) <= window
     }
 
-    /// Provider IDs with a snapshot captured within `window` seconds of `now`.
+    /// Provider IDs the extension is feeding, for the onboarding "Connected" badge.
+    ///
+    /// Uses the same rule as the Mac's own connection check (`WebPoolFreshness.isUsable`)
+    /// so the badge never disagrees with whether the pool actually shows up in the
+    /// popover. The old flat 5-minute window flapped for pools the extension polls every
+    /// 10 minutes, or only when you send a ChatGPT message.
     ///
     /// Deliberately checks each snapshot's own `capturedAt`, not the whole-state
     /// `updatedAt` that `isFresh` uses — the bridge heartbeats every ~60s
     /// regardless of which provider's usage it last saw, so a stale provider's
-    /// snapshot can sit alongside a fresh `updatedAt`. Mirrors
-    /// `DetectionService.bridgeHeartbeat(for:)`'s per-provider freshness rule
-    /// (same 5-minute default window) — used by `ProviderChooserView` to show
-    /// "Connected" for extension-fed providers actively feeding usage.
-    func freshlyConnectedProviderIds(at now: Date = Date(), within window: TimeInterval = 300) -> Set<ProviderId> {
+    /// snapshot can sit alongside a fresh `updatedAt`. Used by `ProviderChooserView`
+    /// to show "Connected" for extension-fed providers.
+    func freshlyConnectedProviderIds(at now: Date = Date()) -> Set<ProviderId> {
         Set(snapshots.compactMap { rawId, snapshot -> ProviderId? in
-            guard let id = ProviderId(rawValue: rawId) else { return nil }
-            guard now.timeIntervalSince(snapshot.capturedAt) <= window else { return nil }
+            guard let id = ProviderId(rawValue: rawId),
+                  WebPoolFreshness.isUsable(snapshot, id: id, now: now) else { return nil }
             return id
         })
     }

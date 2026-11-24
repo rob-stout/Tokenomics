@@ -1,6 +1,6 @@
 {
   "name": "tokenomics-web-companion",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Tokenomics browser companion — AI usage at a glance.",

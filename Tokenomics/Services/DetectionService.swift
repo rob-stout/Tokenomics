@@ -93,8 +93,6 @@ actor DetectionService {
 
     // MARK: - Configuration
 
-    private static let bridgeFreshnessWindow: TimeInterval = 5 * 60 // 5 minutes
-
     private let appLookup: any AppLookup
     private let fileManager: FileManager
     private let home: String
@@ -270,8 +268,10 @@ actor DetectionService {
         // saw activity from this provider — more accurate than updatedAt, which
         // advances on every bridge IPC call regardless of provider.
         guard let snapshot = state.snapshots[provider.rawValue] else { return nil }
-        let age = Date().timeIntervalSince(snapshot.capturedAt)
-        guard age <= Self.bridgeFreshnessWindow else { return nil }
+        // Same per-pool rule the Mac's providers use (see WebPoolFreshness), so a pool the
+        // extension polls every 10 min, or only on a ChatGPT message, isn't "undetected"
+        // half the time under the old flat 5-minute window.
+        guard WebPoolFreshness.isUsable(snapshot, id: provider, now: Date()) else { return nil }
         return snapshot.capturedAt
     }
 

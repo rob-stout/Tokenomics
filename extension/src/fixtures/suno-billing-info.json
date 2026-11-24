@@ -1,0 +1,164 @@
+{
+ "is_active": false,
+ "is_past_due": false,
+ "credits": 0,
+ "subscription_type": false,
+ "monthly_usage": 0,
+ "monthly_limit": 300,
+ "credit_packs": [],
+ "download_credit_packs": [
+  {
+   "id": "<redacted>",
+   "amount": 1,
+   "price_usd": 0,
+   "price_amount": "4.99000",
+   "price_currency_code": "USD"
+  }
+ ],
+ "visual_credit_packs": [
+  {
+   "id": "<redacted>",
+   "amount": 2500,
+   "price_usd": 0,
+   "price_amount": "14.99000",
+   "price_currency_code": "USD"
+  }
+ ],
+ "models": [
+  {
+   "can_use": false,
+   "max_lengths": {
+    "title": 100,
+    "prompt": 5000,
+    "tags": 1000,
+    "negative_tags": 1000,
+    "gpt_description_prompt": 3000
+   },
+   "name": "v6",
+   "external_key": "chirp-hawk",
+   "major_version": 6,
+   "description": "Powerful. Versatile. Refined. Our best model yet.",
+   "is_default_free_model": false,
+   "is_default_model": false,
+   "badges": [
+    "pro"
+   ],
+   "model_badges": [
+    {
+     "display_name": "PRO",
+     "light": {
+      "text_color": "000000",
+      "background_color": "00000000",
+      "border_color": "000000"
+     },
+     "dark": {
+      "text_color": "FFFFFF",
+      "background_color": "00000000",
+      "border_color": "FFFFFF"
+     }
+    }
+   ],
+   "style": {
+    "light": {
+     "text_color": "FD429C"
+    },
+    "dark": {
+     "text_color": "FD429C"
+    }
+   },
+   "capabilities": [
+    "underpainting"
+   ],
+   "features": [
+    "create_control_sliders"
+   ],
+   "allowed_condition_combinations": [
+    [
+     "extend"
+    ]
+   ],
+   "id": "<redacted>"
+  }
+ ],
+ "max_active_custom_models": 3,
+ "max_custom_model_clips": 100,
+ "plan_price": 0,
+ "plan_currency_price": 0,
+ "default_currency": "USD",
+ "eligible_currencies": [
+  "USD"
+ ],
+ "country_code": "US",
+ "can_upgrade_immediately": true,
+ "plans": [
+  {
+   "id": "<redacted>",
+   "level": 0,
+   "plan_key": "free",
+   "name": "Free Plan",
+   "features": "50 credits renew daily (10 songs)\nCreate up to 4 songs at once\nNo commercial use\nNo credit top ups\nShared generation queue",
+   "monthly_price_usd": 0,
+   "annual_price_usd": 0,
+   "usage_plan_features": [
+    {
+     "name": "tag_upsample"
+    }
+   ],
+   "prices": [],
+   "visuals_credits": 0
+  }
+ ],
+ "accessible_features": [
+  {
+   "name": "tag_upsample"
+  }
+ ],
+ "revcat_subscriptions_offering_id": "<redacted>",
+ "total_credits_left": 300,
+ "visuals_credits_left": 0,
+ "free_persona_clips_remaining": 0,
+ "free_cover_clips_remaining": 0,
+ "free_remasters_remaining": 0,
+ "free_mobile_remasters_remaining": 0,
+ "free_mobile_v4_gens_remaining": 0,
+ "free_web_v4_gens_remaining": 0,
+ "free_vox_gens_remaining": 3,
+ "free_vox_model_key": "chirp-hawk",
+ "has_been_subscriber_before": false,
+ "has_valid_school_email": false,
+ "has_been_student_subscriber_before": false,
+ "day0_boost": -1,
+ "promotions": [],
+ "audio_upload_limits": {
+  "min": 6,
+  "max": 480
+ },
+ "voice_upload_limits": {
+  "min": 10,
+  "max": 900
+ },
+ "voice_record_limits": {
+  "min": 10,
+  "max": 240
+ },
+ "agentic_limits": {
+  "max_atoms": 10,
+  "max_images": 5,
+  "max_audio_refs": 10
+ },
+ "download_usage": {
+  "current_period_downloads_used": 0,
+  "current_period_downloads_limit": 0,
+  "additional_download_remaining": 0,
+  "current_period_download_top_ups_purchased": 0,
+  "current_period_download_top_up_purchase_limit": 10
+ },
+ "is_pause_scheduled": false,
+ "is_paused": false,
+ "is_gifted": false,
+ "credit_rate_limit": {
+  "available_credits": 200,
+  "replenish_credits": 20,
+  "replenish_interval_secs": 600
+ }
+}

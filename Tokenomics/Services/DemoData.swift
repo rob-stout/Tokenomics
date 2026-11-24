@@ -33,6 +33,8 @@ enum DemoData {
             .grok: grokSnapshot,
             .perplexity: perplexitySnapshot,
             .leonardo: leonardoSnapshot,
+            .suno: sunoSnapshot,
+            .udio: udioSnapshot,
             .runway: runwaySnapshot,
             .stableDiffusion: stableDiffusionSnapshot,
         ]
@@ -285,6 +287,44 @@ enum DemoData {
             ),
             longWindow: nil,
             planLabel: "Artisan",
+            extraUsage: nil,
+            creditsBalance: nil
+        )
+    }
+
+    // Suno: credits used of the monthly allowance — 40%
+    private static var sunoSnapshot: ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            shortWindow: WindowUsage(
+                label: "Credits",
+                utilization: 40,
+                resetsAt: futureDate(days: 12),
+                windowDuration: 30 * 24 * 3600,
+                sublabelOverride: "1,500 of 2,500 left"
+            ),
+            longWindow: nil,
+            planLabel: "Pro",
+            extraUsage: nil,
+            creditsBalance: nil
+        )
+    }
+
+    // Udio: monthly credits (short) + daily throttle (long) — 1% and 20%
+    private static var udioSnapshot: ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            shortWindow: WindowUsage(
+                label: "Monthly",
+                utilization: 1,
+                resetsAt: futureDate(days: 30),
+                windowDuration: 30 * 24 * 3600
+            ),
+            longWindow: WindowUsage(
+                label: "Daily",
+                utilization: 20,
+                resetsAt: futureDate(days: 1),
+                windowDuration: 24 * 3600
+            ),
+            planLabel: "Free",
             extraUsage: nil,
             creditsBalance: nil
         )

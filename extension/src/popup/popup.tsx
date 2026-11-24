@@ -19,6 +19,8 @@ import {
   getGrokSnapshot,
   getPerplexitySnapshot,
   getLeonardoSnapshot,
+  getSunoSnapshot,
+  getUdioSnapshot,
   getPinnedProvider,
   getSelectedTab,
   grantConsent,
@@ -26,6 +28,7 @@ import {
   setPinnedProvider,
   setSelectedTab,
 } from '../storage';
+import { useTextLabels } from '../label-mode';
 import { type ProviderId } from '../types';
 import { BridgeBanner } from './components/BridgeBanner';
 import { ConsentScreen } from './components/ConsentScreen';
@@ -147,6 +150,7 @@ function UsageApp() {
   const [visibility, setVisibility] = useState<Record<string, ProviderVisibilitySetting>>({});
   const [bridgeState, setBridgeState] = useState<BridgeState | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const textLabels = useTextLabels();
 
   // ── Initial load from storage ──────────────────────────────────
   useEffect(() => {
@@ -163,7 +167,9 @@ function UsageApp() {
       getGrokSnapshot(),
       getPerplexitySnapshot(),
       getLeonardoSnapshot(),
-    ]).then(([claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo]) => {
+      getSunoSnapshot(),
+      getUdioSnapshot(),
+    ]).then(([claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo, suno, udio]) => {
       setWebSnapshots({
         ...(claude ? { claude } : {}),
         ...(chatgpt ? { codex: chatgpt } : {}),
@@ -173,6 +179,8 @@ function UsageApp() {
         ...(grok ? { grok } : {}),
         ...(perplexity ? { perplexity } : {}),
         ...(leonardo ? { leonardo } : {}),
+        ...(suno ? { suno } : {}),
+        ...(udio ? { udio } : {}),
       });
     });
     void loadNativeSnapshots().then(setNativeSnapshots);
@@ -219,6 +227,14 @@ function UsageApp() {
       if ('leonardoSnapshot' in changes) {
         const next = changes['leonardoSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
         setWebSnapshots((prev) => ({ ...prev, leonardo: next ?? undefined }));
+      }
+      if ('sunoSnapshot' in changes) {
+        const next = changes['sunoSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, suno: next ?? undefined }));
+      }
+      if ('udioSnapshot' in changes) {
+        const next = changes['udioSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
+        setWebSnapshots((prev) => ({ ...prev, udio: next ?? undefined }));
       }
       if ('nativeSnapshots' in changes) {
         const next = changes['nativeSnapshots']?.newValue as Record<string, BridgeSnapshot> | undefined;
@@ -346,6 +362,7 @@ function UsageApp() {
         selected={safeSelected}
         visibleProviderIds={visibleProviderIds}
         onSelect={handleSelectTab}
+        textLabels={textLabels}
       />
 
       <main class="popup__body">{renderBody()}</main>

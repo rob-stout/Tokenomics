@@ -222,12 +222,44 @@ body {
 .tab__icon--grok { background-image: url(../icons/providers/grok-d.blue.svg); }
 .tab__icon--perplexity { background-image: url(../icons/providers/perplexity-d.blue.svg); }
 .tab__icon--leonardo { background-image: url(../icons/providers/leonardo-d.blue.svg); }
+.tab__icon--suno { background-image: url(../icons/providers/suno-d.blue.svg); }
+.tab__icon--udio { background-image: url(../icons/providers/udio-d.blue.svg); }
 
 [data-theme='dark'] .tab__icon--geminiConsumer { background-image: url(../icons/providers/Gemini-white.svg); }
 [data-theme='dark'] .tab__icon--elevenlabs { background-image: url(../icons/providers/elevenlabs-white.svg); }
 [data-theme='dark'] .tab__icon--grok { background-image: url(../icons/providers/grok-white.svg); }
 [data-theme='dark'] .tab__icon--perplexity { background-image: url(../icons/providers/perplexity-white.svg); }
 [data-theme='dark'] .tab__icon--leonardo { background-image: url(../icons/providers/leonardo-white.svg); }
+[data-theme='dark'] .tab__icon--suno { background-image: url(../icons/providers/suno-white.svg); }
+[data-theme='dark'] .tab__icon--udio { background-image: url(../icons/providers/udio-white.svg); }
+
+/* Site-name mode: no vendor logos anywhere; every tab is its name. With 9+
+   tabs the names can't share 368px, so the bar scrolls sideways (scrollbar
+   hidden) instead of abbreviating names into guesswork. */
+[data-labels='text'] .tab__icon {
+  display: none;
+}
+
+.tab-bar--text {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar--text::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-bar--text .tab,
+.tab-bar--text .tab--selected {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 6px 10px;
+}
+
+.tab-bar--text .tab__label {
+  font-size: 11px;
+  overflow: visible;
+}
 
 /* ── Body ────────────────────────────────────────────── */
 
