@@ -54,9 +54,11 @@ struct TokenomicsWidget: Widget {
     /// Extra-large portrait (a tall column) arrived in macOS 27.
     private static var families: [WidgetFamily] {
         var families: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge]
+        #if !PRE_MACOS27_SDK
         if #available(macOS 27.0, *) {
             families.append(.systemExtraLargePortrait)
         }
+        #endif
         return families
     }
 

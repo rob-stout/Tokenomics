@@ -37,7 +37,9 @@ jobs:
           sudo xcode-select -s "$XCODE/Contents/Developer"
 
       - name: Show Xcode version
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          swift --version
 
       - name: Install xcodegen
         run: brew install xcodegen
