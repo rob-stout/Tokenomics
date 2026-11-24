@@ -375,7 +375,11 @@ final class UsageViewModel {
     init() {
         self.hasCompletedOnboarding = SettingsService.hasCompletedOnboarding
         self.pinnedProviders = SettingsService.pinnedProviders
+        // Loading the saved order isn't a user reorder: don't stamp it "now", or every
+        // launch would override an order the user set in the extension meanwhile.
+        self.isApplyingRemoteOrder = true
         self.providerOrder = SettingsService.providerOrder
+        self.isApplyingRemoteOrder = false
         self.hiddenProviders = SettingsService.hiddenProviders
         self.selectedTab = SettingsService.selectedTab
 

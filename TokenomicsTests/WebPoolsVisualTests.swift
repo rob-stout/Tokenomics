@@ -93,10 +93,15 @@ final class WebPoolsVisualTests: XCTestCase {
         let defaults = UserDefaults.standard
         let priorFlag = defaults.object(forKey: FeatureFlags.brandAggregationKey)
         let priorOrder = SettingsService.providerOrder
+        let priorOrderStamp = defaults.object(forKey: "providerOrderChangedAt")
         let priorTab = SettingsService.selectedTab
         defer {
             // The view model persists order/tab as it's mutated; leave no trace for other tests.
             SettingsService.providerOrder = priorOrder
+            // Restore the sync stamp too, or the test order looks like a fresh user
+            // reorder and gets pushed to the extension.
+            if let priorOrderStamp { defaults.set(priorOrderStamp, forKey: "providerOrderChangedAt") }
+            else { defaults.removeObject(forKey: "providerOrderChangedAt") }
             SettingsService.selectedTab = priorTab
             if let priorFlag { defaults.set(priorFlag, forKey: FeatureFlags.brandAggregationKey) }
             else { defaults.removeObject(forKey: FeatureFlags.brandAggregationKey) }
