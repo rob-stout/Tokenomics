@@ -144,12 +144,14 @@ body {
 
 .tab {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0;
-  padding: 6px 10px;
+  /* Narrow side padding so many tabs (web sites plus the Mac's coding tools) still
+     fit; flex spreads them out again when there are few. */
+  padding: 6px 2px;
   border: 0;
   border-radius: var(--r-xs);
   background: transparent;
@@ -165,9 +167,18 @@ body {
   background: var(--widget-hover);
 }
 
+.tab--dragging {
+  opacity: 0.85;
+  transform: scale(1.06);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  z-index: 1;
+  cursor: grabbing;
+}
+
 .tab--selected {
-  flex: 0 0 auto;
-  width: 160px;
+  /* Up to 160px, but gives way first when the bar is crowded (label ellipsizes). */
+  flex: 0 1 160px;
+  min-width: 48px;
   gap: 5px;
   padding: 6px 12px;
   color: var(--widget-name);

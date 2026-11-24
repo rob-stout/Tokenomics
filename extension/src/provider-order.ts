@@ -110,3 +110,8 @@ export function sortByOrder<T>(
   const rank = new Map<string, number>(effectiveOrder(stored).map((id, i) => [id, i]));
   return [...items].sort((a, b) => (rank.get(idOf(a)) ?? 1e9) - (rank.get(idOf(b)) ?? 1e9));
 }
+
+/** Drag slot = how many other tabs' midpoints the pointer has passed (tabs differ in width). */
+export function dropIndex(otherMidpoints: readonly number[], pointerX: number): number {
+  return otherMidpoints.filter((mid) => mid < pointerX).length;
+}

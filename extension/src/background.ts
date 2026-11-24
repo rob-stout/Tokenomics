@@ -258,6 +258,12 @@ browser.runtime.onMessage.addListener(
       return { kind: 'ACK' };
     }
 
+    // The popup closes too soon to run the bridge's debounced send itself.
+    if (msg.kind === 'ORDER_CHANGED') {
+      scheduleBridgeSend('settings');
+      return { kind: 'ACK' };
+    }
+
     if (msg.kind === 'REFRESH_REQUESTED') {
       const [claudeBackoff, mjBackoff, elBackoff, grokBackoff, pxBackoff, leoBackoff, udioBackoff] =
         await Promise.all([

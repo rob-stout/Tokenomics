@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { dropIndex } from '../../provider-order';
 import { PROVIDER_META, type ProviderId } from '../../types';
 
 interface Props {
@@ -8,10 +9,50 @@ interface Props {
   onSelect: (provider: ProviderId) => void;
   /** Show every tab as its site name (no logos). The bar scrolls sideways. */
   textLabels?: boolean;
+  /** Cmd-drag reorder (same gesture as the Mac popover). Gets the new visible order on drop. */
+  onReorder?: (visibleOrder: ProviderId[]) => void;
 }
 
-export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLabels = false }: Props) {
+
+export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLabels = false, onReorder }: Props) {
   const barRef = useRef<HTMLDivElement>(null);
+  const [dragged, setDragged] = useState<ProviderId | null>(null);
+  const [preview, setPreview] = useState<ProviderId[] | null>(null);
+  const justDragged = useRef(false);
+  const ids = preview ?? visibleProviderIds;
+
+  const handlePointerDown = (e: PointerEvent, provider: ProviderId) => {
+    if (!onReorder || !e.metaKey || e.button !== 0) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDragged(provider);
+    setPreview([...visibleProviderIds]);
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!dragged || !preview || !barRef.current) return;
+    const tabs = Array.from(barRef.current.querySelectorAll<HTMLElement>('[data-provider]'));
+    const mids = tabs
+      .filter((t) => t.dataset.provider !== dragged)
+      .map((t) => {
+        const r = t.getBoundingClientRect();
+        return r.left + r.width / 2;
+      });
+    const to = dropIndex(mids, e.clientX);
+    if (preview.indexOf(dragged) === to) return;
+    const next = preview.filter((id) => id !== dragged);
+    next.splice(to, 0, dragged);
+    setPreview(next);
+  };
+
+  const handlePointerUp = () => {
+    if (!dragged) return;
+    const finalOrder = preview;
+    setDragged(null);
+    setPreview(null);
+    const moved = !!finalOrder && finalOrder.join() !== visibleProviderIds.join();
+    justDragged.current = moved; // swallow the click that follows a drop
+    if (moved && finalOrder) onReorder?.(finalOrder);
+  };
 
   // Text tabs don't all fit in 368px, so keep the selected one in view.
   useEffect(() => {
@@ -36,7 +77,7 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
       role="tablist"
       onWheel={handleWheel}
     >
-      {visibleProviderIds.map((provider) => {
+      {ids.map((provider) => {
         const meta = PROVIDER_META[provider];
         const isSelected = provider === selected;
         return (
@@ -45,9 +86,20 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
             type="button"
             role="tab"
             aria-selected={isSelected}
-            class={`tab${isSelected ? ' tab--selected' : ''}`}
+            class={`tab${isSelected ? ' tab--selected' : ''}${dragged === provider ? ' tab--dragging' : ''}`}
             title={meta.tabLabel}
-            onClick={() => onSelect(provider)}
+            data-provider={provider}
+            onPointerDown={(e) => handlePointerDown(e, provider)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onClick={() => {
+              if (justDragged.current) {
+                justDragged.current = false;
+                return;
+              }
+              onSelect(provider);
+            }}
           >
             {textLabels ? null : <span class={`tab__icon tab__icon--${provider}`} aria-hidden="true" />}
             {textLabels || isSelected ? <span class="tab__label">{meta.tabLabel}</span> : null}

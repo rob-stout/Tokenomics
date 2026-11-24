@@ -29,6 +29,7 @@ import {
   setSelectedTab,
 } from '../storage';
 import { useTextLabels } from '../label-mode';
+import { applyIncomingOrder, effectiveOrder, stampUserOrder } from '../provider-order';
 import { type ProviderId } from '../types';
 import { BridgeBanner } from './components/BridgeBanner';
 import { ConsentScreen } from './components/ConsentScreen';
@@ -286,6 +287,20 @@ function UsageApp() {
     void setSelectedTab(provider);
   };
 
+  // Cmd-drag on the tab bar. Only visible tabs move; hidden ones keep their slots in
+  // the full order, the same "skip what isn't shown" rule the Mac sync uses.
+  const handleReorder = (visibleOrder: ProviderId[]) => {
+    void (async () => {
+      const prev = (await browser.storage.local.get('providerOrder'))['providerOrder'] as
+        | ProviderOrderSetting
+        | undefined;
+      const full = applyIncomingOrder(visibleOrder, effectiveOrder(prev?.order)) as ProviderId[];
+      await browser.storage.local.set({ providerOrder: stampUserOrder(full, prev) });
+      const msg: ExtensionMessage = { kind: 'ORDER_CHANGED' };
+      await browser.runtime.sendMessage(msg).catch(() => {});
+    })();
+  };
+
   const handleSetSmart = () => {
     setPinned(null);
     void setPinnedProvider(null);
@@ -371,6 +386,7 @@ function UsageApp() {
         visibleProviderIds={visibleProviderIds}
         onSelect={handleSelectTab}
         textLabels={textLabels}
+        onReorder={handleReorder}
       />
 
       <main class="popup__body">{renderBody()}</main>

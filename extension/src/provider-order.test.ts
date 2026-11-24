@@ -4,6 +4,7 @@ import { strict as assert } from 'node:assert';
 import {
   adoptIncomingOrder,
   applyIncomingOrder,
+  dropIndex,
   effectiveOrder,
   moveInOrder,
   moveToPosition,
@@ -100,4 +101,13 @@ test('sortByOrder: follows stored order, defaults when none, stable for unknown 
   const items = [{ id: 'udio' }, { id: 'claude' }, { id: 'copilot' }];
   assert.deepEqual(sortByOrder(items, (i) => i.id, undefined).map((i) => i.id), ['claude', 'copilot', 'udio']);
   assert.deepEqual(sortByOrder(items, (i) => i.id, ['udio']).map((i) => i.id), ['udio', 'claude', 'copilot']);
+});
+
+test('dropIndex: one slot left of a wide tab is reachable (midpoint rule)', () => {
+  // Others' midpoints at 20, 60, 260 (a wide selected tab sits between 60 and 260).
+  assert.equal(dropIndex([20, 60, 260], 10), 0);
+  assert.equal(dropIndex([20, 60, 260], 40), 1);
+  assert.equal(dropIndex([20, 60, 260], 61), 2);
+  assert.equal(dropIndex([20, 60, 260], 300), 3);
+  assert.equal(dropIndex([], 50), 0);
 });

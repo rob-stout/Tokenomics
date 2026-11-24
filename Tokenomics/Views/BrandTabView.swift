@@ -191,15 +191,17 @@ struct BrandTabView: View {
                     dragStartX = value.startLocation.x
                 }
 
+                // Slot = how many other tabs' midpoints the cursor has passed. Tabs have
+                // different widths (the selected one is wide), so "which tab is under the
+                // cursor" made some slots unreachable and the drop point feel off.
                 let currentX = value.location.x
-                let targetIndex = brands.enumerated().first { _, id in
-                    guard let frame = tabFrames[id] else { return false }
-                    return currentX >= frame.minX && currentX <= frame.maxX
-                }?.offset
+                guard let dragged = draggedBrand else { return }
+                let target = brands
+                    .filter { $0 != dragged }
+                    .filter { (tabFrames[$0]?.midX ?? .infinity) < currentX }
+                    .count
 
-                guard let target = targetIndex,
-                      let dragged = draggedBrand,
-                      let sourceIndex = brands.firstIndex(of: dragged),
+                guard let sourceIndex = brands.firstIndex(of: dragged),
                       target != sourceIndex else { return }
 
                 onMove?(dragged, target)
