@@ -40,8 +40,14 @@ final class UsageViewModel {
 
     /// Custom provider display order
     var providerOrder: [ProviderId] = [] {
-        didSet { SettingsService.providerOrder = providerOrder }
+        didSet {
+            SettingsService.providerOrder = providerOrder
+            // An order adopted from the extension must not be stamped "now" and
+            // echoed back as if the user had just made it.
+            if !isApplyingRemoteOrder { SettingsService.recordProviderOrderChange() }
+        }
     }
+    @ObservationIgnored private var isApplyingRemoteOrder = false
 
     /// Providers hidden from the tab bar
     var hiddenProviders: Set<ProviderId> = [] {
@@ -181,15 +187,7 @@ final class UsageViewModel {
 
     /// All providers in display order (custom order with fallback to enum order)
     var orderedProviders: [ProviderId] {
-        if providerOrder.isEmpty {
-            return ProviderId.allCases.map { $0 }
-        }
-        // Start with custom order, append any new providers not yet in the list
-        var result = providerOrder.filter { ProviderId.allCases.contains($0) }
-        for id in ProviderId.allCases where !result.contains(id) {
-            result.append(id)
-        }
-        return result
+        ProviderOrderSync.effectiveOrder(stored: providerOrder)
     }
 
     /// Providers to show as tabs (connected, not hidden, in custom order)
@@ -505,11 +503,27 @@ final class UsageViewModel {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                self.applyExtensionProviderOrder()
                 Task { await self.refreshBridgeProviders() }
             }
         }
 
-        bridgeObservers = [refreshObserver, visibilityObserver, extStateObserver]
+        // User reordered tabs → export it so the extension can follow.
+        let orderObserver = NotificationCenter.default.addObserver(
+            forName: .tokenomicsProviderOrderChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let setting = note.userInfo?["setting"] as? ProviderOrderSetting else { return }
+            MainActor.assumeIsolated {
+                guard let exporter = self?.macSideStateExporter else { return }
+                Task { await exporter.setProviderOrder(setting) }
+            }
+        }
+
+        bridgeObservers = [refreshObserver, visibilityObserver, extStateObserver, orderObserver]
+        // The extension may have reordered while the app was closed.
+        applyExtensionProviderOrder()
     }
 
     private func startActivityMonitor() {
@@ -614,6 +628,29 @@ final class UsageViewModel {
         // If we hid the selected tab, move to another
         if let tab = selectedTab, hiddenProviders.contains(tab) {
             selectedTab = visibleProviders.first
+        }
+    }
+
+    /// Adopts the extension's tab order if it is newer than ours. Non-matches are skipped
+    /// (see `ProviderOrderSync.applyIncomingOrder`). The adopted order keeps the
+    /// extension's timestamp, so the exporter's echo carries the same stamp and the
+    /// extension ignores it — no ping-pong.
+    func applyExtensionProviderOrder() {
+        guard let remote = WebCompanionService.readStateFromAppGroup()?.providerOrder,
+              remote.lastChangedAt > (SettingsService.providerOrderChangedAt ?? Date(timeIntervalSince1970: 0))
+        else { return }
+
+        let merged = ProviderOrderSync
+            .applyIncomingOrder(remote.order, to: orderedProviders.map(\.rawValue))
+            .compactMap { ProviderId(rawValue: $0) }
+        isApplyingRemoteOrder = true
+        providerOrder = merged
+        isApplyingRemoteOrder = false
+        SettingsService.providerOrderChangedAt = remote.lastChangedAt
+
+        if let exporter = macSideStateExporter {
+            let adopted = SettingsService.providerOrderSetting
+            Task { await exporter.setProviderOrder(adopted) }
         }
     }
 

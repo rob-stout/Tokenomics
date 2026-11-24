@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import browser from 'webextension-polyfill';
 import type { ExtensionMessage, ExtensionResponse } from '../messages';
 import type { ChatGPTPlan } from '../chatgpt';
-import type { ProviderVisibilitySetting } from '../bridge-types';
+import type { ProviderOrderSetting, ProviderVisibilitySetting } from '../bridge-types';
 import {
   getApiKey,
   getChatGPTPlanAuto,
@@ -17,9 +17,10 @@ import {
 import { useTextLabels } from '../label-mode';
 import { TEXT_LABELS_ONLY } from '../labels';
 import { ConsentScreen } from '../popup/components/ConsentScreen';
-import { PROVIDERS, PROVIDER_META, type ProviderId } from '../types';
+import { PROVIDER_META, type ProviderId } from '../types';
+import { effectiveOrder, moveInOrder, moveToPosition } from '../provider-order';
 import { TRYTOKENOMICS_URL } from '../urls';
-import { applyVisibilityToggle } from './options-logic';
+import { applyOrderChange, applyVisibilityToggle } from './options-logic';
 
 // ── Theme ────────────────────────────────────────────
 
@@ -56,6 +57,18 @@ async function loadVisibility(): Promise<Record<string, ProviderVisibilitySettin
 
 async function saveVisibility(map: Record<string, ProviderVisibilitySetting>): Promise<void> {
   await browser.storage.local.set({ providerVisibility: map });
+}
+
+async function loadOrder(): Promise<ProviderOrderSetting | undefined> {
+  const result = await browser.storage.local.get('providerOrder');
+  const raw = result['providerOrder'];
+  return raw && typeof raw === 'object' && Array.isArray((raw as ProviderOrderSetting).order)
+    ? (raw as ProviderOrderSetting)
+    : undefined;
+}
+
+async function saveOrder(setting: ProviderOrderSetting): Promise<void> {
+  await browser.storage.local.set({ providerOrder: setting });
 }
 
 // ── Visibility storage setter (browser-polyfill-aware) ────────────
@@ -113,9 +126,13 @@ function buildOptions(autoPlan: ChatGPTPlan): RadioOption[] {
 
 function ProviderVisibilitySection() {
   const [visibility, setVisibility] = useState<Record<string, ProviderVisibilitySetting>>({});
+  const [orderSetting, setOrderSetting] = useState<ProviderOrderSetting | undefined>(undefined);
+  const [dragId, setDragId] = useState<ProviderId | null>(null);
+  const order = effectiveOrder(orderSetting?.order);
 
   useEffect(() => {
     void loadVisibility().then(setVisibility);
+    void loadOrder().then(setOrderSetting);
   }, []);
 
   // Live storage updates (Mac app may sync visibility while the page is open).
@@ -130,6 +147,10 @@ function ProviderVisibilitySection() {
           | Record<string, ProviderVisibilitySetting>
           | undefined;
         if (next) setVisibility(next);
+      }
+      // The Mac app may reorder while this page is open.
+      if ('providerOrder' in changes) {
+        setOrderSetting(changes['providerOrder']?.newValue as ProviderOrderSetting | undefined);
       }
     };
     browser.storage.onChanged.addListener(handler);
@@ -147,32 +168,72 @@ function ProviderVisibilitySection() {
     void applyVisibilityToggle(id, enabled, visibility, browserSaveVisibility).then(setVisibility);
   };
 
+  const commitOrder = (next: ProviderId[]) => {
+    // Optimistic so the row moves immediately; the stamped setting replaces it.
+    setOrderSetting({ order: next, lastChangedAt: orderSetting?.lastChangedAt ?? '' });
+    void applyOrderChange(next, orderSetting, saveOrder).then(setOrderSetting);
+  };
+
   return (
     <section class="options-section">
       <div class="options-section__header">
         <span class="options-section__icon options-section__icon--providers" aria-hidden="true" />
-        <h2 class="options-section__title">Provider Visibility</h2>
+        <h2 class="options-section__title">Providers</h2>
       </div>
       <p class="options-section__description">
-        Choose which providers appear in the popup and in the Tokenomics menu bar app.
-        Changes sync automatically when the Mac app is connected.
+        Choose which providers appear, and drag them (or use the arrows) to set the tab order.
+        Both sync automatically when the Mac app is connected; providers only one side has are skipped.
       </p>
 
       <div class="toggle-group">
-        {PROVIDERS.map((id) => {
+        {order.map((id, index) => {
           const meta = PROVIDER_META[id];
           const entry = visibility[id];
           // Default to enabled when no entry exists.
           const isEnabled = entry ? entry.enabled : true;
 
           return (
-            <label key={id} class="toggle-row">
+            // A div, not a label: a label would forward body clicks to the first button inside it.
+            <div
+              key={id}
+              class={`toggle-row toggle-row--sortable${dragId === id ? ' toggle-row--dragging' : ''}`}
+              draggable
+              onDragStart={() => setDragId(id)}
+              onDragEnd={() => setDragId(null)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragId && dragId !== id) commitOrder(moveToPosition(order, dragId, id));
+                setDragId(null);
+              }}
+            >
+              <span class="order-handle" aria-hidden="true" title="Drag to reorder">⠿</span>
               <span class={`toggle-row__icon toggle-row__icon--${id}`} aria-hidden="true" />
               <span class="toggle-row__body">
                 <span class="toggle-row__label">{meta.displayName}</span>
                 <span class="toggle-row__helper">
                   Hidden in menu bar and popup when off
                 </span>
+              </span>
+              <span class="order-buttons">
+                <button
+                  type="button"
+                  class="order-button"
+                  aria-label={`Move ${meta.displayName} up`}
+                  disabled={index === 0}
+                  onClick={() => commitOrder(moveInOrder(order, id, -1))}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  class="order-button"
+                  aria-label={`Move ${meta.displayName} down`}
+                  disabled={index === order.length - 1}
+                  onClick={() => commitOrder(moveInOrder(order, id, 1))}
+                >
+                  ↓
+                </button>
               </span>
               <button
                 type="button"
@@ -184,7 +245,7 @@ function ProviderVisibilitySection() {
               >
                 <span class="toggle-switch__thumb" />
               </button>
-            </label>
+            </div>
           );
         })}
       </div>

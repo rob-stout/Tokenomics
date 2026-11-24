@@ -1,18 +1,20 @@
+// Default order = the Mac app's `ProviderId.allCases` order (minus ids the extension
+// lacks: stableDiffusion, runway), so both look the same out of the box.
 export const PROVIDERS = [
   'claude',
   'codex',
-  'chatgpt',
   'gemini',
+  'chatgpt',
   'geminiConsumer',
   'copilot',
   'cursor',
   'midjourney',
-  'elevenlabs',
-  'grok',
-  'perplexity',
   'leonardo',
+  'elevenlabs',
   'suno',
   'udio',
+  'grok',
+  'perplexity',
 ] as const;
 
 export type ProviderId = (typeof PROVIDERS)[number];

@@ -1,7 +1,7 @@
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import browser from 'webextension-polyfill';
-import type { BridgeSnapshot, ProviderVisibilitySetting } from '../bridge-types';
+import type { BridgeSnapshot, ProviderOrderSetting, ProviderVisibilitySetting } from '../bridge-types';
 import type { BridgeState } from '../bridge';
 import type { ExtensionMessage, ExtensionResponse } from '../messages';
 import {
@@ -148,6 +148,7 @@ function UsageApp() {
   const [webSnapshots, setWebSnapshots] = useState<WebSnapshotMap>({});
   const [nativeSnapshots, setNativeSnapshots] = useState<Record<string, BridgeSnapshot>>({});
   const [visibility, setVisibility] = useState<Record<string, ProviderVisibilitySetting>>({});
+  const [tabOrder, setTabOrder] = useState<string[] | undefined>(undefined);
   const [bridgeState, setBridgeState] = useState<BridgeState | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const textLabels = useTextLabels();
@@ -185,6 +186,9 @@ function UsageApp() {
     });
     void loadNativeSnapshots().then(setNativeSnapshots);
     void loadProviderVisibility().then(setVisibility);
+    void browser.storage.local.get('providerOrder').then((r) => {
+      setTabOrder((r['providerOrder'] as ProviderOrderSetting | undefined)?.order);
+    });
     void loadBridgeState().then(setBridgeState);
   }, []);
 
@@ -244,6 +248,9 @@ function UsageApp() {
         const next = changes['providerVisibility']?.newValue as Record<string, ProviderVisibilitySetting> | undefined;
         if (next) setVisibility(next);
       }
+      if ('providerOrder' in changes) {
+        setTabOrder((changes['providerOrder']?.newValue as ProviderOrderSetting | undefined)?.order);
+      }
       if ('bridgeState' in changes) {
         const next = changes['bridgeState']?.newValue as BridgeState | undefined;
         if (next) setBridgeState(next);
@@ -259,6 +266,7 @@ function UsageApp() {
     visibility,
     webSnapshots,
     nativeSnapshots,
+    order: tabOrder,
   });
 
   const visibleProviderIds: readonly ProviderId[] = visibleProviders.map((vp) => vp.providerId);

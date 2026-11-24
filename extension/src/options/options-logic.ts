@@ -3,7 +3,8 @@
  * Extracted so unit tests can import without pulling in webextension-polyfill.
  */
 
-import type { ProviderVisibilitySetting } from '../bridge-types';
+import type { ProviderOrderSetting, ProviderVisibilitySetting } from '../bridge-types';
+import { stampUserOrder } from '../provider-order';
 import { scheduleBridgeSend, type BridgeSendReason } from '../bridge';
 import type { ProviderId } from '../types';
 
@@ -42,4 +43,20 @@ export async function applyVisibilityToggle(
   await setStorage(updated);
   sendBridge('settings');
   return updated;
+}
+
+/**
+ * Save a user reorder: stamp it (so it beats an older Mac order), store it, and
+ * schedule a bridge send. Returns the stored setting.
+ */
+export async function applyOrderChange(
+  order: readonly ProviderId[],
+  previous: ProviderOrderSetting | undefined,
+  setStorage: (setting: ProviderOrderSetting) => Promise<void>,
+  sendBridge: BridgeSender = scheduleBridgeSend,
+): Promise<ProviderOrderSetting> {
+  const setting = stampUserOrder(order, previous);
+  await setStorage(setting);
+  sendBridge('settings');
+  return setting;
 }

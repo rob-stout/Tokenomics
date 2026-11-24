@@ -14,6 +14,9 @@
  *                              after being included in the next outbound envelope.
  *   providerVisibility       — Record<string, ProviderVisibilitySetting> — per-provider enabled
  *                              flag + lastChangedAt; merged with the Mac side on every round trip.
+ *   providerOrder            — ProviderOrderSetting — tab order + lastChangedAt; newest wins, the
+ *                              Mac's is adopted via adoptIncomingOrder (keeps its timestamp so the
+ *                              echo is a no-op).
  */
 
 import {
@@ -23,8 +26,10 @@ import {
   type BridgeResponse,
   type BridgeSnapshot,
   type BridgeWindow,
+  type ProviderOrderSetting,
   type ProviderVisibilitySetting,
 } from './bridge-types';
+import { adoptIncomingOrder } from './provider-order';
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
 
 // Storage keys for provider snapshots — must stay in sync with storage.ts KEYS.
@@ -239,7 +244,8 @@ async function doSend(_reason: BridgeSendReason): Promise<BridgeResponse | null>
   }
 
   // 2. Gather settings and pending actions from storage
-  const stored = await storageGet(['providerVisibility', 'pendingRequestedActions', 'nativeSnapshots']);
+  const stored = await storageGet(['providerVisibility', 'providerOrder', 'pendingRequestedActions', 'nativeSnapshots']);
+  const providerOrder = stored['providerOrder'] as ProviderOrderSetting | undefined;
   const providerVisibility = (stored['providerVisibility'] as Record<string, ProviderVisibilitySetting>) ?? {};
   const requestedActions = (stored['pendingRequestedActions'] as Record<string, boolean>) ?? {};
   const existingNativeSnapshots = (stored['nativeSnapshots'] as Record<string, BridgeSnapshot>) ?? {};
@@ -253,7 +259,7 @@ async function doSend(_reason: BridgeSendReason): Promise<BridgeResponse | null>
     envelopeSentAt: new Date().toISOString(),
     extensionId: chrome.runtime.id,
     snapshots,
-    settings: { providerVisibility },
+    settings: { providerVisibility, ...(providerOrder ? { providerOrder } : {}) },
     requestedActions: Object.keys(requestedActions).length > 0 ? requestedActions : undefined,
   };
 
@@ -292,6 +298,15 @@ async function doSend(_reason: BridgeSendReason): Promise<BridgeResponse | null>
   const responseVisibility = response.settings?.providerVisibility ?? {};
   const mergedVisibility = mergeVisibility(providerVisibility, responseVisibility);
   await storageSet({ providerVisibility: mergedVisibility });
+
+  // Adopt the Mac's order if newer. Re-read storage first: the options page may have
+  // saved a reorder while this round trip was in flight, and that must not be clobbered.
+  const incomingOrder = response.settings?.providerOrder;
+  if (incomingOrder) {
+    const latest = (await storageGet(['providerOrder']))['providerOrder'] as ProviderOrderSetting | undefined;
+    const adopted = adoptIncomingOrder(latest, incomingOrder);
+    if (adopted) await storageSet({ providerOrder: adopted });
+  }
 
   // Dispatch commands
   for (const cmd of response.commands ?? []) {

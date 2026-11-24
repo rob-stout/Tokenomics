@@ -11,6 +11,8 @@ struct ExtSideState: Codable, Sendable {
     var snapshots: [String: BridgeSnapshot]
     /// Per-provider visibility settings keyed by ProviderId.rawValue.
     var providerVisibility: [String: ProviderVisibilitySetting]
+    /// Tab order from the extension; newest `lastChangedAt` wins.
+    var providerOrder: ProviderOrderSetting? = nil
 }
 
 /// State written by the Mac app and read by the bridge to compose responses.
@@ -25,6 +27,8 @@ struct MacSideState: Codable, Sendable {
     /// Commands to deliver in the next bridge response.
     /// The bridge reads but does not mutate this array.
     var pendingCommands: [BridgeCommand]
+    /// The Mac's tab order. Optional: files written by older builds lack it.
+    var providerOrder: ProviderOrderSetting? = nil
 }
 
 // MARK: - BridgeFraming
@@ -142,12 +146,21 @@ enum BridgeMerger {
         return ExtSideState(
             updatedAt: now,
             snapshots: snapshots,
-            providerVisibility: providerVisibility
+            providerVisibility: providerVisibility,
+            providerOrder: newerOrder(existing?.providerOrder, request.settings?.providerOrder)
         )
     }
 }
 
 extension BridgeMerger {
+    /// The order with the later `lastChangedAt`; on a tie the existing one stays,
+    /// so re-sending an already-applied order is a no-op (no ping-pong).
+    static func newerOrder(_ current: ProviderOrderSetting?, _ incoming: ProviderOrderSetting?) -> ProviderOrderSetting? {
+        guard let incoming else { return current }
+        guard let current else { return incoming }
+        return incoming.lastChangedAt > current.lastChangedAt ? incoming : current
+    }
+
     /// Combines ext-side state from the Chromium and Safari locations: per key,
     /// the newer `capturedAt` / `lastChangedAt` wins.
     static func combine(_ states: [ExtSideState]) -> ExtSideState? {
@@ -159,6 +172,7 @@ extension BridgeMerger {
             for (key, vis) in other.providerVisibility where (result.providerVisibility[key]?.lastChangedAt ?? .distantPast) < vis.lastChangedAt {
                 result.providerVisibility[key] = vis
             }
+            result.providerOrder = newerOrder(result.providerOrder, other.providerOrder)
             result.updatedAt = max(result.updatedAt, other.updatedAt)
         }
         return result
@@ -190,7 +204,10 @@ enum BridgeResponseComposer {
             macSide: macSide?.providerVisibility ?? [:],
             requestSettings: request.settings
         )
-        let settings = mergedVisibility.isEmpty ? nil : BridgeSettings(providerVisibility: mergedVisibility)
+        let mergedOrder = BridgeMerger.newerOrder(macSide?.providerOrder, request.settings?.providerOrder)
+        let settings = (mergedVisibility.isEmpty && mergedOrder == nil)
+            ? nil
+            : BridgeSettings(providerVisibility: mergedVisibility, providerOrder: mergedOrder)
 
         return BridgeResponse(
             ok: true,

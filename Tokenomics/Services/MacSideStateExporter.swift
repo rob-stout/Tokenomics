@@ -59,6 +59,14 @@ actor MacSideStateExporter {
         scheduleWrite()
     }
 
+    /// Updates the tab order the extension should follow (it adopts it only if newer than its own).
+    func setProviderOrder(_ setting: ProviderOrderSetting) async {
+        guard currentMacSideState.providerOrder != setting else { return }
+        currentMacSideState.providerOrder = setting
+        currentMacSideState.updatedAt = Date()
+        scheduleWrite()
+    }
+
     /// Enqueues a command for the extension, deduplicated by `kind`.
     /// Only one pending command of each `kind` is kept — newer enqueues replace older ones.
     func enqueueCommand(_ command: BridgeCommand) async {

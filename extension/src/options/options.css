@@ -508,3 +508,51 @@ body {
 
 .key-row__status--ok    { color: var(--success); }
 .key-row__status--error { color: var(--danger); }
+
+/* ── Tab reordering (same list as visibility) ────────────── */
+
+.toggle-row--sortable {
+  cursor: default;
+}
+
+.toggle-row--dragging {
+  opacity: 0.5;
+}
+
+.order-handle {
+  flex-shrink: 0;
+  color: var(--text-subtle);
+  cursor: grab;
+  user-select: none;
+}
+
+.order-buttons {
+  flex-shrink: 0;
+  display: flex;
+  gap: 2px;
+}
+
+.order-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.order-button:hover:not(:disabled) {
+  background: var(--bg-2);
+}
+
+.order-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.order-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

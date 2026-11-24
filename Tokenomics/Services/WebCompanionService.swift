@@ -34,11 +34,13 @@ actor WebCompanionService: WebCompanionStateProvider {
     ///   a second of the extension writing them instead of waiting for the next poll.
     init(
         onRefreshRequested: (@Sendable () -> Void)? = nil,
-        onStateChanged: (@Sendable () -> Void)? = nil
+        onStateChanged: (@Sendable () -> Void)? = nil,
+        directories: [URL]? = nil
     ) {
         self.onRefreshRequested = onRefreshRequested
         self.onStateChanged = onStateChanged
-        self.watchedDirectories = Self.sourceDirectories()
+        // Tests pass an empty temp dir so they never read the user's live bridge files.
+        self.watchedDirectories = directories ?? Self.sourceDirectories()
 
         // Read initial state synchronously before FSEvents starts so callers
         // get real data on first access without waiting for a filesystem event.

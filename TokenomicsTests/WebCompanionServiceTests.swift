@@ -11,6 +11,14 @@ final class WebCompanionServiceTests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// An empty directory per test, so the service never reads the real bridge files.
+    private func isolatedService() -> WebCompanionService {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WebCompanionServiceTests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return WebCompanionService(directories: [dir])
+    }
+
     private func makeSnapshot(provider: String, capturedAt: Date = Date()) -> BridgeSnapshot {
         BridgeSnapshot(
             provider: provider,
@@ -38,7 +46,7 @@ final class WebCompanionServiceTests: XCTestCase {
     // MARK: - Initial State — No File
 
     func testInitialState_noFile_returnsEmpty() async {
-        let service = WebCompanionService()
+        let service = isolatedService()
         let state = await service.currentState()
         XCTAssertEqual(state.snapshots.count, 0)
         XCTAssertEqual(state.providerVisibility.count, 0)
@@ -47,7 +55,7 @@ final class WebCompanionServiceTests: XCTestCase {
     // MARK: - Read Populated File
 
     func testCurrentState_afterHandleStateChange_returnsUpdatedState() async {
-        let service = WebCompanionService()
+        let service = isolatedService()
         let snap = makeSnapshot(provider: "claude")
         let ext = makeExtState(snapshots: ["claude": snap])
 
@@ -60,7 +68,7 @@ final class WebCompanionServiceTests: XCTestCase {
     // MARK: - snapshot(for:) Lookup
 
     func testSnapshotForProviderId_found() async {
-        let service = WebCompanionService()
+        let service = isolatedService()
         let snap = makeSnapshot(provider: ProviderId.codex.rawValue)
         await service.handleStateChange(makeExtState(snapshots: [ProviderId.codex.rawValue: snap]))
 
@@ -70,7 +78,7 @@ final class WebCompanionServiceTests: XCTestCase {
     }
 
     func testSnapshotForProviderId_absent_returnsNil() async {
-        let service = WebCompanionService()
+        let service = isolatedService()
         let result = await service.snapshot(for: .claude)
         XCTAssertNil(result)
     }
@@ -78,7 +86,7 @@ final class WebCompanionServiceTests: XCTestCase {
     // MARK: - providerVisibility()
 
     func testProviderVisibility_reflectsLatestState() async {
-        let service = WebCompanionService()
+        let service = isolatedService()
         let visibility: [String: ProviderVisibilitySetting] = [
             "claude": ProviderVisibilitySetting(enabled: true, lastChangedAt: Date()),
             "codex":  ProviderVisibilitySetting(enabled: false, lastChangedAt: Date()),
@@ -93,7 +101,7 @@ final class WebCompanionServiceTests: XCTestCase {
     // MARK: - Multiple State Updates
 
     func testHandleStateChange_multipleUpdates_latestWins() async {
-        let service = WebCompanionService()
+        let service = isolatedService()
         let older = makeSnapshot(provider: "gemini", capturedAt: Date().addingTimeInterval(-120))
         let newer = makeSnapshot(provider: "gemini", capturedAt: Date())
 
@@ -114,7 +122,7 @@ final class WebCompanionServiceTests: XCTestCase {
     // in the source; integration-level validation belongs in manual QA.
 
     func testHandleStateChange_doesNotThrow() async {
-        let service = WebCompanionService()
+        let service = isolatedService()
         // Five rapid state changes — if scheduling code has a bug it will crash here.
         for i in 0..<5 {
             let snap = makeSnapshot(provider: "claude", capturedAt: Date().addingTimeInterval(Double(i)))

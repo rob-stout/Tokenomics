@@ -427,3 +427,55 @@ test('toBridgeSnapshotSafe: empty long-window reset → long window dropped, res
   assert.equal(wire.longWindow, null);
   assert.equal(wire.shortWindow.utilization, 0.1);
 });
+
+// ── Provider order sync ──────────────────────────────────────────
+
+async function readStoredOrder(): Promise<{ order: string[]; lastChangedAt: string } | undefined> {
+  const stored = await new Promise<Record<string, unknown>>((resolve) => {
+    chrome.storage.local.get(['providerOrder'], resolve);
+  });
+  return stored['providerOrder'] as { order: string[]; lastChangedAt: string } | undefined;
+}
+
+test('order sync: newer Mac order is adopted and keeps the Mac timestamp', async () => {
+  mock = installMockChrome({
+    nativeMessageResponse: makeNativeResponse({
+      settings: { providerVisibility: {}, providerOrder: { order: ['udio', 'claude'], lastChangedAt: '2026-11-23T11:00:00Z' } },
+    }),
+  });
+  (globalThis as any).chrome = mock;
+  await new Promise<void>((r) => chrome.storage.local.set(
+    { providerOrder: { order: ['claude', 'udio'], lastChangedAt: '2026-11-23T10:00:00Z' } }, r));
+
+  await sendBridgeBatch('settings');
+
+  const order = await readStoredOrder();
+  assert.equal(order?.lastChangedAt, '2026-11-23T11:00:00Z');
+  assert.ok(order!.order.indexOf('udio') < order!.order.indexOf('claude'));
+});
+
+test('order sync: our newer order wins and is sent to the Mac', async () => {
+  let sent: any = null;
+  mock = installMockChrome({
+    nativeMessageResponse: makeNativeResponse({
+      settings: { providerVisibility: {}, providerOrder: { order: ['udio', 'claude'], lastChangedAt: '2026-11-23T10:00:00Z' } },
+    }),
+  });
+  const realSend = mock.runtime.sendNativeMessage;
+  mock.runtime.sendNativeMessage = (host, msg, cb) => { sent = msg; realSend(host, msg, cb); };
+  (globalThis as any).chrome = mock;
+  const local = { order: ['claude', 'udio'], lastChangedAt: '2026-11-23T12:00:00Z' };
+  await new Promise<void>((r) => chrome.storage.local.set({ providerOrder: local }, r));
+
+  await sendBridgeBatch('settings');
+
+  assert.deepEqual(await readStoredOrder(), local);
+  assert.deepEqual(sent.settings.providerOrder, local);
+});
+
+test('order sync: no stored order sends none; an old Mac with no order field changes nothing', async () => {
+  mock = installMockChrome({ nativeMessageResponse: makeNativeResponse() });
+  (globalThis as any).chrome = mock;
+  await sendBridgeBatch('settings');
+  assert.equal(await readStoredOrder(), undefined);
+});

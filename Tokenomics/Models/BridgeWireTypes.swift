@@ -53,6 +53,17 @@ struct BridgeWindow: Codable, Sendable {
 /// Timestamp-wins conflict resolution applies per provider key.
 struct BridgeSettings: Codable, Sendable {
     let providerVisibility: [String: ProviderVisibilitySetting]
+    /// Tab order, newest `lastChangedAt` wins. Optional so an older Mac app or
+    /// extension that doesn't know about it simply ignores the field.
+    var providerOrder: ProviderOrderSetting? = nil
+}
+
+/// The user's provider tab order (`ProviderId.rawValue`s), stamped for
+/// newest-wins reconciliation. One timestamp for the whole list, because a
+/// reorder is a single gesture that moves several providers at once.
+struct ProviderOrderSetting: Codable, Sendable, Equatable {
+    var order: [String]
+    var lastChangedAt: Date
 }
 
 // MARK: - Actions / commands
