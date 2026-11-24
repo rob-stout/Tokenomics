@@ -13,7 +13,9 @@ concurrency:
 jobs:
   test:
     name: Build & Test
-    runs-on: macos-15
+    # The app uses macOS 27 SDK symbols (the extra-large portrait widget
+    # size), so CI needs the newest Xcode, not macos-15's default 16.4.
+    runs-on: macos-26
     timeout-minutes: 20
 
     env:
@@ -27,6 +29,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
 
       - name: Show Xcode version
         run: xcodebuild -version
