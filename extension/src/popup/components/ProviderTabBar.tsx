@@ -55,9 +55,8 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
     if (moved && finalOrder) onReorder?.(finalOrder, movedId);
   };
 
-  // Text tabs don't all fit in 368px, so keep the selected one in view.
+  // When the tabs overflow and scroll, keep the selected one in view.
   useEffect(() => {
-    if (!textLabels) return;
     barRef.current
       ?.querySelector<HTMLElement>('[aria-selected="true"]')
       ?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
@@ -66,7 +65,7 @@ export function ProviderTabBar({ selected, visibleProviderIds, onSelect, textLab
   // Let a plain mouse wheel scroll the bar sideways (trackpads already can).
   const handleWheel = (e: WheelEvent) => {
     const bar = barRef.current;
-    if (!textLabels || !bar || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    if (!bar || bar.scrollWidth <= bar.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
     bar.scrollLeft += e.deltaY;
     e.preventDefault();
   };

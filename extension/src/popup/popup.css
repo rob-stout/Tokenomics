@@ -104,7 +104,6 @@ body {
   gap: 5px;
   padding: 4px var(--s-4);
   color: var(--widget-label);
-  border-bottom: 1px solid var(--widget-divider);
 }
 
 .bridge-banner__text {
@@ -140,18 +139,24 @@ body {
   margin: 0 var(--s-4);
   background: var(--widget-hover);
   border-radius: 8px;
+  /* Like the Mac popover: tabs keep their size and the strip scrolls sideways
+     when they don't fit (web sites plus the Mac's coding tools). */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  flex: 1 1 0;
-  min-width: 22px;
+  flex: 1 0 auto;
+  min-width: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0;
-  /* Narrow side padding so many tabs (web sites plus the Mac's coding tools) still
-     fit; flex spreads them out again when there are few. */
-  padding: 6px 2px;
+  padding: 6px 10px;
   border: 0;
   border-radius: var(--r-xs);
   background: transparent;
@@ -176,9 +181,7 @@ body {
 }
 
 .tab--selected {
-  /* Up to 160px, but gives way first when the bar is crowded (label ellipsizes). */
-  flex: 0 1 160px;
-  min-width: 48px;
+  flex: 0 0 160px;
   gap: 5px;
   padding: 6px 12px;
   color: var(--widget-name);

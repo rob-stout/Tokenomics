@@ -43,17 +43,26 @@ struct BrandTabView: View {
     }
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
+        VStack(spacing: 0) {
+            // Measure the width we're OFFERED, not the bar's own width: an overflowing
+            // fill row widens the bar, which then looked roomy enough to never scroll.
+            // A zero-height clear row takes exactly the proposed width.
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 0)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: TabBarWidthKey.self, value: geo.size.width)
+                    }
+                )
 
-            tabStrip
-        }
-        .background(
-            GeometryReader { geo in
-                Color.clear.preference(key: TabBarWidthKey.self, value: geo.size.width)
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
+
+                tabStrip
             }
-        )
+        }
         .coordinateSpace(name: "brandTabBar")
         .onPreferenceChange(TabBarWidthKey.self) { availableWidth = $0 }
         .onPreferenceChange(BrandTabFramePreference.self) { tabFrames = $0 }
@@ -71,10 +80,6 @@ struct BrandTabView: View {
     @ViewBuilder
     private var tabStrip: some View {
         ZStack {
-            measuringRow
-                .hidden()
-                .allowsHitTesting(false)
-
             if needsScroll {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -94,6 +99,15 @@ struct BrandTabView: View {
                 tabRow(fill: true)
             }
         }
+        // Measure in the background so the hidden row's natural width never sizes
+        // the bar: inside the ZStack, a long row (many companies) stretched the bar
+        // past the popover's padding and the scroll view never got a narrower frame.
+        .background(
+            measuringRow
+                .hidden()
+                .allowsHitTesting(false),
+            alignment: .leading
+        )
         .onPreferenceChange(TabContentWidthKey.self) { contentWidth = $0 }
     }
 
