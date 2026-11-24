@@ -31,9 +31,9 @@ struct BrandTabView: View {
     @State private var hiddenRight = true
 
     /// The selected tab's fixed width: fits the longest name ("ElevenLabs") with
-    /// 12pt either side, and stays the same on every tab so the strip doesn't
+    /// 16pt either side, and stays the same on every tab so the strip doesn't
     /// shift when you switch. Grows with the Text Size setting.
-    private var selectedTabWidth: CGFloat { 110 * textSize.iconScale }
+    private var selectedTabWidth: CGFloat { 118 * textSize.iconScale }
 
     /// Width of the fade at a scrollable edge.
     private let edgeFade: CGFloat = 28
@@ -273,7 +273,7 @@ struct BrandTabView: View {
         .scaledFont(.caption)
         .fontWeight(.medium)
         .padding(.vertical, 6)
-        .padding(.horizontal, showLabel ? 12 : 10)
+        .padding(.horizontal, showLabel ? 16 : 10)
     }
 }
 
