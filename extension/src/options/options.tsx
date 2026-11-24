@@ -126,13 +126,13 @@ function buildOptions(autoPlan: ChatGPTPlan): RadioOption[] {
 
 const IS_MAC = /Mac/i.test(navigator.platform);
 
-/** What each row tracks. Same-brand pairs (OpenAI/ChatGPT, Google AI/Gemini) are separate limits. */
+/** What each row tracks. Same-brand pairs (Codex CLI/ChatGPT, Gemini CLI/Gemini app) are separate limits. */
 const PROVIDER_ABOUT: Record<ProviderId, string> = {
   claude: 'Chats and Claude Code share these limits',
-  codex: 'Codex, the coding agent',
-  chatgpt: 'Chats on chatgpt.com, separate from Codex',
-  gemini: 'Gemini CLI, the coding agent',
-  geminiConsumer: 'Chats in the Gemini app, separate from Gemini CLI',
+  codex: 'OpenAI’s coding agent, in Terminal',
+  chatgpt: 'Chats on chatgpt.com, separate from Codex CLI',
+  gemini: 'Google’s coding agent, in Terminal',
+  geminiConsumer: 'Chats on gemini.google.com, separate from Gemini CLI',
   copilot: 'Coding assistant in your editor',
   cursor: 'AI code editor',
   midjourney: 'Image generation (Fast hours)',
