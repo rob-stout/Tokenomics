@@ -109,7 +109,7 @@ function renderUsageBars(snapshot: ProviderUsageSnapshot) {
   );
 }
 
-function renderNativeBars(snap: BridgeSnapshot) {
+function renderNativeBars(snap: BridgeSnapshot, showFooter = true) {
   const short: WindowUsage = bridgeWindowToWindowUsage(snap.shortWindow);
   const long: WindowUsage | null = snap.longWindow
     ? bridgeWindowToWindowUsage(snap.longWindow)
@@ -134,7 +134,7 @@ function renderNativeBars(snap: BridgeSnapshot) {
           />
         </>
       ) : null}
-      <NativeFooter />
+      {showFooter ? <NativeFooter /> : null}
     </div>
   );
 }
@@ -274,11 +274,21 @@ function UsageApp() {
     order: tabOrder,
   });
 
-  const visibleProviderIds: readonly ProviderId[] = visibleProviders.map((vp) => vp.providerId);
+  // Google is one tab on the Mac ("Gemini": web first, then the Gemini CLI pool).
+  // When both are present, fold Google AI into the Gemini tab so the tabs match.
+  const googleAI = visibleProviders.find((vp) => vp.providerId === 'gemini');
+  const foldGoogle =
+    googleAI !== undefined && visibleProviders.some((vp) => vp.providerId === 'geminiConsumer');
+  const tabProviders = foldGoogle
+    ? visibleProviders.filter((vp) => vp.providerId !== 'gemini')
+    : visibleProviders;
+
+  const visibleProviderIds: readonly ProviderId[] = tabProviders.map((vp) => vp.providerId);
 
   // Guard selected tab — if visibility changes remove the current tab, fall back.
-  const safeSelected: ProviderId = visibleProviderIds.includes(selected)
-    ? selected
+  const wanted: ProviderId = foldGoogle && selected === 'gemini' ? 'geminiConsumer' : selected;
+  const safeSelected: ProviderId = visibleProviderIds.includes(wanted)
+    ? wanted
     : (visibleProviderIds[0] ?? WEB_PROVIDERS[0]);
 
   const currentEntry: VisibleProvider | undefined = visibleProviders.find(
@@ -369,6 +379,17 @@ function UsageApp() {
 
     if (currentEntry.source === 'native' && currentNativeSnap) {
       return renderNativeBars(currentNativeSnap);
+    }
+
+    const googleAISnap = foldGoogle && safeSelected === 'geminiConsumer' ? googleAI?.nativeSnapshot : null;
+    if (currentEntry.source === 'web' && currentWebSnap && googleAISnap) {
+      return (
+        <>
+          {renderUsageBars(currentWebSnap)}
+          <div class="usage-stack__divider" />
+          {renderNativeBars(googleAISnap)}
+        </>
+      );
     }
 
     if (currentEntry.source === 'web' && currentWebSnap) {
