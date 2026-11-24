@@ -5,18 +5,21 @@ final class FeatureFlagsTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        // Each test starts with a clean UserDefaults entry so the default-false
-        // contract is honored regardless of run order or prior dev state.
+        // Each test starts with a clean entry; the developer's own setting is put back after.
+        saved = UserDefaults.standard.object(forKey: FeatureFlags.brandAggregationKey)
         UserDefaults.standard.removeObject(forKey: FeatureFlags.brandAggregationKey)
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: FeatureFlags.brandAggregationKey)
+        if let saved { UserDefaults.standard.set(saved, forKey: FeatureFlags.brandAggregationKey) }
+        else { UserDefaults.standard.removeObject(forKey: FeatureFlags.brandAggregationKey) }
         super.tearDown()
     }
 
-    func testBrandAggregation_defaultsToFalseOnFreshState() {
-        XCTAssertFalse(FeatureFlags.brandAggregation, "Brand-aggregation flag must default to false so the new rendering paths stay opt-in")
+    private var saved: Any?
+
+    func testBrandAggregation_defaultsToTrueOnFreshState() {
+        XCTAssertTrue(FeatureFlags.brandAggregation, "Group-by-company is on unless the user turns it off")
     }
 
     func testBrandAggregation_persistsAfterEnable() {

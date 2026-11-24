@@ -7,6 +7,7 @@ struct PopoverView: View {
     var updaterService: UpdaterService
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
+    @State private var groupByCompany = FeatureFlags.brandAggregation
     @State private var isRequestingKeychainAccess = false
     /// Set only after an attempt in this view session fails, so the note never
     /// shows before the user has tried.
@@ -833,6 +834,21 @@ struct PopoverView: View {
                         .onChange(of: launchAtLogin) { _, newValue in
                             LaunchAtLoginService.setEnabled(newValue)
                             launchAtLogin = LaunchAtLoginService.isEnabled
+                        }
+                }
+
+                Divider().padding(.horizontal, 16)
+
+                // One tab per company (e.g. Gemini app + Gemini CLI under Google), like
+                // the Providers list. Off = one tab per tool.
+                settingsRow(icon: "rectangle.3.group", label: "Group by Company") {
+                    Toggle("", isOn: $groupByCompany)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .onChange(of: groupByCompany) { _, newValue in
+                            FeatureFlags.brandAggregation = newValue
+                            viewModel.refresh() // redraw tabs, menu bar and widgets in the new layout
                         }
                 }
 

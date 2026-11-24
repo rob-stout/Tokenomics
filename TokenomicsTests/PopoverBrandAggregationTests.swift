@@ -20,15 +20,20 @@ final class PopoverBrandAggregationTests: XCTestCase {
 
     // MARK: - Setup / Teardown
 
+    private var savedFlag: Any?
+
     override func setUp() {
         super.setUp()
-        // Start each test with the flag off and clean visibility state.
-        UserDefaults.standard.removeObject(forKey: FeatureFlags.brandAggregationKey)
+        // Start each test with the flag explicitly off (it defaults on) and clean
+        // visibility state; the developer's own setting is restored after.
+        savedFlag = UserDefaults.standard.object(forKey: FeatureFlags.brandAggregationKey)
+        FeatureFlags.brandAggregation = false
         clearVisibilityDefaults()
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: FeatureFlags.brandAggregationKey)
+        if let savedFlag { UserDefaults.standard.set(savedFlag, forKey: FeatureFlags.brandAggregationKey) }
+        else { UserDefaults.standard.removeObject(forKey: FeatureFlags.brandAggregationKey) }
         clearVisibilityDefaults()
         super.tearDown()
     }
