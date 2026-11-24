@@ -56,14 +56,24 @@ struct ProviderChooserView: View {
             // thick rail that visually overweights the chooser.
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    // Grouped by company, same as Settings → Providers: a multi-pool
+                    // brand (OpenAI, Google) gets a header with its chat and CLI pools
+                    // nested under it, each with its own setup badge.
                     ForEach(ProviderId.ProviderCategory.allCases, id: \.self) { category in
-                        let providers = ProviderId.allCases.filter { $0.category == category }
-                        if !providers.isEmpty {
+                        let brands = BrandId.allCases.filter { $0.category == category }
+                        if !brands.isEmpty {
                             groupLabel(category.rawValue)
 
                             VStack(spacing: 0) {
-                                ForEach(providers, id: \.self) { provider in
-                                    providerRow(provider)
+                                ForEach(brands, id: \.self) { brand in
+                                    if brand.isMultiPool {
+                                        brandHeader(brand)
+                                        ForEach(brand.orderedPools, id: \.self) { pool in
+                                            providerRow(pool, name: pool.poolLabel, nested: true)
+                                        }
+                                    } else {
+                                        providerRow(brand.primaryPool)
+                                    }
                                 }
                             }
                         }
@@ -100,7 +110,7 @@ struct ProviderChooserView: View {
     /// 32pt icon | name + scope | end badge or chevron.
     /// mockup .provider-row: grid 32px 1fr auto, gap 14px, padding 12×14, radius sm
     @ViewBuilder
-    private func providerRow(_ provider: ProviderId) -> some View {
+    private func providerRow(_ provider: ProviderId, name: String? = nil, nested: Bool = false) -> some View {
         let state = viewModel.providerStates[provider]
         // Extension-fed providers never get a `providerStates` entry (see
         // `bridgeConnected` doc comment), so a fresh bridge heartbeat is an
@@ -113,11 +123,29 @@ struct ProviderChooserView: View {
             HStack(alignment: .center, spacing: Tokens.Spacing.s4 - 2) { // 14pt — mockup gap: 14px
                 // 32×32 provider icon — mockup .provider-icon (lines 414–423):
                 //   width/height 32, border-radius 8, bg surface, 1px border
-                chooserProviderIcon(for: provider)
+                // Nested pools indent under the brand name and show the surface glyph
+                // (extension vs Terminal) instead of the logo, as in Settings.
+                if nested, let symbol = provider.surfaceSymbol {
+                    HStack(spacing: 0) {
+                        Color.clear.frame(width: 32 + Tokens.Spacing.s4 - 2, height: 1)
+                        Image(systemName: symbol)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Tokens.Color.text(scheme))
+                            .frame(width: 26, height: 26)
+                            .background(Tokens.Color.surface(scheme))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(Tokens.Color.border(scheme), lineWidth: 1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                } else {
+                    chooserProviderIcon(for: provider)
+                }
 
                 // Name + scope
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(provider.displayName)
+                    Text(name ?? provider.displayName)
                         .font(Tokens.Typography.Onboarding.body.weight(.semibold))
                         .foregroundStyle(
                             isAvailable || isConnected
@@ -148,6 +176,21 @@ struct ProviderChooserView: View {
                 .fill(Color.clear) // hover handled by .buttonStyle interaction
         )
         .disabled(!isAvailable && !isConnected)
+    }
+
+    // MARK: - Brand header (multi-pool brands)
+
+    /// Icon + company name above a brand's nested pools. Not tappable; each pool row is.
+    private func brandHeader(_ brand: BrandId) -> some View {
+        HStack(spacing: Tokens.Spacing.s4 - 2) {
+            chooserProviderIcon(for: brand.primaryPool)
+            Text(brand.companyAttribution ?? brand.displayName)
+                .font(Tokens.Typography.Onboarding.body.weight(.semibold))
+                .foregroundStyle(Tokens.Color.text(scheme))
+            Spacer(minLength: 0)
+        }
+        .padding(.top, Tokens.Spacing.s3)
+        .padding(.horizontal, Tokens.Spacing.s4 - 2)
     }
 
     // MARK: - Chooser provider icon (32×32 surface squircle)

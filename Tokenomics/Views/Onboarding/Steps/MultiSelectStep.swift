@@ -67,21 +67,21 @@ struct MultiSelectStep: View {
     private var groups: [(CategoryGroup, [Row])] {
         [
             (.multiPurpose, [
-                Row(provider: .claude,  label: "Claude",  subLabel: "Anthropic"),
-                Row(provider: .chatgpt, label: "ChatGPT", subLabel: "OpenAI"),
-                Row(provider: .gemini,  label: "Gemini",  subLabel: "Google"),
+                Row(provider: .claude,  label: "Claude",  subLabel: "Anthropic · chat and Claude Code"),
+                Row(provider: .chatgpt, label: "ChatGPT", subLabel: "OpenAI · chat and Codex CLI"),
+                Row(provider: .gemini,  label: "Gemini",  subLabel: "Google · Gemini app and Gemini CLI"),
             ]),
             (.code, [
-                Row(provider: .copilot, label: "GitHub Copilot", subLabel: nil),
-                Row(provider: .cursor,  label: "Cursor",         subLabel: nil),
+                Row(provider: .copilot, label: "GitHub Copilot", subLabel: "Coding assistant in your editor"),
+                Row(provider: .cursor,  label: "Cursor",         subLabel: "AI code editor"),
             ]),
             (.media, [
-                Row(provider: .stableDiffusion, label: "Stability AI", subLabel: nil),
-                Row(provider: .midjourney,      label: "Midjourney",   subLabel: nil),
-                Row(provider: .runway,          label: "Runway",       subLabel: nil),
-                Row(provider: .elevenlabs,      label: "ElevenLabs",   subLabel: nil),
-                Row(provider: .suno,            label: "Suno",         subLabel: nil),
-                Row(provider: .udio,            label: "Udio",         subLabel: nil),
+                Row(provider: .stableDiffusion, label: "Stability AI", subLabel: "Image and video generation"),
+                Row(provider: .midjourney,      label: "Midjourney",   subLabel: "Image generation"),
+                Row(provider: .runway,          label: "Runway",       subLabel: "Video generation"),
+                Row(provider: .elevenlabs,      label: "ElevenLabs",   subLabel: "Voice generation"),
+                Row(provider: .suno,            label: "Suno",         subLabel: "Music generation"),
+                Row(provider: .udio,            label: "Udio",         subLabel: "Music generation"),
             ]),
         ]
     }
