@@ -157,7 +157,7 @@ final class BrowserExtensionConnectorTests: XCTestCase {
 
         await connector.performPrimaryAction()
 
-        let expected = URL(string: "https://chromewebstore.google.com/detail/gcjaebikgcbccgbnbcimccflcgoeefio")!
+        let expected = URL(string: "https://chromewebstore.google.com/detail/nolficmmhjkgmoclepbclpmefilhlejl")!
         XCTAssertEqual(opener.openedURLs.last, expected)
     }
 
@@ -175,7 +175,7 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         await connector.performPrimaryAction()
 
         XCTAssertTrue(
-            opener.openedURLs.last?.absoluteString.contains("gcjaebikgcbccgbnbcimccflcgoeefio") == true,
+            opener.openedURLs.last?.absoluteString.contains("nolficmmhjkgmoclepbclpmefilhlejl") == true,
             "Web Store URL must include the extension's dev-keypair ID"
         )
     }
@@ -409,7 +409,7 @@ final class BrowserExtensionConnectorTests: XCTestCase {
 
         await connector.performPrimaryAction()
 
-        let expected = URL(string: "https://chromewebstore.google.com/detail/gcjaebikgcbccgbnbcimccflcgoeefio")!
+        let expected = URL(string: "https://chromewebstore.google.com/detail/nolficmmhjkgmoclepbclpmefilhlejl")!
         XCTAssertEqual(opener.openedURLs.last, expected)
     }
 
