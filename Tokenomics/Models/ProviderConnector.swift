@@ -68,7 +68,7 @@ enum ConnectorStep: Sendable, Equatable {
     ///   - primaryLabel: Primary button text. Nil falls back to `title` (today's
     ///     behavior, unchanged everywhere except connectors that opt in) — e.g.
     ///     the browser-extension connector uses this to say what the CTA actually
-    ///     does ("Get it on the App Store") instead of restating the step title.
+    ///     does ("See browser options") instead of restating the step title.
     ///   - signInFramed: True when this confirm screen is asking the user to sign
     ///     in (prerequisite already installed) rather than install something.
     ///     `ConnectorViewModel.stepperItems` uses this to highlight step 3

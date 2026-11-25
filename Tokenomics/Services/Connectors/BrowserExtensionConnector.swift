@@ -114,8 +114,9 @@ actor BrowserExtensionConnector: ProviderConnector {
     /// TODO: replace with the real App Store id once the "Tokenomics for
     /// Safari" listing exists, e.g.
     /// https://apps.apple.com/app/tokenomics-for-safari/idPLACEHOLDER
-    /// Until then this resolves to the marketing site so the link never 404s.
-    static let appStoreURL = URL(string: "https://trytokenomics.com")!
+    /// Until then this points at the Help page that explains Safari is on the
+    /// way and which browsers work meanwhile, so nobody lands on an unrelated page.
+    static let appStoreURL = URL(string: "https://trytokenomics.com/help/browsers")!
 
     /// Seconds since `updatedAt` that count as a live heartbeat.
     /// The extension sends heartbeats on every NMH round-trip (~60s); 5 minutes
@@ -149,14 +150,14 @@ actor BrowserExtensionConnector: ProviderConnector {
         switch browser {
         case .safari:
             return .confirmingInstall(
-                title: "Add Tokenomics to Safari",
-                body: "Tokenomics reads your web usage — ChatGPT, Gemini, and more — through a lightweight Safari extension from the App Store. Install it, switch it on in Safari, and come back; we'll detect it automatically.",
+                title: "Safari support is on the way",
+                // TODO: restore the install-and-enable copy once the App Store listing is live.
+                body: "Tokenomics for Safari isn't on the App Store yet. For now, use Chrome, Brave or Arc to read your web usage — ChatGPT, Gemini, and more — or skip this step and come back later.",
                 commandPreview: nil,
                 footnote: Self.installFootnote,
                 skipLabel: "Skip for now",
-                // The step title is a headline, not what the button does — the
-                // CTA opens the App Store, so say that.
-                primaryLabel: "Get it on the App Store"
+                // The CTA opens the Help page on supported browsers, so say that.
+                primaryLabel: "See browser options"
             )
         case .other:
             return .confirmingInstall(
