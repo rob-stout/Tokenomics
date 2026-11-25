@@ -604,7 +604,7 @@ struct ConnectorView: View {
         case .copilot: return "Sign in once and we'll track your Copilot usage."
         case .claude: return "Sign in to your Anthropic account."
         case .codex: return "Sign in with your ChatGPT account."
-        case .gemini: return "Sign in with your Google account."
+        case .gemini: return "Needs a Code Assist Standard/Enterprise license or paid API key. Personal Google accounts no longer work with Gemini CLI."
         case .stableDiffusion, .runway, .elevenlabs: return "Paste an API key from the provider's website."
         default: return "Connect this provider to track its usage."
         }

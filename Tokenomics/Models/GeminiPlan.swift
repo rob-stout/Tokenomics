@@ -8,11 +8,26 @@ enum GeminiPlan: String, CaseIterable, Codable, Sendable {
 
     var displayLabel: String {
         switch self {
-        case .free: return "Free"
+        case .free: return "Free (ended)"
         case .standard: return "Standard"
         case .enterprise: return "Enterprise"
         }
     }
+
+    /// Longer label for the plan picker. The raw values stay as-is so saved
+    /// settings still decode; `.free` is kept for existing users but relabelled
+    /// honestly since Google stopped serving personal accounts on 2026-06-18.
+    var pickerLabel: String {
+        switch self {
+        case .free: return "Free (personal accounts \u{2014} ended June 2026)"
+        case .standard: return "Code Assist Standard"
+        case .enterprise: return "Code Assist Enterprise"
+        }
+    }
+
+    /// Shown wherever the user connects or picks a Gemini CLI plan.
+    static let personalAccountNotice =
+        "Personal Google accounts can no longer use Gemini CLI (they moved to Antigravity CLI in June 2026). You need a Gemini Code Assist Standard or Enterprise license, or a paid Gemini API key."
 
     var dailyLimit: Int {
         switch self {

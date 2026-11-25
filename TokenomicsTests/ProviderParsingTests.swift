@@ -463,7 +463,8 @@ final class GeminiPlanTests: XCTestCase {
         let plan = GeminiPlan.free
         XCTAssertEqual(plan.dailyLimit, 1000)
         XCTAssertEqual(plan.dailyTokenBudget, 2_000_000)
-        XCTAssertEqual(plan.displayLabel, "Free")
+        XCTAssertEqual(plan.displayLabel, "Free (ended)")
+        XCTAssertTrue(plan.pickerLabel.contains("ended June 2026"))
     }
 
     func testGeminiPlan_standard_limitsAreCorrect() {
@@ -471,6 +472,7 @@ final class GeminiPlanTests: XCTestCase {
         XCTAssertEqual(plan.dailyLimit, 1500)
         XCTAssertEqual(plan.dailyTokenBudget, 3_000_000)
         XCTAssertEqual(plan.displayLabel, "Standard")
+        XCTAssertEqual(plan.pickerLabel, "Code Assist Standard")
     }
 
     func testGeminiPlan_enterprise_limitsAreCorrect() {
@@ -612,5 +614,19 @@ final class GhDeviceCodeParsingTests: XCTestCase {
         let scanner = DeviceCodeScanner()
         XCTAssertNil(scanner.scan("- Authenticating to github.com"))
         XCTAssertNil(scanner.scan("✓ Authentication complete."))
+    }
+}
+
+
+final class CodexWindowLabelTests: XCTestCase {
+    func testKnownWindows() {
+        XCTAssertEqual(CodexProvider.windowLabel(minutes: 300), "5-Hour Window")
+        XCTAssertEqual(CodexProvider.windowLabel(minutes: 10_080), "Weekly")
+        XCTAssertEqual(CodexProvider.windowLabel(minutes: 43_200), "Monthly")
+    }
+
+    func testUnknownWindows_deriveFromLength() {
+        XCTAssertEqual(CodexProvider.windowLabel(minutes: 120), "2-Hour Window")
+        XCTAssertEqual(CodexProvider.windowLabel(minutes: 4_320), "3-Day Window")
     }
 }

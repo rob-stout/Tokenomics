@@ -142,7 +142,8 @@ private struct StabilityBalanceResponse: Decodable {
 
 /// Persists balance history locally for purchase detection and run rate calculation.
 /// Stored in UserDefaults — small data, no network dependency.
-private struct BalanceHistory: Codable {
+/// Shared with RunwayProvider (also prepaid), which passes its own storage key.
+struct BalanceHistory: Codable {
     var cycleStartBalance: Double?
     var cycleStartDate: Date?
     var lastKnownBalance: Double?
@@ -196,9 +197,9 @@ private struct BalanceHistory: Codable {
 
     // MARK: - Persistence
 
-    private static let key = "stableDiffusion_balanceHistory"
+    static let stabilityKey = "stableDiffusion_balanceHistory"
 
-    static func load() -> BalanceHistory {
+    static func load(key: String = stabilityKey) -> BalanceHistory {
         guard let data = UserDefaults.standard.data(forKey: key),
               let history = try? JSONDecoder().decode(BalanceHistory.self, from: data) else {
             return BalanceHistory()
@@ -206,8 +207,8 @@ private struct BalanceHistory: Codable {
         return history
     }
 
-    func save() {
+    func save(key: String = stabilityKey) {
         guard let data = try? JSONEncoder().encode(self) else { return }
-        UserDefaults.standard.set(data, forKey: Self.key)
+        UserDefaults.standard.set(data, forKey: key)
     }
 }

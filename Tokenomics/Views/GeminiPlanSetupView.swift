@@ -35,16 +35,23 @@ struct GeminiPlanSetupView: View {
 
             Picker("Plan", selection: $selectedPlan) {
                 ForEach(GeminiPlan.allCases, id: \.self) { plan in
-                    Text(plan.displayLabel).tag(plan)
+                    Text(plan.pickerLabel).tag(plan)
                 }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
+            .labelsHidden()
             .padding(.top, 4)
 
             Text(selectedPlan.limitSummary)
                 .scaledFont(.caption2)
                 .foregroundStyle(.secondary)
                 .animation(.none, value: selectedPlan)
+
+            Text(GeminiPlan.personalAccountNotice)
+                .scaledFont(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button(isEditing ? "Update" : "Start Tracking") {
                 onConfirm(selectedPlan)

@@ -295,6 +295,11 @@ struct AIConnectionsView: View {
                     .background(Color(nsColor: .quaternaryLabelColor).opacity(0.3))
                     .clipShape(RoundedRectangle(cornerRadius: 7))
                     .padding(.top, 4)
+
+                    Text(GeminiPlan.personalAccountNotice)
+                        .scaledFont(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 

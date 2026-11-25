@@ -30,7 +30,7 @@ Tokenomics makes outbound API calls only to the provider endpoints that own your
 | GitHub | `https://api.github.com/copilot_internal/user` |
 | Cursor | `https://cursor.com/api/usage-summary` |
 | Stability AI | `https://api.stability.ai/v1/user/balance` |
-| Runway | `https://api.dev.runwayml.com/v1/credits` |
+| Runway | `https://api.dev.runwayml.com/v1/organization` |
 | ElevenLabs | `https://api.elevenlabs.io/v1/user/subscription` |
 | Suno (via the browser extension) | `https://studio-api.prod.suno.com/api/billing/info/` — requested by the extension from your own signed-in suno.com tab; the Mac app itself makes no Suno calls |
 | Udio (via the browser extension) | `https://www.udio.com/api/users/current/api-usage` and `https://www.udio.com/api/subscriptions` — requested by the extension using your signed-in udio.com session; the Mac app itself makes no Udio calls |

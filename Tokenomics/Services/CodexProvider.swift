@@ -175,12 +175,29 @@ actor CodexProvider: UsageProvider {
         return commonPaths.contains { FileManager.default.fileExists(atPath: $0) }
     }
 
+    /// Pro plans have no 5-hour window, so the primary window can be weekly.
+    /// Name the window from its real length instead of assuming 5 hours.
+    nonisolated static func windowLabel(minutes: Int) -> String {
+        func near(_ target: Int) -> Bool {
+            abs(Double(minutes - target)) <= Double(target) * 0.05
+        }
+        if near(300) { return "5-Hour Window" }
+        if near(10_080) { return "Weekly" }
+        if near(43_200) { return "Monthly" }
+        if minutes >= 1_440 {
+            let days = Int((Double(minutes) / 1_440).rounded())
+            return "\(days)-Day Window"
+        }
+        let hours = max(1, Int((Double(minutes) / 60).rounded()))
+        return "\(hours)-Hour Window"
+    }
+
     private func mapToSnapshot(_ data: SessionData) -> ProviderUsageSnapshot {
         // Primary bar: 5-hour rate limit (drives menu bar % and inner ring)
         let shortWindow: WindowUsage
         if let primary = data.rateLimits?.primary {
             shortWindow = WindowUsage(
-                label: "5-Hour Window",
+                label: Self.windowLabel(minutes: primary.windowMinutes),
                 utilization: primary.usedPercent,
                 resetsAt: Date(timeIntervalSince1970: primary.resetsAt),
                 windowDuration: Double(primary.windowMinutes) * 60
@@ -205,7 +222,7 @@ actor CodexProvider: UsageProvider {
         let longWindow: WindowUsage?
         if let secondary = data.rateLimits?.secondary {
             longWindow = WindowUsage(
-                label: "Weekly",
+                label: Self.windowLabel(minutes: secondary.windowMinutes),
                 utilization: secondary.usedPercent,
                 resetsAt: Date(timeIntervalSince1970: secondary.resetsAt),
                 windowDuration: Double(secondary.windowMinutes) * 60

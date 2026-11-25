@@ -64,7 +64,7 @@ struct HowItWorksView: View {
                     legendRow(
                         customIcon: "Outer Ring",
                         title: "Outer Ring",
-                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the weekly limit; for Gemini CLI it's daily requests. Not all providers have two rings \u{2014} Cursor and paid Copilot plans show a single ring for premium requests."
+                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the weekly limit; for Gemini CLI it's daily requests. Not all providers have two rings \u{2014} Cursor and paid Copilot plans show a single ring for AI credits (or premium requests on annual plans)."
                     )
                     legendRow(
                         customIcon: "Inner Ring",
@@ -121,7 +121,7 @@ struct HowItWorksView: View {
                     legendRow(
                         icon: "dollarsign.circle",
                         title: "Extra Usage",
-                        description: "Visible on Max plans with extra usage enabled. Shows how much of your monthly spending limit you've used."
+                        description: "Visible on paid plans with usage credits enabled (Anthropic's name for extra usage). Shows how much of your monthly spending limit you've used."
                     )
 
                     Divider()

@@ -1,25 +1,6 @@
 import XCTest
 @testable import Tokenomics
 
-// MARK: - RunwayProvider Cycle Duration Tests
-
-/// Regression tests for RunwayProvider.cycleDuration(for:).
-/// Guards the 30-day fixed window and the distantFuture → 0 sentinel path.
-final class RunwayProviderCycleDurationTests: XCTestCase {
-
-    /// Valid reset date → exactly 30 days in seconds.
-    func testCycleDuration_withValidResetDate_is30Days() {
-        let resetsAt = Date().addingTimeInterval(7 * 24 * 3600) // arbitrary future date
-        XCTAssertEqual(RunwayProvider.cycleDuration(for: resetsAt), 30 * 24 * 3600, accuracy: 0.001)
-    }
-
-    /// distantFuture (nil resetsAt from API) → 0, so pace dot hides honestly.
-    func testCycleDuration_withDistantFuture_isZero() {
-        XCTAssertEqual(RunwayProvider.cycleDuration(for: .distantFuture), 0, accuracy: 0.001)
-    }
-}
-
-// MARK: - ElevenLabsProvider Cycle Duration Tests
 
 /// Regression tests for ElevenLabsProvider.cycleDuration(for:).
 /// Guards the 31-day worst-case window and the distantFuture → 0 sentinel path.

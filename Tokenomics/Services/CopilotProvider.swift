@@ -123,16 +123,19 @@ actor CopilotProvider: UsageProvider {
     nonisolated static func mapToSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
         // Free accounts report counted quotas here; keep that path first so their
         // behaviour is unchanged. Paid plans omit it and use `quota_snapshots`.
-        if info.monthlyQuotas?.chat == nil,
+        let freeFromSnapshots = info.isFreeViaSnapshots
+        if info.monthlyQuotas?.chat == nil, !freeFromSnapshots,
            let premium = info.quotaSnapshots?.premiumInteractions {
             return mapPaidSnapshot(info, premium: premium)
         }
-        let chatQuota = info.limitedUserQuotas?.chat ?? 0
-        let chatLimit = info.monthlyQuotas?.chat ?? 0
+        // Free accounts: prefer the legacy counted quotas, else the 2026 snapshots
+        // (premium has no quota there, chat/completions carry the limits).
+        let chatQuota = info.limitedUserQuotas?.chat ?? info.quotaSnapshots?.chat?.remaining ?? 0
+        let chatLimit = info.monthlyQuotas?.chat ?? info.quotaSnapshots?.chat?.entitlement ?? 0
         let chatUsed = chatLimit - chatQuota
 
-        let completionsQuota = info.limitedUserQuotas?.completions ?? 0
-        let completionsLimit = info.monthlyQuotas?.completions ?? 0
+        let completionsQuota = info.limitedUserQuotas?.completions ?? info.quotaSnapshots?.completions?.remaining ?? 0
+        let completionsLimit = info.monthlyQuotas?.completions ?? info.quotaSnapshots?.completions?.entitlement ?? 0
         let completionsUsed = completionsLimit - completionsQuota
 
         let chatUtilization = chatLimit > 0
@@ -146,6 +149,8 @@ actor CopilotProvider: UsageProvider {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             resetsAt = formatter.date(from: resetStr) ?? Date.distantFuture
+        } else if let paidReset = info.paidResetDate {
+            resetsAt = paidReset
         } else {
             resetsAt = Date.distantFuture
         }
@@ -188,7 +193,8 @@ actor CopilotProvider: UsageProvider {
     }
 
     /// Paid plans (Pro, Pro+, Business, Enterprise): chat and completions are
-    /// unlimited, so the only meter that matters is premium requests.
+    /// unlimited, so the only meter that matters is AI credits (monthly plans) or
+    /// premium requests (annual Pro/Pro+).
     private nonisolated static func mapPaidSnapshot(
         _ info: CopilotUserInfo,
         premium: CopilotUserInfo.QuotaSnapshot
@@ -197,6 +203,9 @@ actor CopilotProvider: UsageProvider {
         let cycleStart = Calendar.current.date(byAdding: .month, value: -1, to: resetsAt) ?? Date()
         let cycleDuration = resetsAt.timeIntervalSince(cycleStart)
 
+        // Monthly paid plans moved to token-based "AI credits" in June 2026; annual
+        // Pro/Pro+ keep premium requests. The snapshot flag wins over the top-level one.
+        let isTokenBased = premium.tokenBasedBilling ?? info.tokenBasedBilling ?? false
         let entitlement = premium.entitlement ?? 0
         let utilization: Double
         let sublabel: String
@@ -207,7 +216,9 @@ actor CopilotProvider: UsageProvider {
             // percent_remaining is fractional (e.g. 87.3) and more precise than the
             // integer `remaining`; fall back to remaining when it is absent.
             let usedPercent: Double
-            if let percentRemaining = premium.percentRemaining {
+            if isTokenBased, let credits = premium.creditsUsed, credits >= 0 {
+                usedPercent = credits / Double(entitlement) * 100
+            } else if let percentRemaining = premium.percentRemaining {
                 usedPercent = 100 - percentRemaining
             } else if let remaining = premium.remaining {
                 usedPercent = Double(entitlement - remaining) / Double(entitlement) * 100
@@ -215,13 +226,18 @@ actor CopilotProvider: UsageProvider {
                 usedPercent = 0
             }
             utilization = max(0, usedPercent)
-            let used = Int((Double(entitlement) * utilization / 100).rounded())
+            let used: Int
+            if isTokenBased, let credits = premium.creditsUsed, credits >= 0 {
+                used = Int(credits.rounded())
+            } else {
+                used = Int((Double(entitlement) * utilization / 100).rounded())
+            }
             sublabel = "\(used) / \(entitlement) used"
         }
 
         return ProviderUsageSnapshot(
             shortWindow: WindowUsage(
-                label: "Premium Requests",
+                label: isTokenBased ? "AI Credits" : "Premium Requests",
                 utilization: min(utilization, 999),
                 resetsAt: resetsAt,
                 windowDuration: cycleDuration,
@@ -248,11 +264,15 @@ struct CopilotUserInfo: Decodable {
     let quotaSnapshots: QuotaSnapshots?
     let quotaResetDate: String?
     let quotaResetDateUTC: String?
+    let tokenBasedBilling: Bool?
 
     struct QuotaSnapshots: Decodable {
+        let chat: QuotaSnapshot?
+        let completions: QuotaSnapshot?
         let premiumInteractions: QuotaSnapshot?
 
         enum CodingKeys: String, CodingKey {
+            case chat, completions
             case premiumInteractions = "premium_interactions"
         }
     }
@@ -262,11 +282,29 @@ struct CopilotUserInfo: Decodable {
         let remaining: Int?
         let percentRemaining: Double?
         let unlimited: Bool?
+        let hasQuota: Bool?
+        // Added with token-based billing (June 2026); absent on older responses.
+        let tokenBasedBilling: Bool?
+        let creditsUsed: Double?
 
         enum CodingKeys: String, CodingKey {
             case entitlement, remaining, unlimited
+            case hasQuota = "has_quota"
+            case tokenBasedBilling = "token_based_billing"
+            case creditsUsed = "credits_used"
             case percentRemaining = "percent_remaining"
         }
+    }
+
+    /// Free accounts in the 2026 response shape: no premium quota, but counted
+    /// chat/completions snapshots.
+    var isFreeViaSnapshots: Bool {
+        guard let snaps = quotaSnapshots,
+              snaps.premiumInteractions?.hasQuota == false,
+              snaps.premiumInteractions?.unlimited != true,
+              snaps.chat?.unlimited != true,
+              (snaps.chat?.entitlement ?? 0) > 0 else { return false }
+        return true
     }
 
     /// Paid plans send "2026-12-01" and/or "2026-12-01T00:00:00.000Z"; only the
@@ -312,6 +350,7 @@ struct CopilotUserInfo: Decodable {
         case quotaSnapshots = "quota_snapshots"
         case quotaResetDate = "quota_reset_date"
         case quotaResetDateUTC = "quota_reset_date_utc"
+        case tokenBasedBilling = "token_based_billing"
     }
 }
 
