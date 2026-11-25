@@ -111,4 +111,56 @@ final class PollingServiceTests: XCTestCase {
         let idle = await service.isIdle
         XCTAssertFalse(idle)
     }
+
+    // MARK: - Idle cadence
+
+    /// Idle polling must slow down, not stop: a provider fetched 5 min ago is due on its
+    /// own 60s interval but not under the 15 min idle floor.
+    func testProviderSchedule_idleFloor_delaysDueness() {
+        let fetched = Date().addingTimeInterval(-300)
+        let schedule = PollingService.ProviderSchedule(interval: 60, lastFetched: fetched)
+        XCTAssertTrue(schedule.isDue(now: Date()))
+        XCTAssertFalse(schedule.isDue(now: Date(), idleInterval: 900))
+    }
+
+    func testProviderSchedule_idleFloor_dueOnceFloorElapsed() {
+        let schedule = PollingService.ProviderSchedule(interval: 60, lastFetched: Date().addingTimeInterval(-901))
+        XCTAssertTrue(schedule.isDue(now: Date(), idleInterval: 900))
+    }
+
+    /// The idle floor never makes a slow provider poll faster than its own interval.
+    func testProviderSchedule_idleFloor_doesNotSpeedUpSlowProvider() {
+        let schedule = PollingService.ProviderSchedule(interval: 3600, lastFetched: Date().addingTimeInterval(-1000))
+        XCTAssertFalse(schedule.isDue(now: Date(), idleInterval: 900))
+    }
+
+    /// Going idle must not end the loop (the old behaviour froze numbers for good).
+    func testLoop_staysRunningWhenIdle() async {
+        let service = PollingService(idleTimeout: 0, idleInterval: 900)
+        await service.registerProvider(.claude, interval: 60)
+        await service.start { _ in }
+        try? await Task.sleep(for: .milliseconds(100))
+        let idle = await service.isIdle
+        let running = await service.isRunning
+        XCTAssertTrue(idle)
+        XCTAssertTrue(running)
+        await service.stop()
+    }
+
+    // MARK: - Popover-open refresh
+
+    func testClaimStaleProviders_returnsOnlyDueAndMarksThemFetched() async {
+        let service = PollingService()
+        await service.registerProvider(.claude, interval: 600)
+        await service.registerProvider(.codex, interval: 60)
+        // Never fetched -> both due on first claim.
+        let first = await service.claimStaleProviders()
+        XCTAssertEqual(Set(first), [.claude, .codex])
+        // Claiming marks them fetched, so an immediate second open fetches nothing.
+        let second = await service.claimStaleProviders()
+        XCTAssertTrue(second.isEmpty)
+        // Later, only the short-interval provider is stale again.
+        let later = await service.claimStaleProviders(now: Date().addingTimeInterval(120))
+        XCTAssertEqual(later, [.codex])
+    }
 }
