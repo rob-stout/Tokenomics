@@ -15,6 +15,9 @@ struct APIKeyPasteStep: View {
     /// URL to the provider's API key generation page.
     var helpURL: URL?
 
+    /// Latest rejected paste, if any. Shown inline; a new value also stops the spinner.
+    var failure: APIKeySubmitFailure?
+
     /// Called when the user taps "Save & connect" with a non-empty key.
     var onSubmit: (String) -> Void
 
@@ -44,6 +47,14 @@ struct APIKeyPasteStep: View {
             // Secure input row with inline Paste button
             secureInputRow
                 .padding(.top, Tokens.Spacing.s5) // 24pt breathing room
+
+            if let failure {
+                Text(failure.message)
+                    .font(Tokens.Typography.Onboarding.small)
+                    .foregroundStyle(Tokens.Color.danger(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Tokens.Spacing.s2)
+            }
 
             // Re-open the provider's API keys page. Works for either case —
             // user lost the page after copying their key, or never got one
@@ -87,6 +98,7 @@ struct APIKeyPasteStep: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onChange(of: failure) { _, _ in isSubmitting = false }
     }
 
     // MARK: - Secure input row
@@ -136,7 +148,7 @@ struct APIKeyPasteStep: View {
         onSubmit(apiKey)
 
         // Failsafe: if the connector's check doesn't transition us off this
-        // step within 5 seconds (bad key, network failure, polling died),
+        // step or report a failure within 5 seconds (polling died),
         // reset isSubmitting so the user can re-enter and retry instead of
         // sitting on a forever-spinning button. On success the parent
         // re-renders to the connected screen and this state is moot.

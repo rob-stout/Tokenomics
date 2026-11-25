@@ -103,21 +103,6 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         }
     }
 
-    /// Terminal command to authenticate (CLI-based providers only)
-    var loginCommand: String {
-        switch self {
-        case .claude: return "claude"
-        case .copilot: return "gh auth login"
-        case .cursor: return "open -a Cursor"
-        case .codex: return "codex login"
-        // The CLI has no `login` subcommand; running `gemini` prompts for a sign-in method.
-        case .gemini: return "gemini"
-        // Browser-session and API-key providers have no CLI auth
-        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .leonardo,
-             .runway, .elevenlabs, .suno, .udio, .grok, .perplexity: return ""
-        }
-    }
-
     /// Whether this provider exposes rate-limit / usage data
     var supportsUsageTracking: Bool {
         switch self {
@@ -146,22 +131,6 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         default: return false
         }
     }
-
-    /// Install command for CLI-based providers
-    var installCommand: String {
-        switch self {
-        case .claude: return "npm install -g @anthropic-ai/claude-code"
-        case .copilot: return "brew install gh"
-        case .cursor: return "brew install --cask cursor"
-        case .codex: return "npm install -g @openai/codex"
-        case .gemini: return "npm install -g @google/gemini-cli"
-        // Browser-session and API-key providers don't need installation
-        case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .leonardo,
-             .runway, .elevenlabs, .suno, .udio, .grok, .perplexity: return ""
-        }
-    }
-
-
 }
 
 // MARK: - Provider Categories
