@@ -7,14 +7,19 @@ import os
 /// based on their individual `pollInterval`. Local providers (Codex, Gemini)
 /// poll every minute; remote providers (Claude) poll less frequently.
 ///
-/// When idle (no activity for `idleTimeout`): stops polling to save resources.
-/// When activity resumes: immediately fetches and restarts.
+/// When idle (no activity for `idleTimeout`): keeps polling, but no more often than
+/// `idleInterval`. Stopping outright would freeze the menu bar and widgets for
+/// anyone whose tools ActivityMonitor can't see (it only watches ~/.claude).
+/// When activity resumes: providers go back to their own interval on the next tick.
+/// Rate-limit backoff lives inside each provider's fetch, so slower polling never
+/// bypasses it.
 actor PollingService {
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "PollingService")
 
     private var task: Task<Void, Never>?
     private let tickInterval: TimeInterval = 60 // Check every minute
     private let idleTimeout: TimeInterval
+    private let idleInterval: TimeInterval
     private var lastActivity: Date = Date()
     private var storedAction: (@Sendable (ProviderId) async -> Void)?
     private var providerSchedules: [ProviderId: ProviderSchedule] = [:]
@@ -23,14 +28,17 @@ actor PollingService {
         let interval: TimeInterval
         var lastFetched: Date?
 
-        func isDue(now: Date) -> Bool {
+        /// `idleInterval` is a floor applied while idle; it never speeds a provider up.
+        func isDue(now: Date, idleInterval: TimeInterval? = nil) -> Bool {
             guard let last = lastFetched else { return true }
-            return now.timeIntervalSince(last) >= interval
+            let effective = max(interval, idleInterval ?? 0)
+            return now.timeIntervalSince(last) >= effective
         }
     }
 
-    init(idleTimeout: TimeInterval = 540) { // 9 min idle
+    init(idleTimeout: TimeInterval = 540, idleInterval: TimeInterval = 900) { // 9 min idle, then every 15 min
         self.idleTimeout = idleTimeout
+        self.idleInterval = idleInterval
     }
 
     var isRunning: Bool { task != nil }
@@ -41,15 +49,10 @@ actor PollingService {
     }
 
     /// Record external activity (e.g. filesystem change in ~/.claude).
-    /// Wakes polling if it was sleeping.
+    /// Returns polling to each provider's normal cadence.
     func noteActivity() {
-        let wasIdle = isIdle
+        if isIdle { Self.log.info("Activity resumed — back to normal polling cadence") }
         lastActivity = Date()
-
-        if wasIdle, task == nil, let action = storedAction {
-            Self.log.info("Polling waking up after idle")
-            startLoop(action: action)
-        }
     }
 
     /// Whether enough time has passed since last activity to consider idle.
@@ -74,6 +77,16 @@ actor PollingService {
         storedAction = nil
     }
 
+    /// Providers whose data is older than their normal interval, marked as fetched.
+    /// Used when the popover opens: ignores the idle slowdown because someone is
+    /// about to look at the numbers. Marking them here also keeps repeated opens
+    /// from hammering a provider that keeps failing.
+    func claimStaleProviders(now: Date = Date()) -> [ProviderId] {
+        let due = providerSchedules.filter { $0.value.isDue(now: now) }.map(\.key)
+        for id in due { providerSchedules[id]?.lastFetched = now }
+        return due
+    }
+
     /// Mark a provider as just-fetched (called after manual refresh)
     func markFetched(_ id: ProviderId) {
         providerSchedules[id]?.lastFetched = Date()
@@ -96,27 +109,18 @@ actor PollingService {
                 try? await Task.sleep(for: .seconds(tickInterval))
                 guard !Task.isCancelled else { break }
 
-                if isIdle {
-                    Self.log.info("Polling going idle — no activity for \(Int(self.idleTimeout))s")
-                    break
-                }
+                let idleFloor: TimeInterval? = isIdle ? idleInterval : nil
 
                 // Check which providers are due
                 let now = Date()
-                let dueIds = providerSchedules.filter { $0.value.isDue(now: now) }.map(\.key)
+                let dueIds = providerSchedules.filter { $0.value.isDue(now: now, idleInterval: idleFloor) }.map(\.key)
                 if !dueIds.isEmpty {
                     Self.log.debug("Ticking providers: \(dueIds.map(\.rawValue).joined(separator: ", "))")
                 }
-                for (id, schedule) in providerSchedules where schedule.isDue(now: now) {
+                for (id, schedule) in providerSchedules where schedule.isDue(now: now, idleInterval: idleFloor) {
                     providerSchedules[id]?.lastFetched = now
                     await action(id)
                 }
-            }
-
-            // If we exited due to idle (not cancellation), nil out task
-            // so noteActivity() can restart us
-            if !Task.isCancelled {
-                task = nil
             }
         }
     }

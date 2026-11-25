@@ -174,7 +174,7 @@ function UsageApp() {
     ]).then(([claude, chatgpt, midjourney, geminiConsumer, elevenlabs, grok, perplexity, leonardo, suno, udio]) => {
       setWebSnapshots({
         ...(claude ? { claude } : {}),
-        ...(chatgpt ? { codex: chatgpt } : {}),
+        ...(chatgpt ? { chatgpt } : {}),
         ...(midjourney ? { midjourney } : {}),
         ...(geminiConsumer ? { geminiConsumer } : {}),
         ...(elevenlabs ? { elevenlabs } : {}),
@@ -211,7 +211,7 @@ function UsageApp() {
       }
       if ('chatgptSnapshot' in changes) {
         const next = changes['chatgptSnapshot']?.newValue as ProviderUsageSnapshot | undefined;
-        setWebSnapshots((prev) => ({ ...prev, codex: next ?? undefined }));
+        setWebSnapshots((prev) => ({ ...prev, chatgpt: next ?? undefined }));
       }
       if ('midjourneySnapshot' in changes) {
         const next = changes['midjourneySnapshot']?.newValue as ProviderUsageSnapshot | undefined;

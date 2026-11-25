@@ -237,14 +237,16 @@ body {
 }
 
 .tab__icon--claude { background-image: url(../icons/providers/Claude-d.blue.svg); }
-.tab__icon--codex { background-image: url(../icons/providers/Codex-d.blue.svg); }
+.tab__icon--codex,
+.tab__icon--chatgpt { background-image: url(../icons/providers/Codex-d.blue.svg); }
 .tab__icon--gemini { background-image: url(../icons/providers/Gemini-d.blue.svg); }
 .tab__icon--copilot { background-image: url(../icons/providers/Copilot-d.blue.svg); }
 .tab__icon--cursor { background-image: url(../icons/providers/Cursor-d.blue.svg); }
 .tab__icon--midjourney { background-image: url(../icons/providers/midjourney-d.blue.svg); }
 
 [data-theme='dark'] .tab__icon--claude { background-image: url(../icons/providers/Claude-white.svg); }
-[data-theme='dark'] .tab__icon--codex { background-image: url(../icons/providers/Codex-white.svg); }
+[data-theme='dark'] .tab__icon--codex,
+[data-theme='dark'] .tab__icon--chatgpt { background-image: url(../icons/providers/Codex-white.svg); }
 [data-theme='dark'] .tab__icon--gemini { background-image: url(../icons/providers/Gemini-white.svg); }
 [data-theme='dark'] .tab__icon--copilot { background-image: url(../icons/providers/Copilot-white.svg); }
 [data-theme='dark'] .tab__icon--cursor { background-image: url(../icons/providers/Cursor-white.svg); }

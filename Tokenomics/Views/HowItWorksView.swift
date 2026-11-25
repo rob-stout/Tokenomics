@@ -64,7 +64,7 @@ struct HowItWorksView: View {
                     legendRow(
                         customIcon: "Outer Ring",
                         title: "Outer Ring",
-                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the model context window; for Gemini it's daily requests. Not all providers have two rings \u{2014} Copilot shows a single ring for premium requests."
+                        description: "The broader picture \u{2014} a longer-horizon or secondary metric. For Claude it's the 7-day window; for Codex it's the weekly limit; for Gemini CLI it's daily requests. Not all providers have two rings \u{2014} Cursor and paid Copilot plans show a single ring for premium requests."
                     )
                     legendRow(
                         customIcon: "Inner Ring",
@@ -106,7 +106,7 @@ struct HowItWorksView: View {
                     legendRow(
                         icon: "clock.arrow.circlepath",
                         title: "Reset Time",
-                        description: "When the current window resets. Time-based windows show a countdown; non-time-based windows (like context windows) show remaining capacity instead."
+                        description: "When the current window resets. Time-based windows show a countdown; windows without a known reset date just show how much you've used."
                     )
 
                     Divider()
@@ -116,7 +116,7 @@ struct HowItWorksView: View {
                     legendRow(
                         customIcon: "Plan Badge",
                         title: "Plan Badge",
-                        description: "Shows your plan tier for each provider. Claude, Codex, and Copilot plans are detected automatically. Gemini's plan is set by you and determines your daily rate limits."
+                        description: "Shows your plan tier for each provider. Claude, Codex, and Copilot plans are detected automatically. Gemini CLI's plan is set by you and determines the daily limits it's measured against, so its numbers are an estimate."
                     )
                     legendRow(
                         icon: "dollarsign.circle",
@@ -150,7 +150,7 @@ struct HowItWorksView: View {
 
                     faqRow(
                         question: "Why don't I see a pace dot on some bars?",
-                        answer: "Pace dots only appear on time-based windows. Things like Codex's context window don't reset on a schedule, so there's no pace to show. Runway, ElevenLabs, and Cursor also hide the dot when their API doesn't return a billing cycle date \u{2014} without that anchor, the math would be a guess."
+                        answer: "Pace dots only appear when Tokenomics knows when a window resets. Runway, ElevenLabs, and Cursor hide the dot when their API doesn't return a billing cycle date \u{2014} without that anchor, the math would be a guess."
                     )
 
                     faqRow(

@@ -325,10 +325,10 @@ final class BrowserExtensionConnectorTests: XCTestCase {
         guard case .confirmingInstall(let title, let body, _, _, let skipLabel, let primaryLabel, _) = step else {
             return XCTFail("Expected .confirmingInstall, got \(step)")
         }
-        XCTAssertEqual(title, "Add Tokenomics to Safari")
-        XCTAssertTrue(body.contains("Safari extension from the App Store"))
+        XCTAssertEqual(title, "Safari support is on the way")
+        XCTAssertTrue(body.contains("Chrome, Brave or Arc"))
         XCTAssertEqual(skipLabel, "Skip for now")
-        XCTAssertEqual(primaryLabel, "Get it on the App Store")
+        XCTAssertEqual(primaryLabel, "See browser options")
     }
 
     /// Non-Safari browsers keep today's Chrome-framed copy.

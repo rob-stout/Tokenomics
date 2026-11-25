@@ -46,7 +46,7 @@ actor APIKeyConnector: ProviderConnector {
         case .elevenlabs:
             return URL(string: "https://elevenlabs.io/app/settings/api-keys")!
         default:
-            return URL(string: "https://trytokenomics.com/setup")!
+            return id.setupGuideURL
         }
     }
 

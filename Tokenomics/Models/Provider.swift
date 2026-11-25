@@ -110,7 +110,8 @@ enum ProviderId: String, CaseIterable, Codable, Sendable, Identifiable {
         case .copilot: return "gh auth login"
         case .cursor: return "open -a Cursor"
         case .codex: return "codex login"
-        case .gemini: return "gemini login"
+        // The CLI has no `login` subcommand; running `gemini` prompts for a sign-in method.
+        case .gemini: return "gemini"
         // Browser-session and API-key providers have no CLI auth
         case .chatgpt, .geminiConsumer, .stableDiffusion, .midjourney, .leonardo,
              .runway, .elevenlabs, .suno, .udio, .grok, .perplexity: return ""
@@ -220,19 +221,25 @@ extension ProviderId {
         }
     }
 
-    /// Anchor fragment that deep-links to the matching section of trytokenomics.com/setup.html
+    /// Anchor fragment for a section id on trytokenomics.com/setup. The ids are
+    /// owned by the website; keep this in sync with the setup page.
     var setupGuideAnchor: String {
         switch self {
-        case .claude: return "#anthropic"
-        case .chatgpt: return "#chatgpt"
-        case .geminiConsumer: return "#google"
-        case .codex: return "#openai"
-        case .gemini: return "#google"
+        case .claude: return "#claude"
+        case .codex: return "#codex"
+        case .gemini: return "#gemini-cli"
         case .copilot: return "#copilot"
         case .cursor: return "#cursor"
-        case .stableDiffusion, .runway, .elevenlabs: return "#api-key"
-        case .midjourney, .grok, .perplexity, .leonardo, .suno, .udio: return "#browser-extension"
+        case .stableDiffusion, .runway: return "#api-keys"
+        // Web-only tools (and ElevenLabs, read via the browser) share one section.
+        case .chatgpt, .geminiConsumer, .elevenlabs,
+             .midjourney, .grok, .perplexity, .leonardo, .suno, .udio: return "#browser-extension"
         }
+    }
+
+    /// Extensionless URL — the .html form redirects and can drop the fragment.
+    var setupGuideURL: URL {
+        URL(string: "https://trytokenomics.com/setup\(setupGuideAnchor)")!
     }
 
     /// Whether this provider authenticates via an API key stored in Keychain

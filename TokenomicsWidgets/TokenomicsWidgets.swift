@@ -72,7 +72,7 @@ struct TokenomicsWidget: Widget {
                 }
         }
         .configurationDisplayName("AI Usage")
-        .description("Track your AI coding tool usage at a glance.")
+        .description("Track your AI usage limits at a glance.")
         .supportedFamilies(Self.families)
         .contentMarginsDisabled()
     }

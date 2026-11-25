@@ -16,7 +16,7 @@ struct LoginView: View {
             .scaleEffect(2.0)
             .frame(width: 44, height: 44)
 
-            Text("Track your AI coding usage.")
+            Text("Track your AI usage limits.")
                 .scaledFont(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -35,7 +35,7 @@ struct LoginView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
 
-            if let setupURL = URL(string: "https://trytokenomics.com/setup.html") {
+            if let setupURL = URL(string: "https://trytokenomics.com/setup") {
                 Link("View setup guide →", destination: setupURL)
                     .scaledFont(.caption)
                     .foregroundStyle(.secondary)
@@ -43,6 +43,6 @@ struct LoginView: View {
         }
         .padding()
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Track your AI coding usage. Connect a provider to start tracking.")
+        .accessibilityLabel("Track your AI usage limits. Connect a provider to start tracking.")
     }
 }

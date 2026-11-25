@@ -65,16 +65,6 @@ final class UsageViewModel {
     var showNotifications = false
     var showTextSize = false
 
-    /// API key entry sheet — lifted here so resetNavigation can guard against
-    /// dismissing AIConnectionsView while the sheet is open (the sheet window
-    /// takes key focus, which would otherwise fire didResignKeyNotification and
-    /// tear down the parent view before the sheet renders).
-    var apiKeyEntryProvider: ProviderId?
-
-    /// Copilot PAT entry sheet — promoted from AIConnectionsView's local @State
-    /// so the new connector flow can trigger it from outside that view.
-    var copilotPATEntryRequested: Bool = false
-
     // MARK: - Demo Mode
 
     /// When `true`, the VM serves fixture data instead of polling live APIs.
@@ -548,6 +538,17 @@ final class UsageViewModel {
         Task { await pollingService.stop() }
     }
 
+    /// Called when the popover opens: refreshes providers whose data is older than
+    /// their poll interval, so idle-mode (slow) polling never shows stale numbers.
+    func refreshStaleProviders() {
+        guard !demoModeEnabled, pollingStarted else { return }
+        Task {
+            for id in await pollingService.claimStaleProviders() {
+                await fetchProvider(id)
+            }
+        }
+    }
+
     /// Bumped on every manual refresh (button or ⌘R) so the popover can replay
     /// its motion — refresh-button spin, bars/pace/% build-in — even when the
     /// fetched numbers come back unchanged.
@@ -792,14 +793,9 @@ final class UsageViewModel {
     }
 
     /// Resets navigation to the home/usage view.
-    /// Skips dismissing AIConnectionsView when the API key entry sheet is open —
-    /// the sheet window takes key focus, firing didResignKeyNotification, and we
-    /// must not destroy the parent view before the sheet can present.
     func resetNavigation() {
         showSettings = false
-        if apiKeyEntryProvider == nil {
-            showAIConnections = false
-        }
+        showAIConnections = false
         showAbout = false
         showHowItWorks = false
         showNotifications = false

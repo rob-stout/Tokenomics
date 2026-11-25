@@ -105,6 +105,7 @@ struct PopoverView: View {
         // Re-detect providers and select contextual tab when popover opens
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             viewModel.redetectProviders()
+            viewModel.refreshStaleProviders()
             viewModel.selectContextualTab()
             // Sync selectedBrand when the flag is on: follow the worst-of-N or
             // pinned provider that selectContextualTab just chose.
@@ -394,8 +395,8 @@ struct PopoverView: View {
             }
 
             ShareLink(
-                item: URL(string: "https://robrstout.com/work/tokenomics/")!,
-                message: Text("I'm tracking my AI coding tool usage with Tokenomics!")
+                item: URL(string: "https://trytokenomics.com")!,
+                message: Text("I'm tracking my AI usage limits with Tokenomics!")
             ) {
                 Image(systemName: "square.and.arrow.up")
                     .scaledFont(.caption)
@@ -523,7 +524,12 @@ struct PopoverView: View {
         if let capturedAt = usage.capturedAt, WebPoolFreshness.isStale(usage, id: providerId, now: now) {
             parts.append("Last read \(WebPoolFreshness.ageText(since: capturedAt, now: now)) ago")
         }
-        if usage.estimated == true { parts.append("Estimated from your browser activity") }
+        if usage.estimated == true {
+            // Gemini CLI is counted from local session files, not the browser.
+            parts.append(providerId == .gemini
+                ? "Estimated from your local Gemini CLI sessions"
+                : "Estimated from your browser activity")
+        }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -701,11 +707,9 @@ struct PopoverView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
 
-            if let setupURL = URL(string: "https://trytokenomics.com/setup.html\(provider.setupGuideAnchor)") {
-                Link("View setup guide →", destination: setupURL)
-                    .scaledFont(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Link("View setup guide →", destination: provider.setupGuideURL)
+                .scaledFont(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(24)
     }
@@ -1114,7 +1118,7 @@ struct PopoverView: View {
         let connected = viewModel.connectedProviders.count
         let total = viewModel.installedProviders.count + viewModel.connectedProviders.count
         let subtitle: String = connected == 0
-            ? "Connect your AI coding tools to start tracking usage."
+            ? "Connect your AI tools to start tracking usage limits."
             : "\(connected) of \(max(connected, total)) providers connected."
 
         return VStack(spacing: 10) {
