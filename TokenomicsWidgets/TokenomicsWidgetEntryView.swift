@@ -147,7 +147,8 @@ struct TokenomicsWidgetEntryView: View {
 
 // MARK: - Small Widget
 
-/// Dual-ring design: outer ring for short window, inner ring for long window.
+/// Dual-ring design: inner ring for the short window, outer ring for the long window,
+/// matching the menu bar icon. With no long window, the short window gets the outer ring alone.
 /// Provider icon in corner identifies the source. In Smart mode, picks highest utilization.
 struct SmallWidgetView: View {
     let entry: UsageEntry
@@ -205,6 +206,8 @@ struct SmallWidgetView: View {
                 let size = min(geo.size.width, geo.size.height)
                 let outerDia = size * 0.61
                 let innerDia = size * 0.46
+                let shortDia = provider.longWindow == nil ? outerDia : innerDia
+                let longDia = outerDia
                 let lineW = size * 0.07
                 let dotSize = lineW
                 let fontSize = size * 0.125
@@ -213,12 +216,12 @@ struct SmallWidgetView: View {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     ZStack {
-                        // Outer ring track (short window)
+                        // Short-window ring track (inner, or the only ring)
                         Circle()
                             .stroke(theme.barTrack, lineWidth: lineW)
-                            .frame(width: outerDia, height: outerDia)
+                            .frame(width: shortDia, height: shortDia)
 
-                        // Outer ring fill (short window)
+                        // Short-window fill
                         Circle()
                             .trim(from: 0, to: min(provider.shortWindow.utilization / 100.0, 1.0))
                             .stroke(
@@ -226,28 +229,28 @@ struct SmallWidgetView: View {
                                 style: StrokeStyle(lineWidth: lineW, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
-                            .frame(width: outerDia, height: outerDia)
+                            .frame(width: shortDia, height: shortDia)
                             .animation(WidgetMotion.barFill, value: provider.shortWindow.utilization)
 
-                        // Outer ring tracker dot (short window pace) — runway indicator
+                        // Short-window tracker dot (pace) — runway indicator
                         if provider.shortWindow.pace > 0.01 && provider.shortWindow.pace < 0.99 {
                             Circle()
                                 .fill(theme.paceDotColor)
                                 .frame(width: dotSize, height: dotSize)
-                                .offset(y: -outerDia / 2)
+                                .offset(y: -shortDia / 2)
                                 // Rotate a full-ring frame (not the dot) so the move follows the arc.
-                                .frame(width: outerDia, height: outerDia)
+                                .frame(width: shortDia, height: shortDia)
                                 .rotationEffect(.degrees(provider.shortWindow.pace * 360))
                                 .animation(WidgetMotion.paceSlide, value: provider.shortWindow.pace)
                         }
 
-                        // Inner ring track (long window — only when available)
+                        // Outer ring track (long window — only when available)
                         if let longWindow = provider.longWindow {
                             Circle()
                                 .stroke(theme.barTrack, lineWidth: lineW)
-                                .frame(width: innerDia, height: innerDia)
+                                .frame(width: longDia, height: longDia)
 
-                            // Inner ring fill (long window)
+                            // Outer ring fill (long window)
                             Circle()
                                 .trim(from: 0, to: min(longWindow.utilization / 100.0, 1.0))
                                 .stroke(
@@ -255,17 +258,17 @@ struct SmallWidgetView: View {
                                     style: StrokeStyle(lineWidth: lineW, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(-90))
-                                .frame(width: innerDia, height: innerDia)
+                                .frame(width: longDia, height: longDia)
                                 .animation(WidgetMotion.barFill, value: longWindow.utilization)
 
-                            // Inner ring tracker dot (long window pace) — runway indicator
+                            // Outer ring tracker dot (long window pace) — runway indicator
                             if longWindow.pace > 0.01 && longWindow.pace < 0.99 {
                                 Circle()
                                     .fill(theme.paceDotColor)
                                     .frame(width: dotSize, height: dotSize)
-                                    .offset(y: -innerDia / 2)
+                                    .offset(y: -longDia / 2)
                                     // Rotate a full-ring frame (not the dot) so the move follows the arc.
-                                    .frame(width: innerDia, height: innerDia)
+                                    .frame(width: longDia, height: longDia)
                                     .rotationEffect(.degrees(longWindow.pace * 360))
                                     .animation(WidgetMotion.paceSlide, value: longWindow.pace)
                             }
