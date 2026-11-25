@@ -209,6 +209,15 @@ final class WebCompanionProviderTests: XCTestCase {
             "Last read 3h ago · Estimated from your browser activity")
     }
 
+    func testWebReadingNote_geminiCLI_saysLocalSessions() {
+        let usage = ProviderUsageSnapshot(
+            shortWindow: WindowUsage(label: "Tokens Today", utilization: 10, resetsAt: now.addingTimeInterval(3600), windowDuration: 86400),
+            longWindow: nil, planLabel: "Free", extraUsage: nil, creditsBalance: nil, estimated: true)
+        XCTAssertEqual(
+            PopoverView.webReadingNote(for: usage, providerId: .gemini, now: now),
+            "Estimated from your local Gemini CLI sessions")
+    }
+
     // MARK: - Scope guards
 
     func testWebOnlyPools_areExactlyTheBrowserExtensionPools_minusClaude() {

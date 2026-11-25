@@ -77,7 +77,10 @@ actor GeminiProvider: UsageProvider {
             ),
             planLabel: plan.displayLabel,
             extraUsage: nil,
-            creditsBalance: nil
+            creditsBalance: nil,
+            // Counted from local session files against assumed plan limits — not
+            // a figure Google reports.
+            estimated: true
         )
     }
 
