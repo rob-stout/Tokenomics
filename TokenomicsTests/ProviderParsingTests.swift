@@ -566,3 +566,51 @@ final class GeminiPlanTests: XCTestCase {
         XCTAssertEqual(message.totalTokens, 0)
     }
 }
+
+// MARK: - gh device-code output
+
+/// Real `gh auth login --web` output when run without a TTY: the code and the URL are
+/// on separate lines, and gh does not wait for Enter (that prompt only exists when
+/// stdin/stdout are terminals). Format from cli/cli internal/authflow/flow.go.
+final class GhDeviceCodeParsingTests: XCTestCase {
+
+    func testCodeLineThenURLLine_pairsCodeWithURL() {
+        let scanner = DeviceCodeScanner()
+        XCTAssertNil(scanner.scan("! First copy your one-time code: 1A2B-3C4D"))
+        let event = scanner.scan("Open this URL to continue in your web browser: https://github.com/login/device")
+        guard case .deviceCode(let url, let code)? = event else { return XCTFail("expected deviceCode, got \(String(describing: event))") }
+        XCTAssertEqual(url.absoluteString, "https://github.com/login/device")
+        XCTAssertEqual(code, "1A2B-3C4D")
+    }
+
+    func testInteractiveStyleOutput_stillFindsCodeAndURL() {
+        let scanner = DeviceCodeScanner()
+        XCTAssertNil(scanner.scan("! First copy your one-time code: WXYZ-9876"))
+        let event = scanner.scan("Press Enter to open https://github.com/login/device in your browser... ")
+        guard case .deviceCode(_, let code)? = event else { return XCTFail("expected deviceCode") }
+        XCTAssertEqual(code, "WXYZ-9876")
+    }
+
+    func testURLAndCodeOnSameLine_stillWorks() {
+        let scanner = DeviceCodeScanner()
+        let event = scanner.scan("Visit https://example.com/device and enter ABCD-1234")
+        guard case .deviceCode(_, let code)? = event else { return XCTFail("expected deviceCode") }
+        XCTAssertEqual(code, "ABCD-1234")
+    }
+
+    func testCodeIsUsedOnce() {
+        let scanner = DeviceCodeScanner()
+        _ = scanner.scan("! First copy your one-time code: 1A2B-3C4D")
+        _ = scanner.scan("Open this URL to continue in your web browser: https://github.com/login/device")
+        guard case .deviceCode(_, let code)? = scanner.scan("Open this URL: https://github.com/login/device") else {
+            return XCTFail("expected deviceCode")
+        }
+        XCTAssertNil(code)
+    }
+
+    func testUnrelatedLines_produceNothing() {
+        let scanner = DeviceCodeScanner()
+        XCTAssertNil(scanner.scan("- Authenticating to github.com"))
+        XCTAssertNil(scanner.scan("✓ Authentication complete."))
+    }
+}
