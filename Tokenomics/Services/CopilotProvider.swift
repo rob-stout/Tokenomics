@@ -39,7 +39,7 @@ actor CopilotProvider: UsageProvider {
         }
 
         let userInfo = try await fetchCopilotUser(token: token)
-        return mapToSnapshot(userInfo)
+        return Self.mapToSnapshot(userInfo)
     }
 
     // MARK: - Token Reading
@@ -119,7 +119,14 @@ actor CopilotProvider: UsageProvider {
 
     // MARK: - Mapping
 
-    private func mapToSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
+    /// Static so tests can exercise the mapping with fixture JSON.
+    nonisolated static func mapToSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
+        // Free accounts report counted quotas here; keep that path first so their
+        // behaviour is unchanged. Paid plans omit it and use `quota_snapshots`.
+        if info.monthlyQuotas?.chat == nil,
+           let premium = info.quotaSnapshots?.premiumInteractions {
+            return mapPaidSnapshot(info, premium: premium)
+        }
         let chatQuota = info.limitedUserQuotas?.chat ?? 0
         let chatLimit = info.monthlyQuotas?.chat ?? 0
         let chatUsed = chatLimit - chatQuota
@@ -179,11 +186,58 @@ actor CopilotProvider: UsageProvider {
             creditsBalance: nil
         )
     }
+
+    /// Paid plans (Pro, Pro+, Business, Enterprise): chat and completions are
+    /// unlimited, so the only meter that matters is premium requests.
+    private nonisolated static func mapPaidSnapshot(
+        _ info: CopilotUserInfo,
+        premium: CopilotUserInfo.QuotaSnapshot
+    ) -> ProviderUsageSnapshot {
+        let resetsAt = info.paidResetDate ?? Date.distantFuture
+        let cycleStart = Calendar.current.date(byAdding: .month, value: -1, to: resetsAt) ?? Date()
+        let cycleDuration = resetsAt.timeIntervalSince(cycleStart)
+
+        let entitlement = premium.entitlement ?? 0
+        let utilization: Double
+        let sublabel: String
+        if premium.unlimited == true || entitlement <= 0 {
+            utilization = 0
+            sublabel = "Unlimited"
+        } else {
+            // percent_remaining is fractional (e.g. 87.3) and more precise than the
+            // integer `remaining`; fall back to remaining when it is absent.
+            let usedPercent: Double
+            if let percentRemaining = premium.percentRemaining {
+                usedPercent = 100 - percentRemaining
+            } else if let remaining = premium.remaining {
+                usedPercent = Double(entitlement - remaining) / Double(entitlement) * 100
+            } else {
+                usedPercent = 0
+            }
+            utilization = max(0, usedPercent)
+            let used = Int((Double(entitlement) * utilization / 100).rounded())
+            sublabel = "\(used) / \(entitlement) used"
+        }
+
+        return ProviderUsageSnapshot(
+            shortWindow: WindowUsage(
+                label: "Premium Requests",
+                utilization: min(utilization, 999),
+                resetsAt: resetsAt,
+                windowDuration: cycleDuration,
+                sublabelOverride: sublabel
+            ),
+            longWindow: nil,
+            planLabel: info.planLabel,
+            extraUsage: nil,
+            creditsBalance: nil
+        )
+    }
 }
 
 // MARK: - Response Model
 
-private struct CopilotUserInfo: Decodable {
+struct CopilotUserInfo: Decodable {
     let login: String?
     let accessTypeSku: String?
     let copilotPlan: String?
@@ -191,6 +245,40 @@ private struct CopilotUserInfo: Decodable {
     let limitedUserQuotas: Quotas?
     let limitedUserResetDate: String?
     let monthlyQuotas: Quotas?
+    let quotaSnapshots: QuotaSnapshots?
+    let quotaResetDate: String?
+    let quotaResetDateUTC: String?
+
+    struct QuotaSnapshots: Decodable {
+        let premiumInteractions: QuotaSnapshot?
+
+        enum CodingKeys: String, CodingKey {
+            case premiumInteractions = "premium_interactions"
+        }
+    }
+
+    struct QuotaSnapshot: Decodable {
+        let entitlement: Int?
+        let remaining: Int?
+        let percentRemaining: Double?
+        let unlimited: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case entitlement, remaining, unlimited
+            case percentRemaining = "percent_remaining"
+        }
+    }
+
+    /// Paid plans send "2026-12-01" and/or "2026-12-01T00:00:00.000Z"; only the
+    /// date part matters, and it is a UTC date.
+    var paidResetDate: Date? {
+        guard let raw = quotaResetDateUTC ?? quotaResetDate else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.date(from: String(raw.prefix(10)))
+    }
 
     struct Quotas: Decodable {
         let chat: Int?
@@ -221,14 +309,17 @@ private struct CopilotUserInfo: Decodable {
         case limitedUserQuotas = "limited_user_quotas"
         case limitedUserResetDate = "limited_user_reset_date"
         case monthlyQuotas = "monthly_quotas"
+        case quotaSnapshots = "quota_snapshots"
+        case quotaResetDate = "quota_reset_date"
+        case quotaResetDateUTC = "quota_reset_date_utc"
     }
 }
 
 // MARK: - Copilot Keychain (legacy PAT fallback)
 
 /// Separate Keychain service for GitHub PAT storage.
-/// Kept as a fallback for users who manually entered a PAT before the
-/// zero-friction gh CLI integration was added.
+/// Read-only fallback for users who saved a PAT before the gh CLI integration
+/// existed; there is no longer any UI to enter a new one.
 enum CopilotKeychainService {
     private static let service = "com.robstout.tokenomics.github-pat"
     private static let log = Logger(subsystem: "com.robstout.tokenomics", category: "CopilotKeychain")
@@ -251,23 +342,6 @@ enum CopilotKeychainService {
             return nil
         }
         return token
-    }
-
-    static func savePAT(_ token: String) {
-        deletePAT()
-
-        guard let data = token.data(using: .utf8) else { return }
-        let attributes: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-        ]
-
-        let status = SecItemAdd(attributes as CFDictionary, nil)
-        if status != errSecSuccess {
-            log.error("Failed to save GitHub PAT: \(status)")
-        }
     }
 
     static func deletePAT() {
