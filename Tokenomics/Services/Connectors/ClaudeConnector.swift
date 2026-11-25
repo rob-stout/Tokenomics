@@ -479,7 +479,7 @@ actor ClaudeConnector: ProviderConnector {
             title: "Install Claude Code",
             body: "Tokenomics will install Claude Code for you. About 1 minute, no password needed.",
             commandPreview: "curl -fsSL https://claude.ai/install.sh | bash",
-            footnote: "This is Anthropic's official installer, straight from claude.com's setup docs. It installs into your home folder — Tokenomics doesn't add anything; we just run it for you.",
+            footnote: "This is Anthropic's official installer, straight from claude.com's setup docs. It installs into your home folder and adds Claude Code to your PATH in ~/.zprofile.",
             skipLabel: "Already have Claude Code? Skip this step"
         )
     }

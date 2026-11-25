@@ -314,8 +314,7 @@ struct ConnectorView: View {
     }
 
     private var helpLink: some View {
-        let anchor = viewModel.providerId.setupGuideAnchor
-        let url = URL(string: "https://trytokenomics.com/setup.html\(anchor)")
+        let url: URL? = viewModel.providerId.setupGuideURL
         return HStack {
             Spacer()
             if let url {

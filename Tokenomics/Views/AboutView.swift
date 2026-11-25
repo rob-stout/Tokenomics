@@ -72,7 +72,7 @@ struct AboutView: View {
                     Divider()
 
                     // What it is
-                    Text("A menu bar tool for developers using AI coding assistants. Glance at your rate limits without leaving your editor.")
+                    Text("A menu bar app that shows your AI usage limits at a glance, across coding, chat, image, voice and music tools.")
                         .scaledFont(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -88,7 +88,7 @@ struct AboutView: View {
                     VStack(spacing: 0) {
                         linkRow(
                             icon: "safari",
-                            label: "Get Tokenomics for Safari \u{2192}",
+                            label: "Tokenomics for Safari \u{2192}",
                             url: BrowserExtensionConnector.appStoreURL.absoluteString
                         )
 
