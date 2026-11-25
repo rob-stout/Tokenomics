@@ -508,6 +508,7 @@ final class UsageViewModel {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.applyExtensionProviderOrder()
+                self.applyExtensionVisibility()
                 Task { await self.refreshBridgeProviders() }
             }
         }
@@ -526,8 +527,9 @@ final class UsageViewModel {
         }
 
         bridgeObservers = [refreshObserver, visibilityObserver, extStateObserver, orderObserver]
-        // The extension may have reordered while the app was closed.
+        // The extension may have reordered, or switched sites on or off, while the app was closed.
         applyExtensionProviderOrder()
+        applyExtensionVisibility()
     }
 
     private func startActivityMonitor() {
@@ -622,10 +624,39 @@ final class UsageViewModel {
     }
 
     func toggleVisibility(for provider: ProviderId) {
-        if hiddenProviders.contains(provider) {
-            hiddenProviders.remove(provider)
-        } else {
+        let hide = !hiddenProviders.contains(provider)
+        setHidden(hide, for: provider)
+        // Stamp it "now" and export it, so the extension follows.
+        SettingsService.setVisibility(!hide, for: provider)
+    }
+
+    /// Adopts the extension's on/off settings that are newer than ours (same rule as the
+    /// tab order). Each adopted setting keeps the extension's timestamp, so the exporter's
+    /// echo carries the same stamp and the extension ignores it — no ping-pong.
+    func applyExtensionVisibility() {
+        // Hides made before this sync existed have no stamp; give them one first so an
+        // older extension setting can't undo them.
+        SettingsService.seedVisibilityStampsIfNeeded()
+        guard let remote = WebCompanionService.readStateFromAppGroup()?.providerVisibility,
+              !remote.isEmpty else { return }
+        let changes = ProviderVisibilitySync.incomingChanges(
+            remote: remote,
+            local: SettingsService.providerVisibility
+        )
+        for change in changes {
+            setHidden(!change.setting.enabled, for: change.id)
+            SettingsService.storeVisibility(change.setting, for: change.id)
+            if let exporter = macSideStateExporter {
+                Task { await exporter.setVisibility(change.setting, for: change.id.rawValue) }
+            }
+        }
+    }
+
+    private func setHidden(_ hide: Bool, for provider: ProviderId) {
+        if hide {
             hiddenProviders.insert(provider)
+        } else {
+            hiddenProviders.remove(provider)
         }
         // If we hid a pinned provider, revert to smart mode
         if pinnedProviders.contains(provider) && hiddenProviders.contains(provider) {

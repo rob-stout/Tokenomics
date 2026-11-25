@@ -203,6 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Seed visibility from UserDefaults so the exporter's first write to
             // mac-side.json reflects the user's saved settings immediately.
+            SettingsService.seedVisibilityStampsIfNeeded()
             let savedVisibility = SettingsService.providerVisibility
             for (key, setting) in savedVisibility {
                 await macSideStateExporter.setVisibility(setting, for: key)
