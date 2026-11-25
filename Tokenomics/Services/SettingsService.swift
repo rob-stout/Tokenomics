@@ -363,6 +363,22 @@ enum SettingsService {
         )
     }
 
+    /// Saves a setting adopted from the extension, keeping its timestamp. No notification:
+    /// the caller exports it with that same stamp, so the extension sees no change to echo.
+    static func storeVisibility(_ setting: ProviderVisibilitySetting, for providerId: ProviderId) {
+        var map = providerVisibility
+        map[providerId.rawValue] = setting
+        providerVisibility = map
+    }
+
+    /// Stamps providers hidden before visibility synced (see `ProviderVisibilitySync.seededStamps`).
+    /// Idempotent: only providers with no stamp yet are touched.
+    static func seedVisibilityStampsIfNeeded() {
+        let current = providerVisibility
+        let seeded = ProviderVisibilitySync.seededStamps(hidden: hiddenProviders, existing: current, now: Date())
+        if seeded != current { providerVisibility = seeded }
+    }
+
     /// Reads a single provider's visibility setting. Returns nil when no preference has been saved.
     static func visibility(for providerId: ProviderId) -> ProviderVisibilitySetting? {
         providerVisibility[providerId.rawValue]
