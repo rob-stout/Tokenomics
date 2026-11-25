@@ -62,10 +62,8 @@ enum CLIOutputParser {
     /// Returns nil if no URL is found on the line.
     static func parseDeviceCode(from line: String) -> RunEvent? {
         let urlPattern = #"https://[^\s]*(?:device|oauth|auth|login)[^\s]*"#
-        let codePattern = #"\b([A-Z0-9]{4,8}(?:-[A-Z0-9]{4,8})+)\b"#
 
-        guard let urlRegex = try? NSRegularExpression(pattern: urlPattern, options: .caseInsensitive),
-              let codeRegex = try? NSRegularExpression(pattern: codePattern) else {
+        guard let urlRegex = try? NSRegularExpression(pattern: urlPattern, options: .caseInsensitive) else {
             return nil
         }
 
@@ -77,12 +75,44 @@ enum CLIOutputParser {
             return nil
         }
 
-        var code: String?
-        if let codeMatch = codeRegex.firstMatch(in: line, range: range),
-           let codeRange = Range(codeMatch.range(at: 1), in: line) {
-            code = String(line[codeRange])
-        }
+        return .deviceCode(url: url, code: parseCode(from: line))
+    }
 
-        return .deviceCode(url: url, code: code)
+    /// Finds a one-time code (e.g. "ABCD-1234") on a line, URL or not.
+    static func parseCode(from line: String) -> String? {
+        guard let codeRegex = try? NSRegularExpression(pattern: #"\b([A-Z0-9]{4,8}(?:-[A-Z0-9]{4,8})+)\b"#) else {
+            return nil
+        }
+        let range = NSRange(line.startIndex..., in: line)
+        guard let match = codeRegex.firstMatch(in: line, range: range),
+              let codeRange = Range(match.range(at: 1), in: line) else { return nil }
+        return String(line[codeRange])
+    }
+}
+
+/// Remembers a one-time code seen on an earlier line so it can be paired with the
+/// URL that follows. `gh auth login` prints them on separate lines:
+///
+///     ! First copy your one-time code: ABCD-1234
+///     Open this URL to continue in your web browser: https://github.com/login/device
+///
+/// Shared between the stdout and stderr readers, hence the lock.
+final class DeviceCodeScanner: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pendingCode: String?
+
+    func scan(_ line: String) -> RunEvent? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if case .deviceCode(let url, let inlineCode)? = CLIOutputParser.parseDeviceCode(from: line) {
+            let code = inlineCode ?? pendingCode
+            pendingCode = nil
+            return .deviceCode(url: url, code: code)
+        }
+        if let code = CLIOutputParser.parseCode(from: line) {
+            pendingCode = code
+        }
+        return nil
     }
 }

@@ -28,6 +28,15 @@ enum AppError: Error, LocalizedError {
         return false
     }
 
+    /// Message for a specific provider. API-key providers (Stability, Runway) have no
+    /// terminal session to re-authenticate, so an expired token means a revoked key.
+    func message(for provider: ProviderId) -> String {
+        if isTokenExpired, provider.usesAPIKeyAuth {
+            return "API key no longer works — update it in Settings → AI Connections."
+        }
+        return localizedDescription
+    }
+
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:

@@ -449,7 +449,7 @@ struct PopoverView: View {
         } else if !providerId.supportsUsageTracking {
             comingSoonView(for: providerId)
         } else if let error = state.error, state.usage == nil {
-            errorView(error)
+            errorView(error, providerId: providerId)
         } else if let usage = state.usage {
             usageContent(usage, providerId: providerId)
         } else {
@@ -654,18 +654,22 @@ struct PopoverView: View {
                 .foregroundStyle(.orange)
                 .attentionOnAppear()
 
-            Text("\(provider.displayName) authentication expired")
+            Text(provider.usesAPIKeyAuth
+                 ? "\(provider.displayName) API key no longer works"
+                 : "\(provider.displayName) authentication expired")
                 .scaledFont(.caption)
                 .fontWeight(.semibold)
 
-            Button("Reconnect") {
+            Button(provider.usesAPIKeyAuth ? "Update key" : "Reconnect") {
                 OnboardingTarget.shared.preselected = provider
                 openWindow(id: "onboarding")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
 
-            Text("Tap to walk through reconnecting.\nTokenomics will detect it automatically.")
+            Text(provider.usesAPIKeyAuth
+                 ? "Paste a new key to keep tracking. You can also change it in Settings → AI Connections."
+                 : "Tap to walk through reconnecting.\nTokenomics will detect it automatically.")
                 .scaledFont(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -695,7 +699,7 @@ struct PopoverView: View {
 
             Text(isInstalled
                  ? "Sign in so Tokenomics can read your usage."
-                 : "Install the CLI or paste a token to start tracking usage.")
+                 : "Set it up below. You can change it anytime in Settings → AI Connections.")
                 .scaledFont(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -746,14 +750,14 @@ struct PopoverView: View {
         .padding(24)
     }
 
-    private func errorView(_ error: AppError) -> some View {
+    private func errorView(_ error: AppError, providerId: ProviderId) -> some View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
                 .scaledFont(.title2)
                 .foregroundStyle(.orange)
                 .attentionOnAppear()
 
-            Text(error.localizedDescription)
+            Text(error.message(for: providerId))
                 .scaledFont(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -619,12 +619,15 @@ actor GuidedInstallRunner {
         try process.run()
         Self.log.info("[GuidedInstallRunner] \(executable.lastPathComponent) \(args.joined(separator: " ")) (pid=\(process.processIdentifier))")
 
+        // One scanner for both pipes: gh prints the code and the URL on separate lines.
+        let scanner = DeviceCodeScanner()
+
         // Detached (and streamLines nonisolated) so both pipes drain while this
         // actor blocks in waitUntilExit() — otherwise a full pipe deadlocks.
         let stdoutTask = Task.detached {
             await self.streamLines(from: stdoutPipe.fileHandleForReading) { line in
                 continuation.yield(.stdout(line))
-                if let event = CLIOutputParser.parseDeviceCode(from: line) {
+                if let event = scanner.scan(line) {
                     continuation.yield(event)
                 }
             }
@@ -633,7 +636,7 @@ actor GuidedInstallRunner {
         let stderrTask = Task.detached {
             await self.streamLines(from: stderrPipe.fileHandleForReading) { line in
                 continuation.yield(.stderr(line))
-                if let event = CLIOutputParser.parseDeviceCode(from: line) {
+                if let event = scanner.scan(line) {
                     continuation.yield(event)
                 }
             }
@@ -685,15 +688,19 @@ actor GuidedInstallRunner {
 
     // MARK: - Line streaming
 
+    /// Delivers lines as the process writes them. Reading to end-of-file first would
+    /// hold every line until the process exits, so a device code or URL could never
+    /// reach the user while the CLI waits for them to act on it.
     nonisolated private func streamLines(
         from handle: FileHandle,
         handler: @Sendable (String) -> Void
     ) async {
-        let data = handle.readDataToEndOfFile()
-        if let text = String(data: data, encoding: .utf8) {
-            for line in text.components(separatedBy: .newlines) where !line.isEmpty {
+        do {
+            for try await line in handle.bytes.lines where !line.isEmpty {
                 handler(line)
             }
+        } catch {
+            Self.log.error("[GuidedInstallRunner] output stream ended with error: \(error.localizedDescription)")
         }
     }
 

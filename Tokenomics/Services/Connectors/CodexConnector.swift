@@ -413,7 +413,7 @@ actor CodexConnector: ProviderConnector {
                 title: "Install Node.js",
                 body: "Now we'll install Node.js using Homebrew. About 30 seconds, no extra permissions needed.",
                 commandPreview: "brew install node",
-                footnote: "Tokenomics installs Node.js into ~/.tokenomics-cli so it stays separate from any Node you might install later.",
+                footnote: "Node.js goes where Homebrew keeps it. The command-line tools Tokenomics adds afterwards go into ~/.tokenomics-cli, separate from your global npm.",
                 skipLabel: "Already have Node.js? Skip this step"
             )
         case .codexCLI:

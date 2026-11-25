@@ -17,6 +17,10 @@ final class ConnectorViewModel: Identifiable {
 
     private(set) var step: ConnectorStep = .detecting
 
+    /// Latest rejected API-key paste, shown inline on the paste step. Carries an id so
+    /// two identical failures in a row still register as a change in the view.
+    private(set) var keySubmitFailure: APIKeySubmitFailure?
+
     /// Display name shown in the connector header.
     let providerName: String
 
@@ -273,8 +277,13 @@ final class ConnectorViewModel: Identifiable {
     /// Calls the connector's `submitAPIKey(_:)`, then forces a state refresh.
     func tappedSubmitAPIKey(_ key: String) {
         Task { [connector, weak self] in
-            _ = await connector.submitAPIKey(key)
+            let result = await connector.submitAPIKey(key)
             guard let self else { return }
+            if let message = result.message(providerName: self.providerId.displayName) {
+                self.keySubmitFailure = APIKeySubmitFailure(message: message)
+            } else {
+                self.keySubmitFailure = nil
+            }
             let current = await self.connector.currentStep()
             self.step = current
         }
@@ -404,4 +413,10 @@ final class ConnectorViewModel: Identifiable {
             return false
         }
     }
+}
+
+/// A rejected API-key paste, with an id so repeats are distinguishable.
+struct APIKeySubmitFailure: Equatable, Sendable {
+    let id = UUID()
+    let message: String
 }

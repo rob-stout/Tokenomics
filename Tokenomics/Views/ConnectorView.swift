@@ -209,6 +209,7 @@ struct ConnectorView: View {
             APIKeyPasteStep(
                 providerName: providerName,
                 helpURL: helpURL,
+                failure: viewModel.keySubmitFailure,
                 onSubmit: { key in viewModel.tappedSubmitAPIKey(key) },
                 onBack: { viewModel.tappedBackOneStep() }
             )
@@ -420,7 +421,7 @@ struct ConnectorView: View {
             }
             .padding(.top, Tokens.Spacing.s7 - 12) // 36pt
 
-            Text("Add or remove anytime in **Settings → Connections**.")
+            Text("Add or remove anytime in **Settings → AI Connections**.")
                 .font(Tokens.Typography.Onboarding.small)
                 .foregroundStyle(Tokens.Color.textSubtle(scheme))
                 .multilineTextAlignment(.center)
@@ -475,6 +476,13 @@ struct ConnectorView: View {
                     }
                 }
                 .buttonStyle(.tokenPrimary)
+
+                // After granting permission in System Settings the user would otherwise
+                // have to cancel and start the whole connector over.
+                if case .automationPermissionDenied = error {
+                    Button("Try again") { viewModel.tappedRecovery() }
+                        .buttonStyle(.tokenGhost)
+                }
 
                 if let onBack {
                     Button("Cancel") { onBack() }

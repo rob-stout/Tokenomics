@@ -252,6 +252,29 @@ enum ConnectorError: Sendable, Equatable {
     }
 }
 
+// MARK: - API key submission
+
+/// Outcome of checking a pasted API key against its provider.
+/// Kept apart from `ConnectorError` because a bad key keeps the user on the paste
+/// step with an inline message rather than ending the flow in a failure screen.
+enum APIKeySubmitResult: Sendable, Equatable {
+    /// Key works and is stored in Keychain.
+    case saved
+    /// The provider rejected the key (401/403) — nothing was stored.
+    case invalidKey
+    /// Couldn't reach the provider to check — nothing was stored.
+    case unreachable
+
+    /// Inline message for the paste step. Nil on success.
+    func message(providerName: String) -> String? {
+        switch self {
+        case .saved: return nil
+        case .invalidKey: return "That key didn't work. Check it and try again."
+        case .unreachable: return "Couldn't reach \(providerName) to check that key. Check your connection and try again."
+        }
+    }
+}
+
 // MARK: - Connector protocol
 
 /// One concrete connector per provider. Encapsulates the "from zero to connected"
@@ -302,9 +325,9 @@ protocol ProviderConnector: Actor {
     func clearFailure() async
 
     /// Submits an API key entered by the user on the `.pasteAPIKey` step.
-    /// The connector should save it to Keychain and return `true` on success.
-    /// Default no-op returns `false` — only `APIKeyConnector` implements this.
-    func submitAPIKey(_ key: String) async -> Bool
+    /// The connector should verify the key and save it to Keychain only if it works.
+    /// Default no-op returns `.invalidKey` — only `APIKeyConnector` implements this.
+    func submitAPIKey(_ key: String) async -> APIKeySubmitResult
 
     /// User tapped Back on a step that has a meaningful "previous step" within
     /// the connector's sub-flow (rather than backing out to the chooser).
@@ -355,7 +378,7 @@ extension ProviderConnector {
     func clearFailure() async {}
 
     /// Default no-op — only `APIKeyConnector` saves keys.
-    func submitAPIKey(_ key: String) async -> Bool { false }
+    func submitAPIKey(_ key: String) async -> APIKeySubmitResult { .invalidKey }
 
     /// Default no-op — connectors override this only if their sub-flow has
     /// meaningful intra-flow back navigation.

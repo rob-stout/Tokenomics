@@ -10,7 +10,8 @@ import os
 ///   3. User taps "Open [Provider]" → `confirmInstall()` opens the provider's key page
 ///      and transitions to `.pasteKey`.
 ///   4. User pastes their API key and taps "Save & connect".
-///   5. `submitAPIKey(_:)` saves to Keychain → polling loop detects connection.
+///   5. `submitAPIKey(_:)` verifies the key with one usage request and saves it to
+///      Keychain only if the provider accepts it.
 ///
 /// All three providers share the same shape — the per-provider URL is the only difference.
 actor APIKeyConnector: ProviderConnector {
@@ -150,23 +151,51 @@ actor APIKeyConnector: ProviderConnector {
         activePhase = .none
     }
 
-    func submitAPIKey(_ key: String) async -> Bool {
+    func submitAPIKey(_ key: String) async -> APIKeySubmitResult {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
+        guard !trimmed.isEmpty else { return .invalidKey }
 
+        // The providers read their key from Keychain, so the key has to be stored to be
+        // tried. Remember what was there so a bad paste can't clobber a working key.
+        let previousKey = APIKeyService.read(for: id)
         APIKeyService.save(trimmed, for: id)
-        Self.log.info("API key saved for \(self.id.rawValue)")
 
-        // Verify the key works immediately.
-        let state = await provider.checkConnection()
-        if case .connected = state {
-            activePhase = .none
-            return true
+        let result: APIKeySubmitResult
+        do {
+            _ = try await provider.fetchUsage()
+            result = .saved
+        } catch {
+            result = Self.classify(error)
         }
-        // Key saved but connection check failed — leave phase at .pasteKey
-        // so the polling loop can re-try. Return true (save succeeded even
-        // if the initial check wasn't instant).
-        return true
+
+        if result == .saved {
+            Self.log.info("API key verified and saved for \(self.id.rawValue)")
+            activePhase = .none
+        } else {
+            Self.log.info("API key for \(self.id.rawValue) not accepted: \(String(describing: result))")
+            if let previousKey {
+                APIKeyService.save(previousKey, for: id)
+            } else {
+                APIKeyService.delete(for: id)
+            }
+        }
+        return result
+    }
+
+    /// Splits "the provider said no" from "we couldn't ask". A 429 means the provider
+    /// authenticated us and is only throttling, so the key itself is good.
+    nonisolated static func classify(_ error: Error) -> APIKeySubmitResult {
+        guard let appError = error as? AppError else { return .unreachable }
+        switch appError {
+        case .tokenExpired, .notAuthenticated:
+            return .invalidKey
+        case .httpError(let code) where code == 401 || code == 403:
+            return .invalidKey
+        case .rateLimited:
+            return .saved
+        default:
+            return .unreachable
+        }
     }
 
     // MARK: - Step copy

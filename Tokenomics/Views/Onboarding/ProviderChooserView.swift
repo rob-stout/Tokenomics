@@ -286,7 +286,7 @@ struct ProviderChooserView: View {
     /// "Quick = one sign-in, Guided = step-by-step" callout.
     /// mockup .legend: surface-2 bg, border, sm radius, 12.5px, text-muted
     private var legendHint: some View {
-        Text("Some providers connect with one sign-in (**Quick**). Others take a few steps — we walk you through every one (**Guided**). No Terminal either way.")
+        Text("Some providers connect with one sign-in (**Quick**). Others take a few steps — we walk you through every one (**Guided**). A few steps, like installing Homebrew or signing in to Claude Code, open Terminal for you.")
             .font(Tokens.Typography.Onboarding.small)
             .foregroundStyle(Tokens.Color.textMuted(scheme))
             .multilineTextAlignment(.leading)
