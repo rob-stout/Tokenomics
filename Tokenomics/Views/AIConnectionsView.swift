@@ -12,8 +12,6 @@ struct AIConnectionsView: View {
     @State private var isRequestingKeychainAccess = false
     /// Last "Allow Access" tap ended without access; cleared when the state moves on.
     @State private var didKeychainAttemptFail = false
-    @State private var patText = ""
-    @State private var apiKeyText = ""
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.tokenomicsTextSize) private var textSize
     @Environment(\.openWindow) private var openWindow
@@ -55,9 +53,6 @@ struct AIConnectionsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
-        }
-        .sheet(item: $viewModel.apiKeyEntryProvider) { _ in
-            apiKeyEntrySheet
         }
     }
 
@@ -339,9 +334,6 @@ struct AIConnectionsView: View {
         .onChange(of: connection) { _, _ in
             didKeychainAttemptFail = false
         }
-        .sheet(isPresented: $viewModel.copilotPATEntryRequested) {
-            patEntrySheet
-        }
     }
 
     // MARK: - Not-Connected Control
@@ -452,102 +444,5 @@ struct AIConnectionsView: View {
             return Image(nsImage: nsImage)
         }
         return Image(systemName: "sparkles")
-    }
-
-    // MARK: - PAT Entry Sheet (Copilot)
-
-    private var patEntrySheet: some View {
-        VStack(spacing: 16) {
-            Text("Connect GitHub Copilot")
-                .scaledFont(.headline)
-
-            Text("Enter a fine-grained Personal Access Token with **Plan (read)** permission.")
-                .scaledFont(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            SecureField("ghp_...", text: $patText)
-                .textFieldStyle(.roundedBorder)
-                .scaledFont(.caption)
-
-            HStack {
-                Button("Create Token") {
-                    if let url = URL(string: "https://github.com/settings/personal-access-tokens/new") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
-                .buttonStyle(.plain)
-                .scaledFont(.caption)
-                .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button("Cancel") {
-                    patText = ""
-                    viewModel.copilotPATEntryRequested = false
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-
-                Button("Connect") {
-                    let trimmed = patText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    CopilotKeychainService.savePAT(trimmed)
-                    patText = ""
-                    viewModel.copilotPATEntryRequested = false
-                    viewModel.redetectProviders()
-                    viewModel.refresh()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(patText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-        .padding(20)
-        .frame(width: 360)
-    }
-
-    // MARK: - API Key Entry Sheet (ElevenLabs, Runway, Stable Diffusion)
-
-    private var apiKeyEntrySheet: some View {
-        VStack(spacing: 16) {
-            Text("Connect \(viewModel.apiKeyEntryProvider?.displayName ?? "")")
-                .scaledFont(.headline)
-
-            Text("Enter your API key.")
-                .scaledFont(.caption)
-                .foregroundStyle(.secondary)
-
-            SecureField("API Key", text: $apiKeyText)
-                .textFieldStyle(.roundedBorder)
-                .scaledFont(.caption)
-
-            HStack {
-                Spacer()
-
-                Button("Cancel") {
-                    apiKeyText = ""
-                    viewModel.apiKeyEntryProvider = nil
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-
-                Button("Connect") {
-                    guard let provider = viewModel.apiKeyEntryProvider else { return }
-                    let trimmed = apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    APIKeyService.save(trimmed, for: provider)
-                    apiKeyText = ""
-                    viewModel.apiKeyEntryProvider = nil
-                    viewModel.redetectProviders()
-                    viewModel.refresh()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-        .padding(20)
-        .frame(width: 360)
     }
 }
