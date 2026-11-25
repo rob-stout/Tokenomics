@@ -20,7 +20,7 @@ import { PROVIDERS, type ProviderId } from '../types';
 // udio is a plain SW poll (cookie auth), like grok / perplexity.
 export const WEB_PROVIDERS: readonly ProviderId[] = [
   'claude',
-  'codex',
+  'chatgpt',
   'midjourney',
   'geminiConsumer',
   'elevenlabs',
@@ -33,7 +33,10 @@ export const WEB_PROVIDERS: readonly ProviderId[] = [
 
 // Native-only providers — rendered from Mac-bridge snapshots only.
 // Order here drives the display order for native providers (appended after web).
-export const NATIVE_ONLY_PROVIDERS: readonly ProviderId[] = ['copilot', 'cursor', 'gemini'];
+// 'codex' is the Codex CLI (Mac-only). It must NOT share a key with the ChatGPT web
+// reading: they are separate usage meters, and keying both as 'codex' let the newer one
+// replace the other in the OpenAI tab.
+export const NATIVE_ONLY_PROVIDERS: readonly ProviderId[] = ['codex', 'copilot', 'cursor', 'gemini'];
 
 // Web providers whose usage the extension reads from the logged-in browser
 // session. Their empty state tells the user to sign in to that site (NOT to
@@ -55,9 +58,9 @@ export const SIGN_IN: Partial<Record<ProviderId, { url: string; site: string }>>
 };
 
 // ChatGPT path is a local counter, so the empty state asks the user to open
-// chatgpt.com and chat — that's what populates the counter (stored under codex).
+// chatgpt.com and chat — that's what populates the counter (stored under chatgpt).
 export const COUNT_LOCALLY: Partial<Record<ProviderId, { url: string; site: string }>> = {
-  codex: { url: 'https://chatgpt.com', site: 'chatgpt.com' },
+  chatgpt: { url: 'https://chatgpt.com', site: 'chatgpt.com' },
 };
 
 // Gemini is tracked by the Mac app but not yet sending real snapshots (Phase 2 deferred).
@@ -121,8 +124,7 @@ export function buildVisibleProviders(args: {
   for (const id of NATIVE_ONLY_PROVIDERS) {
     if (!isEnabled(id)) continue;
 
-    // codex is in WEB_PROVIDERS (maps to chatgpt on the web side), so skip it here.
-    // The remaining native-only providers have no web reader.
+    // Native-only providers have no web reader.
     const nativeSnap = nativeSnapshots[id] ?? null;
 
     // For native-only providers, omit the row entirely when there is no data yet.

@@ -218,3 +218,37 @@ test('bridgeWindowToWindowUsage: converts 0-1 utilization to 0-100', () => {
   assert.equal(result.resetsAt, bridgeWindow.resetsAt);
   assert.equal(result.windowDurationSec, bridgeWindow.windowDurationSec);
 });
+
+// ── ChatGPT (web) and Codex CLI (native) are separate meters ─────
+
+test('buildVisibleProviders: newer Codex CLI reading never replaces the ChatGPT web reading', () => {
+  const result = buildVisibleProviders({
+    visibility: {},
+    webSnapshots: { chatgpt: makeWebSnapshot('chatgpt', 1_747_248_000_000) },
+    // Newer than the web reading — used to win and show Codex CLI numbers under ChatGPT.
+    nativeSnapshots: { codex: makeNativeSnapshot('codex', '2026-05-14T19:00:00.000Z') },
+    order: undefined,
+  });
+
+  const chatgpt = result.find((v) => v.providerId === 'chatgpt');
+  const codex = result.find((v) => v.providerId === 'codex');
+
+  assert.equal(chatgpt?.source, 'web');
+  assert.equal(chatgpt?.webSnapshot?.provider, 'chatgpt');
+  assert.equal(chatgpt?.nativeSnapshot, null);
+
+  assert.equal(codex?.source, 'native');
+  assert.equal(codex?.webSnapshot, null);
+  assert.equal(codex?.nativeSnapshot?.provider, 'codex');
+});
+
+test('buildVisibleProviders: Codex CLI is omitted until the Mac sends it; ChatGPT stays', () => {
+  const result = buildVisibleProviders({
+    visibility: {},
+    webSnapshots: {},
+    nativeSnapshots: {},
+    order: undefined,
+  });
+  assert.ok(result.some((v) => v.providerId === 'chatgpt'));
+  assert.ok(!result.some((v) => v.providerId === 'codex'));
+});
