@@ -11,8 +11,7 @@
 #   4. Update Casks/tokenomics.rb in this repo, commit, push
 #   5. Update Casks/tokenomics.rb in the Homebrew tap repo, commit, push
 #   6. Commit + push the auto-generated appcast.xml entry
-#   7. Trigger the trytokenomics-site sync-version workflow so the website
-#      fallbacks update without waiting for the daily cron
+#   7. (Nothing: the website reads the latest release itself as pages are served)
 #
 # Prerequisites:
 #   - distribute.sh has been run successfully for the current version
@@ -194,19 +193,13 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 7: Trigger site sync workflow
+# Step 7: Website version labels
 # ---------------------------------------------------------------------------
 
-step "Triggering site sync-version workflow"
-
-# Best-effort. Falls back to the daily scheduled run if the workflow file
-# isn't present yet on $SITE_REPO.
-if gh workflow run sync-version.yml --repo "$SITE_REPO" >/dev/null 2>&1; then
-    echo "Triggered sync-version.yml on $SITE_REPO — fallbacks should refresh within ~30s."
-else
-    echo "Could not trigger sync-version.yml on $SITE_REPO."
-    echo "(That's fine if the workflow isn't installed yet — daily cron will pick it up.)"
-fi
+# Nothing to do: trytokenomics.com sets its version labels as pages are served
+# (functions/_middleware.ts in the site repo reads the latest GitHub release,
+# cached about an hour), so the site shows this release on its own.
+step "Website version labels update themselves (within about an hour)"
 
 # ---------------------------------------------------------------------------
 # Done
