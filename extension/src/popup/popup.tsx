@@ -134,8 +134,12 @@ function renderUsageBars(snapshot: ProviderUsageSnapshot) {
 }
 
 function formatCredits(c: UsageCredits): string {
+  // Intl throws on an empty/invalid currency code; fall back to a plain number.
+  const validCurrency = /^[A-Z]{3}$/.test(c.currency);
   const fmt = (n: number) =>
-    new Intl.NumberFormat(undefined, { style: 'currency', currency: c.currency }).format(n);
+    validCurrency
+      ? new Intl.NumberFormat(undefined, { style: 'currency', currency: c.currency }).format(n)
+      : n.toFixed(2);
   return c.limit !== null ? `${fmt(c.used)} of ${fmt(c.limit)}` : fmt(c.used);
 }
 

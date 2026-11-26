@@ -35,7 +35,7 @@
  *   }
  */
 
-import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
+import { isFresh, type CachedValue, type ProviderUsageSnapshot, type WindowUsage } from './snapshot';
 
 const RATE_LIMIT_URL = 'https://www.perplexity.ai/rest/rate-limit/all';
 const SESSION_URL = 'https://www.perplexity.ai/api/auth/session';
@@ -129,14 +129,40 @@ async function assertSignedIn(): Promise<void> {
   if (!user) throw new AuthError(401);
 }
 
-async function fetchPlan(): Promise<PerplexityPlan> {
+async function fetchPlan(): Promise<PerplexityPlan | null> {
   try {
     const res = await fetch(SETTINGS_URL, { credentials: 'include' });
-    if (!res.ok) return { kind: 'unknown' };
+    if (!res.ok) return null;
     return parsePlan((await res.json()) as UserSettingsResponse);
   } catch {
-    return { kind: 'unknown' };
+    return null;
   }
+}
+
+/**
+ * Plan for this poll: the cached one while fresh (~6h), else a fresh lookup.
+ * A failed lookup keeps the last known plan; only a never-known plan is
+ * 'unknown'. Exported for tests.
+ */
+export async function resolvePlan(
+  prior: CachedValue<PerplexityPlan> | null,
+  now: number,
+  lookup: () => Promise<PerplexityPlan | null> = fetchPlan,
+): Promise<CachedValue<PerplexityPlan>> {
+  if (isFresh(prior, now)) return prior;
+  const found = await lookup();
+  if (found) return { value: found, at: now };
+  return prior ?? { value: { kind: 'unknown' }, at: now - 6 * 3600 * 1000 }; // unknown: retry next poll
+}
+
+/** All counts zero = either signed out or genuinely out of quota. */
+export function looksSignedOut(raw: RateLimitAllResponse): boolean {
+  return (
+    num(raw.remaining_pro) === 0 &&
+    num(raw.remaining_research) === 0 &&
+    num(raw.remaining_labs) === 0 &&
+    num(raw.remaining_agentic_research) === 0
+  );
 }
 
 async function fetchRateLimitAll(): Promise<RateLimitAllResponse> {
@@ -160,12 +186,20 @@ async function fetchRateLimitAll(): Promise<RateLimitAllResponse> {
  */
 export async function fetchPerplexityUsage(
   priorCaps: PerplexityCaps = {},
-): Promise<{ snapshot: ProviderUsageSnapshot; caps: PerplexityCaps }> {
-  await assertSignedIn();
-  const [raw, plan] = await Promise.all([fetchRateLimitAll(), fetchPlan()]);
+  priorPlan: CachedValue<PerplexityPlan> | null = null,
+): Promise<{
+  snapshot: ProviderUsageSnapshot;
+  caps: PerplexityCaps;
+  plan: CachedValue<PerplexityPlan>;
+}> {
+  const now = Date.now();
+  const raw = await fetchRateLimitAll();
+  // Only ask the session endpoint when the numbers could mean "signed out".
+  if (looksSignedOut(raw)) await assertSignedIn();
+  const plan = await resolvePlan(priorPlan, now);
   const caps = mergeCaps(raw, priorCaps);
-  const snapshot = mapToSnapshot(raw, caps, Date.now(), plan);
-  return { snapshot, caps };
+  const snapshot = mapToSnapshot(raw, caps, now, plan.value);
+  return { snapshot, caps, plan };
 }
 
 /**
@@ -208,7 +242,7 @@ export function mapToSnapshot(
   now: number = Date.now(),
   plan: PerplexityPlan = { kind: 'free' },
 ): ProviderUsageSnapshot {
-  if (plan.kind !== 'free') return mapCountsOnly(raw, plan, now);
+  if (plan.kind !== 'free') return mapPaid(raw, caps, plan, now);
 
   const remainingPro = num(raw.remaining_pro);
   const remainingResearch = num(raw.remaining_research);
@@ -268,42 +302,54 @@ function planName(plan: PerplexityPlan): string {
 
 // Cadence text for paid plans; Perplexity gives no timestamps, so it stays text.
 const PRO_CADENCE = 'resets weekly';
-const RESEARCH_CADENCE = 'monthly, recovers gradually';
+const RESEARCH_CADENCE = 'recovers monthly';
+const WEEK_MS = 7 * 86_400_000;
+const MONTH_MS = 30 * 86_400_000;
 
 /**
- * Pro / Max: remaining counts only. No reset time (none is published), no
- * high-water-mark denominator (a guess), utilization 0 = nothing claimed.
- * `windowDurationSec: 0` also keeps the pace marker off.
+ * Pro / Max: Perplexity publishes no reset time, so the numbers are ESTIMATED.
+ * Utilization uses the same high-water-mark cap as Free (highest remaining ever
+ * seen ~ cap), so the Mac's alerts can work; the snapshot is marked estimated.
+ * The reset is a far-future placeholder (a week / a month out) because the Mac
+ * drops a reading whose reset has passed; the sublabel is static text with no
+ * countdown and `windowDurationSec: 0` keeps the pace dot off.
  */
-function mapCountsOnly(
+function mapPaid(
   raw: RateLimitAllResponse,
+  caps: PerplexityCaps,
   plan: PerplexityPlan,
   now: number,
 ): ProviderUsageSnapshot {
-  const countWindow = (label: string, remaining: number, cadence: string): WindowUsage => ({
+  const countWindow = (
+    label: string,
+    remaining: number,
+    cap: number | undefined,
+    cadence: string,
+    placeholderMs: number,
+  ): WindowUsage => ({
     label,
-    utilization: 0,
-    resetsAt: '',
+    utilization: utilizationFor(remaining, cap),
+    resetsAt: new Date(now + placeholderMs).toISOString(),
     windowDurationSec: 0,
     sublabelOverride: `${remaining} left · ${cadence}`,
   });
 
   const extras: ProviderUsageSnapshot['extras'] = {};
   if (typeof raw.remaining_labs === 'number' && raw.remaining_labs > 0) {
-    extras.labsRemaining = countWindow('Labs', raw.remaining_labs, RESEARCH_CADENCE);
+    extras.labsRemaining = countWindow('Labs', raw.remaining_labs, caps.labs, RESEARCH_CADENCE, MONTH_MS);
   }
 
   return {
     provider: 'perplexity',
-    shortWindow: countWindow('Pro Searches', num(raw.remaining_pro), PRO_CADENCE),
+    shortWindow: countWindow('Pro Searches', num(raw.remaining_pro), caps.pro, PRO_CADENCE, WEEK_MS),
     longWindow:
       typeof raw.remaining_research === 'number'
-        ? countWindow('Deep Research', raw.remaining_research, RESEARCH_CADENCE)
+        ? countWindow('Deep Research', raw.remaining_research, caps.research, RESEARCH_CADENCE, MONTH_MS)
         : null,
     extras,
     planLabel: planName(plan) || 'Perplexity',
     capturedAt: now,
-    estimated: false,
+    estimated: true,
   };
 }
 

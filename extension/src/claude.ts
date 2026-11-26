@@ -1,7 +1,7 @@
 import type { ProviderUsageSnapshot } from './snapshot';
 import { clearCachedOrg, getCachedOrg, setCachedOrg } from './storage';
 import type { CachedClaudeOrg } from './storage';
-import { mapToSnapshot, pickChatOrg, planFromOrg } from './claude-map';
+import { mapToSnapshot, pickChatOrg, pickNonApiOrg, planFromOrg } from './claude-map';
 import type { UsageResponse } from './claude-map';
 
 const API_BASE = 'https://claude.ai/api';
@@ -43,7 +43,8 @@ async function getOrg(): Promise<CachedClaudeOrg> {
   throwOnAuthOrRateLimit(res);
   if (!res.ok) throw new Error(`organizations fetch failed: ${res.status}`);
 
-  const chatOrg = pickChatOrg(await res.json());
+  const orgs: unknown = await res.json();
+  const chatOrg = pickChatOrg(orgs) ?? pickNonApiOrg(orgs);
   // No chat-capable org means there is no claude.ai plan to read (API-only login).
   if (!chatOrg?.uuid) throw new AuthError();
 

@@ -192,3 +192,38 @@ test('disabled credits are not shown even with a nonzero spend object', () => {
   );
   assert.equal(snap.extras.usageCredits, undefined);
 });
+
+// ── Review fixes ────────────────────────────────────────────
+
+import { pickNonApiOrg } from './claude-map';
+
+test('legacy five_hour/seven_day are ignored when limits[] is present without a session', () => {
+  const snap = mapToSnapshot(
+    {
+      five_hour: { utilization: 99, resets_at: '2026-11-26T03:00:00+00:00' },
+      seven_day: { utilization: 99, resets_at: '2026-11-30T06:00:00+00:00' },
+      limits: [liveUsage.limits[1]!],
+    },
+    'Ultra',
+    NOW,
+  );
+  assert.equal(snap.shortWindow.label, '7-Day Window');
+  assert.equal(snap.shortWindow.utilization, 26);
+  assert.equal(snap.longWindow, null);
+});
+
+test('null resets_at becomes an empty string, never null', () => {
+  const snap = mapToSnapshot(
+    { five_hour: { utilization: 5, resets_at: null }, seven_day: { utilization: 5, resets_at: null } },
+    '',
+    NOW,
+  );
+  assert.equal(snap.shortWindow.resetsAt, '');
+  assert.equal(snap.longWindow?.resetsAt, '');
+});
+
+test('pickNonApiOrg: falls back to the first org that is not API-only', () => {
+  assert.equal(pickNonApiOrg([apiOrg, { uuid: 'plain', capabilities: [] }])?.uuid, 'plain');
+  assert.equal(pickNonApiOrg([apiOrg]), null);
+  assert.equal(pickChatOrg([apiOrg, { uuid: 'plain', capabilities: [] }]), null);
+});

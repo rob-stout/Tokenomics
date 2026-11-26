@@ -480,20 +480,41 @@ test('order sync: no stored order sends none; an old Mac with no order field cha
   assert.equal(await readStoredOrder(), undefined);
 });
 
-test('toBridgeSnapshotSafe: count-only window (no reset, no duration) is sent with the capture time', () => {
+test('toBridgeSnapshotSafe: a null/empty/invalid reset can never be serialized', () => {
+  const base = {
+    provider: 'claude' as const,
+    shortWindow: { label: 'x', utilization: 10, resetsAt: '2026-11-23T20:00:00.000Z', windowDurationSec: 18000 },
+    longWindow: null,
+    extras: {},
+    planLabel: 'Pro',
+    capturedAt: Date.UTC(2026, 10, 23),
+  };
+  for (const bad of [null, undefined, '', 'not a date']) {
+    const asBad = (v: unknown) => v as unknown as string;
+    const shortBad = { ...base, shortWindow: { ...base.shortWindow, resetsAt: asBad(bad) } };
+    assert.equal(toBridgeSnapshotSafe(shortBad), null, `short ${String(bad)}`);
+    const longBad = { ...base, longWindow: { ...base.shortWindow, resetsAt: asBad(bad) } };
+    const wire = toBridgeSnapshotSafe(longBad);
+    assert.ok(wire);
+    assert.equal(wire.longWindow, null, `long ${String(bad)}`);
+    assert.ok(!JSON.stringify(wire).includes('"resetsAt":null'));
+  }
+});
+
+test('toBridgeSnapshotSafe: perplexity paid placeholder reset passes through unchanged', () => {
   const capturedAt = Date.UTC(2026, 10, 23);
+  const reset = new Date(capturedAt + 7 * 86_400_000).toISOString();
   const snap = {
     provider: 'perplexity' as const,
-    shortWindow: { label: 'Pro Searches', utilization: 0, resetsAt: '', windowDurationSec: 0, sublabelOverride: '300 left · resets weekly' },
-    longWindow: { label: 'Deep Research', utilization: 0, resetsAt: '', windowDurationSec: 0, sublabelOverride: '7 left · monthly, recovers gradually' },
+    shortWindow: { label: 'Pro Searches', utilization: 40, resetsAt: reset, windowDurationSec: 0, sublabelOverride: '300 left · resets weekly' },
+    longWindow: null,
     extras: {},
     planLabel: 'Pro',
     capturedAt,
+    estimated: true,
   };
   const wire = toBridgeSnapshotSafe(snap);
   assert.ok(wire);
-  assert.equal(wire.shortWindow.resetsAt, new Date(capturedAt).toISOString());
-  assert.equal(wire.shortWindow.windowDurationSec, 0);
-  assert.equal(wire.shortWindow.sublabelOverride, '300 left · resets weekly');
-  assert.equal(wire.longWindow?.label, 'Deep Research');
+  assert.equal(wire.shortWindow.resetsAt, reset);
+  assert.equal(wire.estimated, true);
 });

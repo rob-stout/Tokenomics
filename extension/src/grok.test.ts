@@ -245,3 +245,119 @@ test('mapToSnapshot accepts a plan label for the free path', () => {
   const snap = mapToSnapshot({ windowSizeSeconds: 86400, remainingQueries: 20, totalQueries: 20 }, NOW, 'Free');
   assert.equal(snap.planLabel, 'Free');
 });
+
+// ── Review fixes: cache, auth, content-type, missing period end ──
+
+import { fetchGrokUsage, resolvePlanInfo, type GrokPlanInfo } from './grok';
+import { PLAN_CACHE_TTL_MS } from './snapshot';
+
+type StubReply = { status?: number; json?: unknown; bytes?: Uint8Array; contentType?: string };
+
+function stubGrokFetch(routes: Record<string, StubReply>) {
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    calls.push(url);
+    const r = routes[url] ?? { status: 404 };
+    const status = r.status ?? 200;
+    return {
+      status,
+      ok: status >= 200 && status < 300,
+      headers: { get: (h: string) => (h.toLowerCase() === 'content-type' ? (r.contentType ?? 'application/json') : null) },
+      json: async () => r.json ?? {},
+      arrayBuffer: async () => (r.bytes ?? new Uint8Array()).buffer.slice(0),
+    };
+  }) as unknown as typeof fetch;
+  return { calls, restore: () => { globalThis.fetch = original; } };
+}
+
+const SUBS = 'https://grok.com/rest/subscriptions';
+const CREDITS = 'https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig';
+const LIMITS = 'https://grok.com/rest/rate-limits';
+const ACTIVE = { subscriptions: [{ tier: 'SUBSCRIPTION_TIER_GROK_PRO', status: 'SUBSCRIPTION_STATUS_ACTIVE' }] };
+const FREE_LIMITS = { status: 200, json: { windowSizeSeconds: 86400, remainingQueries: 10, totalQueries: 20 } };
+
+test('subscriptions 401 → unknown plan, rate-limits decides (no AuthError from the plan lookup)', async () => {
+  const stub = stubGrokFetch({ [SUBS]: { status: 401 }, [LIMITS]: FREE_LIMITS });
+  try {
+    const { snapshot, plan } = await fetchGrokUsage(null);
+    assert.equal(snapshot.shortWindow.label, 'Fast Queries');
+    assert.equal(snapshot.planLabel, 'Grok');
+    assert.equal(plan, null);
+  } finally {
+    stub.restore();
+  }
+});
+
+test('subscriptions 401 and rate-limits 401 → AuthError', async () => {
+  const stub = stubGrokFetch({ [SUBS]: { status: 401 }, [LIMITS]: { status: 401 } });
+  try {
+    await assert.rejects(fetchGrokUsage(null), (e: unknown) => e instanceof Error && e.name === 'AuthError');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('paid pool without a period end falls through to rate-limits (never an empty reset)', async () => {
+  const noEnd = grpcFrame(Array.from(creditsMessage({ percent: 30 })));
+  const stub = stubGrokFetch({
+    [SUBS]: { json: ACTIVE },
+    [CREDITS]: { bytes: noEnd, contentType: 'application/grpc-web+proto' },
+    [LIMITS]: FREE_LIMITS,
+  });
+  try {
+    const { snapshot } = await fetchGrokUsage(null);
+    assert.equal(snapshot.shortWindow.label, 'Fast Queries');
+    assert.notEqual(snapshot.shortWindow.resetsAt, '');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('paid pool with a period end → Weekly window', async () => {
+  const ok = grpcFrame(Array.from(creditsMessage({ percent: 30, end: PERIOD_END_SEC })));
+  const stub = stubGrokFetch({
+    [SUBS]: { json: ACTIVE },
+    [CREDITS]: { bytes: ok, contentType: 'application/grpc-web+proto' },
+  });
+  try {
+    const { snapshot, plan } = await fetchGrokUsage(null);
+    assert.equal(snapshot.shortWindow.label, 'Weekly');
+    assert.equal(plan?.value.paid, true);
+  } finally {
+    stub.restore();
+  }
+});
+
+test('credits reply that is not grpc-web (HTML) is ignored', async () => {
+  const ok = grpcFrame(Array.from(creditsMessage({ percent: 30, end: PERIOD_END_SEC })));
+  const stub = stubGrokFetch({
+    [SUBS]: { json: ACTIVE },
+    [CREDITS]: { bytes: ok, contentType: 'text/html' },
+    [LIMITS]: FREE_LIMITS,
+  });
+  try {
+    const { snapshot } = await fetchGrokUsage(null);
+    assert.equal(snapshot.shortWindow.label, 'Fast Queries');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('fresh cached plan skips the subscriptions request', async () => {
+  const cached = { value: { paid: false, planLabel: '' } as GrokPlanInfo, at: Date.now() - 1000 };
+  const stub = stubGrokFetch({ [LIMITS]: FREE_LIMITS });
+  try {
+    const { snapshot } = await fetchGrokUsage(cached);
+    assert.equal(stub.calls.includes(SUBS), false);
+    assert.equal(snapshot.planLabel, 'Free');
+  } finally {
+    stub.restore();
+  }
+});
+
+test('resolvePlanInfo: stale cache + failed lookup keeps the last known value', async () => {
+  const stale = { value: { paid: true, planLabel: 'SuperGrok' } as GrokPlanInfo, at: Date.now() - PLAN_CACHE_TTL_MS - 5 };
+  const got = await resolvePlanInfo(stale, Date.now(), async () => null);
+  assert.equal(got?.value.planLabel, 'SuperGrok');
+});

@@ -16,7 +16,7 @@ export interface ClaudeOrg {
 
 interface UsageWindow {
   utilization: number;
-  resets_at: string;
+  resets_at?: string | null;
 }
 
 interface LimitEntry {
@@ -72,6 +72,20 @@ export function pickChatOrg(orgs: unknown): ClaudeOrg | null {
   return null;
 }
 
+/**
+ * Last resort when no org advertises a chat capability: the first org that is
+ * not API-only. Exported for tests.
+ */
+export function pickNonApiOrg(orgs: unknown): ClaudeOrg | null {
+  if (!Array.isArray(orgs)) return null;
+  for (const org of orgs as ClaudeOrg[]) {
+    if (!org || typeof org.uuid !== 'string') continue;
+    const caps = Array.isArray(org.capabilities) ? org.capabilities : [];
+    if (!caps.includes('api')) return org;
+  }
+  return null;
+}
+
 /** Plan name from the org's tier / capabilities; '' when unrecognised. Exported for tests. */
 export function planFromOrg(org: ClaudeOrg): string {
   const tier = (org.rate_limit_tier ?? '').toLowerCase();
@@ -105,12 +119,15 @@ export function mapToSnapshot(
   const weeklyAll = limits.find((l) => l.kind === 'weekly_all');
 
   // limits[] is the current shape; five_hour / seven_day are the fallback.
-  const fiveHour =
-    (session && fromLimit('5-Hour Window', session, FIVE_HOUR_SEC)) ||
-    makeWindow('5-Hour Window', usage.five_hour, FIVE_HOUR_SEC);
-  const sevenDay =
-    (weeklyAll && fromLimit('7-Day Window', weeklyAll, SEVEN_DAY_SEC)) ||
-    makeWindow('7-Day Window', usage.seven_day, SEVEN_DAY_SEC);
+  // The legacy keys are only trusted when limits[] is absent: a plan whose
+  // limits[] lacks a session (Ultra) must not grow a 5-hour bar from stale keys.
+  const legacy = limits.length === 0;
+  const fiveHour = legacy
+    ? makeWindow('5-Hour Window', usage.five_hour, FIVE_HOUR_SEC)
+    : session ? fromLimit('5-Hour Window', session, FIVE_HOUR_SEC) : null;
+  const sevenDay = legacy
+    ? makeWindow('7-Day Window', usage.seven_day, SEVEN_DAY_SEC)
+    : weeklyAll ? fromLimit('7-Day Window', weeklyAll, SEVEN_DAY_SEC) : null;
 
   // Plans without a session limit (Ultra) have no 5-hour window at all —
   // promote the weekly one rather than invent a 0% session bar.
@@ -181,7 +198,7 @@ function makeWindow(
     // (0–100, e.g. `7` for 7%) — the plan doc's `0.36` example was wrong.
     // No multiplier; just guard against negative and absurd values.
     utilization: Math.max(0, raw.utilization),
-    resetsAt: raw.resets_at,
+    resetsAt: raw.resets_at ?? '',
     windowDurationSec: durationSec,
   };
 }

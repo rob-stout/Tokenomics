@@ -40,6 +40,19 @@ export interface ProviderUsageSnapshot {
   estimated?: boolean;
 }
 
+/** A value remembered with the time it was fetched (for plan lookups that rarely change). */
+export interface CachedValue<T> {
+  value: T;
+  at: number;
+}
+
+/** Plan lookups are cached this long to save a request per poll. */
+export const PLAN_CACHE_TTL_MS = 6 * 3600 * 1000;
+
+export function isFresh<T>(c: CachedValue<T> | null | undefined, now: number): c is CachedValue<T> {
+  return !!c && now - c.at < PLAN_CACHE_TTL_MS && now >= c.at;
+}
+
 export type AuthState = 'authenticated' | 'unauthenticated' | 'unknown';
 
 export interface BackoffState {

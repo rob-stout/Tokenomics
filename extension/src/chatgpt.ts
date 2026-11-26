@@ -4,7 +4,7 @@
  * The exact path reads /backend-api/wham/usage with an OAuth Bearer token from
  * the ChatGPT web session (/api/auth/session). That endpoint reports the Codex
  * allowance included with the plan (real used_percent + reset), NOT the chat
- * message cap, so its windows are labelled "Codex allowance". (Every other tracker missed this — they hit the cookie 401 and
+ * message cap, so its windows are labelled "Codex …". (Every other tracker missed this — they hit the cookie 401 and
  * settled for local counting.)
  *
  * The local counter (observe /backend-api/conversation, count against the quota
@@ -144,7 +144,7 @@ export async function fetchExactChatGPTSnapshot(
  * Windows are classified by their length, not by the primary/secondary slot:
  * a weekly window can be the primary one. The shortest window becomes the
  * short window and the longest (if two) the long window. Each window's
- * sublabel says "Codex allowance" so nobody reads it as a chat limit.
+ * label starts with "Codex" so nobody reads it as a chat limit.
  * Returns null if no window is usable so the caller can fall back.
  */
 export function mapWhamUsageToSnapshot(
@@ -170,7 +170,7 @@ export function mapWhamUsageToSnapshot(
   };
 }
 
-const CODEX_ALLOWANCE = 'Codex allowance';
+const CODEX_PREFIX = 'Codex';
 
 function whamWindow(w: WhamWindow, now: number): WindowUsage {
   const durationSec = w.limit_window_seconds ?? 0;
@@ -180,11 +180,12 @@ function whamWindow(w: WhamWindow, now: number): WindowUsage {
       ? now + w.reset_after_seconds * 1000
       : now + durationSec * 1000;
   return {
-    label: whamWindowLabel(durationSec),
+    // "Codex" goes in the label (not a sublabel) so the Mac keeps computing the
+    // live countdown from resetsAt instead of freezing a baked-in string.
+    label: `${CODEX_PREFIX} ${whamWindowLabel(durationSec)}`,
     utilization: Math.min(100, Math.max(0, Math.round(w.used_percent ?? 0))),
     resetsAt: new Date(resetMs).toISOString(),
     windowDurationSec: durationSec,
-    sublabelOverride: `${CODEX_ALLOWANCE} · ${formatResetCompact(resetMs, now)}`,
   };
 }
 

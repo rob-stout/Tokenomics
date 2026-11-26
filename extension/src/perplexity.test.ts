@@ -176,27 +176,40 @@ test('parsePlan: unknown tier is paid-style with no name', () => {
   assert.deepEqual(parsePlan({ subscription_tier: 'enterprise_pro', subscription_status: 'active' }), { kind: 'paid', label: '' });
 });
 
-test('paid: no reset time, no duration, no inferred cap', () => {
+const WEEK_MS = 7 * 86_400_000;
+const MONTH_MS = 30 * 86_400_000;
+
+test('paid: estimated utilization from the cap, far-future placeholder reset, no pace dot', () => {
   const snap = mapToSnapshot(
-    { remaining_pro: 300, remaining_research: 7 },
-    { pro: 600, research: 10 }, // high-water-marks are ignored for paid
+    { remaining_pro: 300, remaining_research: 5 },
+    { pro: 600, research: 10 },
     NOW,
     { kind: 'paid', label: 'Pro' },
   );
   assert.equal(snap.planLabel, 'Pro');
+  assert.equal(snap.estimated, true);
   assert.equal(snap.shortWindow.label, 'Pro Searches');
-  assert.equal(snap.shortWindow.resetsAt, '');
+  assert.equal(snap.shortWindow.utilization, 50);
   assert.equal(snap.shortWindow.windowDurationSec, 0);
-  assert.equal(snap.shortWindow.utilization, 0);
+  assert.equal(snap.shortWindow.resetsAt, new Date(NOW + WEEK_MS).toISOString());
   assert.equal(snap.shortWindow.sublabelOverride, '300 left · resets weekly');
   assert.equal(snap.longWindow?.label, 'Deep Research');
-  assert.equal(snap.longWindow?.resetsAt, '');
-  assert.equal(snap.longWindow?.sublabelOverride, '7 left · monthly, recovers gradually');
+  assert.equal(snap.longWindow?.utilization, 50);
+  assert.equal(snap.longWindow?.resetsAt, new Date(NOW + MONTH_MS).toISOString());
+  assert.equal(snap.longWindow?.sublabelOverride, '5 left · recovers monthly');
 });
 
-test('unknown plan also claims no reset', () => {
+test('paid: reset is never the capture time or empty', () => {
+  const snap = mapToSnapshot({ remaining_pro: 0, remaining_research: 0 }, {}, NOW, { kind: 'paid', label: 'Max' });
+  for (const w of [snap.shortWindow, snap.longWindow!]) {
+    assert.ok(new Date(w.resetsAt).getTime() > NOW + 6 * 86_400_000);
+  }
+});
+
+test('unknown plan is paid-style: estimated, placeholder reset', () => {
   const snap = mapToSnapshot({ remaining_pro: 5 }, {}, NOW, { kind: 'unknown' });
-  assert.equal(snap.shortWindow.resetsAt, '');
+  assert.equal(snap.estimated, true);
+  assert.equal(snap.shortWindow.resetsAt, new Date(NOW + WEEK_MS).toISOString());
   assert.equal(snap.planLabel, 'Perplexity');
 });
 
@@ -207,8 +220,45 @@ test('free keeps the daily window', () => {
   assert.equal(snap.shortWindow.utilization, 33);
 });
 
-test('paid plan with zero remaining shows 0 left, no reset', () => {
-  const snap = mapToSnapshot({ remaining_pro: 0, remaining_research: 0, remaining_labs: 0 }, {}, NOW, { kind: 'paid', label: 'Max' });
+test('paid plan with zero remaining and known cap → 100% estimated', () => {
+  const snap = mapToSnapshot({ remaining_pro: 0, remaining_research: 0, remaining_labs: 0 }, { pro: 300 }, NOW, { kind: 'paid', label: 'Max' });
   assert.equal(snap.shortWindow.sublabelOverride, '0 left · resets weekly');
+  assert.equal(snap.shortWindow.utilization, 100);
   assert.equal(snap.extras.labsRemaining, undefined);
+});
+
+// ── Plan cache + signed-out check ───────────────────────────
+
+import { looksSignedOut, resolvePlan, type PerplexityPlan } from './perplexity';
+import { PLAN_CACHE_TTL_MS } from './snapshot';
+
+const PAID: PerplexityPlan = { kind: 'paid', label: 'Pro' };
+
+test('resolvePlan: fresh cache is used without a lookup', async () => {
+  let calls = 0;
+  const got = await resolvePlan({ value: PAID, at: NOW - 1000 }, NOW, async () => { calls++; return null; });
+  assert.equal(calls, 0);
+  assert.deepEqual(got.value, PAID);
+});
+
+test('resolvePlan: stale cache + failed lookup keeps the last known plan', async () => {
+  const got = await resolvePlan({ value: PAID, at: NOW - PLAN_CACHE_TTL_MS - 1 }, NOW, async () => null);
+  assert.deepEqual(got.value, PAID);
+});
+
+test('resolvePlan: stale cache + successful lookup replaces it', async () => {
+  const got = await resolvePlan({ value: PAID, at: NOW - PLAN_CACHE_TTL_MS - 1 }, NOW, async () => ({ kind: 'free' }));
+  assert.deepEqual(got, { value: { kind: 'free' }, at: NOW });
+});
+
+test('resolvePlan: never known + failed lookup → unknown, retried next poll', async () => {
+  const got = await resolvePlan(null, NOW, async () => null);
+  assert.equal(got.value.kind, 'unknown');
+  assert.ok(NOW - got.at >= PLAN_CACHE_TTL_MS); // not fresh
+});
+
+test('looksSignedOut: only when every count is zero/absent', () => {
+  assert.equal(looksSignedOut({ remaining_pro: 0, remaining_research: 0, remaining_labs: 0, remaining_agentic_research: 0 }), true);
+  assert.equal(looksSignedOut({}), true);
+  assert.equal(looksSignedOut({ remaining_pro: 3 }), false);
 });

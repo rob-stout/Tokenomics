@@ -23,7 +23,7 @@
  * resetsAt as now + windowSizeSeconds, which gives the UI a sensible countdown.
  */
 
-import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
+import { isFresh, type CachedValue, type ProviderUsageSnapshot, type WindowUsage } from './snapshot';
 
 const RATE_LIMITS_URL = 'https://grok.com/rest/rate-limits';
 const DEFAULT_WINDOW_SEC = 86400; // 24h rolling window
@@ -99,15 +99,26 @@ export function parseSubscriptions(raw: SubscriptionsResponse): GrokPlanInfo {
 
 /** null = couldn't tell (network/shape); the caller then uses the free path. */
 async function fetchPlanInfo(): Promise<GrokPlanInfo | null> {
+  // Any failure (including 401/403) is "unknown": fetchRateLimits decides auth.
   try {
     const res = await fetch(SUBSCRIPTIONS_URL, { credentials: 'include' });
-    if (res.status === 401 || res.status === 403) throw new AuthError(res.status);
     if (!res.ok) return null;
     return parseSubscriptions((await res.json()) as SubscriptionsResponse);
-  } catch (err) {
-    if (err instanceof AuthError) throw err;
+  } catch {
     return null;
   }
+}
+
+/** Cached (~6h) subscription lookup; a failed lookup keeps the last known value. Exported for tests. */
+export async function resolvePlanInfo(
+  prior: CachedValue<GrokPlanInfo> | null,
+  now: number,
+  lookup: () => Promise<GrokPlanInfo | null> = fetchPlanInfo,
+): Promise<CachedValue<GrokPlanInfo> | null> {
+  if (isFresh(prior, now)) return prior;
+  const found = await lookup();
+  if (found) return { value: found, at: now };
+  return prior;
 }
 
 // ── Paid weekly pool: gRPC-web + protobuf ─────────────────────
@@ -249,6 +260,8 @@ async function fetchCreditsPool(): Promise<GrokPool | null> {
   if (res.status === 401 || res.status === 403) throw new AuthError(res.status);
   if (res.status === 429) throw new RateLimitError();
   if (!res.ok) return null;
+  // A login redirect / HTML error page is not a gRPC-web frame.
+  if (!(res.headers.get('content-type') ?? '').toLowerCase().startsWith('application/grpc-web')) return null;
   const frame = firstGrpcDataFrame(new Uint8Array(await res.arrayBuffer()));
   return frame ? parseCreditsMessage(frame) : null;
 }
@@ -298,19 +311,27 @@ async function fetchRateLimits(): Promise<RateLimitsResponse> {
 /**
  * Fetch Grok fast-query usage using the web session cookie.
  */
-export async function fetchGrokUsage(): Promise<ProviderUsageSnapshot> {
-  const plan = await fetchPlanInfo();
+export async function fetchGrokUsage(
+  priorPlan: CachedValue<GrokPlanInfo> | null = null,
+): Promise<{ snapshot: ProviderUsageSnapshot; plan: CachedValue<GrokPlanInfo> | null }> {
+  const cached = await resolvePlanInfo(priorPlan, Date.now());
+  const plan = cached?.value ?? null;
   if (plan?.paid) {
     const pool = await fetchCreditsPool().catch((err: unknown) => {
       if (err instanceof AuthError || err instanceof RateLimitError) throw err;
       return null;
     });
-    if (pool) return mapPoolToSnapshot(pool, plan.planLabel, Date.now());
+    // A pool without a period end can't give the Mac a reset, so treat it like
+    // an undecoded pool and fall through.
+    if (pool && pool.resetAtMs !== null) {
+      return { snapshot: mapPoolToSnapshot(pool, plan.planLabel, Date.now()), plan: cached };
+    }
     // Credits call failed or didn't decode: fall through to the query counter.
   }
   const raw = await fetchRateLimits();
   // Confirmed no active subscription → say Free; unknown stays "Grok".
-  return mapToSnapshot(raw, Date.now(), plan && !plan.paid ? 'Free' : plan?.planLabel || 'Grok');
+  const label = plan && !plan.paid ? 'Free' : plan?.planLabel || 'Grok';
+  return { snapshot: mapToSnapshot(raw, Date.now(), label), plan: cached };
 }
 
 /**

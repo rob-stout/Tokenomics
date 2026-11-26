@@ -2,7 +2,7 @@ import browser from 'webextension-polyfill';
 import type { ChatGPTMessageEvent, ChatGPTPlan } from './chatgpt';
 import type { PerplexityCaps } from './perplexity';
 import { isProviderId, type ProviderId } from './types';
-import type { AuthState, BackoffState, ProviderUsageSnapshot } from './snapshot';
+import type { AuthState, BackoffState, CachedValue, ProviderUsageSnapshot } from './snapshot';
 import type { RenewalState } from './renewal';
 
 const KEYS = {
@@ -38,6 +38,7 @@ const KEYS = {
   // remaining-only with no totals and no plan field, so the cap is the max
   // remaining ever observed).
   perplexityCaps: 'perplexityCaps',
+  planCache: 'planCache',
   // Leonardo
   leonardoSnapshot: 'leonardoSnapshot',
   leonardoAuth: 'leonardoAuth',
@@ -333,6 +334,25 @@ export async function getPerplexityCaps(): Promise<PerplexityCaps> {
 
 export async function setPerplexityCaps(caps: PerplexityCaps): Promise<void> {
   await browser.storage.local.set({ [KEYS.perplexityCaps]: caps });
+}
+
+// ── Plan caches (Perplexity settings, Grok subscriptions) ───
+
+export async function getPlanCache<T>(provider: 'perplexity' | 'grok'): Promise<CachedValue<T> | null> {
+  const result = await browser.storage.local.get(KEYS.planCache);
+  const all = result[KEYS.planCache];
+  if (!all || typeof all !== 'object') return null;
+  const raw = (all as Record<string, unknown>)[provider];
+  if (!raw || typeof raw !== 'object') return null;
+  const c = raw as CachedValue<T>;
+  return typeof c.at === 'number' && c.value !== undefined ? c : null;
+}
+
+export async function setPlanCache<T>(provider: 'perplexity' | 'grok', value: CachedValue<T>): Promise<void> {
+  const result = await browser.storage.local.get(KEYS.planCache);
+  const existing = result[KEYS.planCache];
+  const all = existing && typeof existing === 'object' ? (existing as Record<string, unknown>) : {};
+  await browser.storage.local.set({ [KEYS.planCache]: { ...all, [provider]: value } });
 }
 
 // ── Leonardo snapshot ───────────────────────────────────────

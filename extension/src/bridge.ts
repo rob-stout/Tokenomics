@@ -132,8 +132,13 @@ function toBridgeWindow(w: WindowUsage): BridgeWindow {
  * Converts a ProviderUsageSnapshot (capturedAt as ms epoch, utilization 0-100)
  * to a BridgeSnapshot (capturedAt as ISO 8601, utilization 0-1).
  */
+/**
+ * Must be a real, non-empty ISO string: the Mac's resetsAt is a non-optional
+ * Date, so a null/empty value would make it reject the WHOLE batch.
+ */
 function hasValidReset(w: WindowUsage): boolean {
-  return w.resetsAt !== '' && !Number.isNaN(new Date(w.resetsAt).getTime());
+  const r: unknown = w.resetsAt;
+  return typeof r === 'string' && r !== '' && !Number.isNaN(new Date(r).getTime());
 }
 
 /**
@@ -143,24 +148,9 @@ function hasValidReset(w: WindowUsage): boolean {
  * snapshot whose main window has no valid reset is left out. Exported for tests.
  */
 export function toBridgeSnapshotSafe(snap: ProviderUsageSnapshot): BridgeSnapshot | null {
-  const shortWindow = withCountPlaceholderReset(snap.shortWindow, snap.capturedAt);
-  if (!hasValidReset(shortWindow)) return null;
-  const long = snap.longWindow ? withCountPlaceholderReset(snap.longWindow, snap.capturedAt) : null;
-  const longWindow = long && hasValidReset(long) ? long : null;
-  return toBridgeSnapshot({ ...snap, shortWindow, longWindow });
-}
-
-/**
- * Count-only windows (Perplexity Pro/Max) have no reset time at all: empty
- * resetsAt, zero duration, and the sublabel carries the message. The Mac needs
- * a decodable date, so send the capture time; the zero duration keeps it from
- * drawing a pace marker and the sublabel replaces the countdown.
- */
-function withCountPlaceholderReset(w: WindowUsage, capturedAt: number): WindowUsage {
-  if (w.resetsAt === '' && w.windowDurationSec === 0 && w.sublabelOverride) {
-    return { ...w, resetsAt: new Date(capturedAt).toISOString() };
-  }
-  return w;
+  if (!hasValidReset(snap.shortWindow)) return null;
+  const longWindow = snap.longWindow && hasValidReset(snap.longWindow) ? snap.longWindow : null;
+  return toBridgeSnapshot({ ...snap, longWindow });
 }
 
 function toBridgeSnapshot(snap: ProviderUsageSnapshot): BridgeSnapshot {

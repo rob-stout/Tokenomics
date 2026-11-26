@@ -9,9 +9,9 @@ import {
 import { AuthError, fetchClaudeUsage, RateLimitError } from './claude';
 import { AuthError as MJAuthError, fetchMidjourneyUsage, RateLimitError as MJRateLimitError } from './midjourney';
 import { AuthError as ELAuthError, fetchElevenLabsUsage, RateLimitError as ELRateLimitError } from './elevenlabs';
-import { AuthError as GrokAuthError, fetchGrokUsage, RateLimitError as GrokRateLimitError } from './grok';
+import { AuthError as GrokAuthError, fetchGrokUsage, RateLimitError as GrokRateLimitError, type GrokPlanInfo } from './grok';
 import { AuthError as UdioAuthError, fetchUdioUsage, RateLimitError as UdioRateLimitError } from './udio';
-import { AuthError as PxAuthError, fetchPerplexityUsage, RateLimitError as PxRateLimitError } from './perplexity';
+import { AuthError as PxAuthError, fetchPerplexityUsage, RateLimitError as PxRateLimitError, type PerplexityPlan } from './perplexity';
 import { AuthError as LeoAuthError, fetchLeonardoUsage, fetchLeonardoUsageWithApiKey, RateLimitError as LeoRateLimitError } from './leonardo';
 import { applyRenewal, trackRenewal } from './renewal';
 
@@ -25,6 +25,8 @@ import type { ProviderUsageSnapshot } from './snapshot';
 import { sendBridgeBatch, scheduleBridgeSend, registerRefreshWebProvidersHandler } from './bridge';
 import {
   getBackoff,
+  getPlanCache,
+  setPlanCache,
   clearChatGPTSnapshot,
   getChatGPTEvents,
   getChatGPTPlanEffective,
@@ -473,7 +475,8 @@ export async function pollGrok(trigger: 'install' | 'alarm' | 'manual'): Promise
   }
 
   try {
-    const snapshot = await fetchGrokUsage();
+    const { snapshot, plan } = await fetchGrokUsage(await getPlanCache<GrokPlanInfo>('grok'));
+    if (plan) await setPlanCache('grok', plan);
     await setGrokSnapshot(snapshot);
     scheduleBridgeSend('snapshot');
     await setGrokAuth('authenticated');
@@ -508,7 +511,11 @@ export async function pollPerplexity(trigger: 'install' | 'alarm' | 'manual'): P
 
   try {
     const priorCaps = await getPerplexityCaps();
-    const { snapshot, caps } = await fetchPerplexityUsage(priorCaps);
+    const { snapshot, caps, plan } = await fetchPerplexityUsage(
+      priorCaps,
+      await getPlanCache<PerplexityPlan>('perplexity'),
+    );
+    await setPlanCache('perplexity', plan);
     await setPerplexityCaps(caps);
     await setPerplexitySnapshot(snapshot);
     scheduleBridgeSend('snapshot');
@@ -681,8 +688,10 @@ export async function recomputeChatGPTSnapshot(): Promise<void> {
   }
   const snapshot = deriveSnapshot(events, plan);
   if (!snapshot) {
-    // Free/Go (unlimited chat) or an untracked plan: no estimated meter.
-    await clearChatGPTSnapshot();
+    // Free/Go (unlimited chat) or an untracked plan: no estimated meter. Only
+    // drop a stored ESTIMATE; a good exact reading survives a transient failure.
+    const stored = await getChatGPTSnapshot();
+    if (stored?.estimated) await clearChatGPTSnapshot();
     scheduleBridgeSend('snapshot');
     await updateBadge();
     return;
