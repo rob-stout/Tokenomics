@@ -241,6 +241,7 @@ test('api key: 401 → AuthError with a key-specific message', async () => {
 
 const T0 = Date.UTC(2026, 10, 9, 12, 0, 0); // 2026-11-09
 const HOUR = 3600 * 1000;
+const LEO_DAILY = 150;
 
 test('renewal: no refill seen yet → snapshot unchanged, no reset in sublabel', () => {
   const state = trackRenewal(null, 150, 0, T0);
@@ -257,8 +258,8 @@ test('renewal: spending lowers the balance → still no anchor', () => {
 });
 
 test('renewal: balance jumps up with paid unchanged → anchored; reset one month later', () => {
-  let s = trackRenewal(null, 20, 0, T0 - HOUR);
-  s = trackRenewal(s, 150, 0, T0);
+  let s = trackRenewal(null, 20, 0, T0 - HOUR, LEO_DAILY);
+  s = trackRenewal(s, 8500, 0, T0, LEO_DAILY);
   assert.equal(s.anchorMs, T0);
   const now = T0 + 7 * 24 * HOUR; // Nov 16
   const snap = mapMeToSnapshot({ subscriptionTokens: 120, paidTokens: 0 }, now);
@@ -275,15 +276,50 @@ test('renewal: a token purchase is not a refill', () => {
 });
 
 test('renewal: refill seen after a long gap (browser closed) is not trusted', () => {
-  let s = trackRenewal(null, 20, 0, T0 - 5 * 24 * HOUR);
-  s = trackRenewal(s, 150, 0, T0);
+  let s = trackRenewal(null, 20, 0, T0 - 5 * 24 * HOUR, LEO_DAILY);
+  s = trackRenewal(s, 8500, 0, T0, LEO_DAILY);
   assert.equal(s.anchorMs, null);
 });
 
 test('renewal: a real renewal date from the API wins over the learned one', () => {
-  let s = trackRenewal(null, 20, 0, T0 - HOUR);
-  s = trackRenewal(s, 150, 0, T0);
+  let s = trackRenewal(null, 20, 0, T0 - HOUR, LEO_DAILY);
+  s = trackRenewal(s, 8500, 0, T0, LEO_DAILY);
   const snap = mapMeToSnapshot({ subscriptionTokens: 150, paidTokens: 0 }, T0);
   const out = applyRenewal({ snapshot: snap, balance: 150, purchased: 0, renewalKnown: true }, s, T0);
   assert.equal(out, snap);
+});
+
+// ── 2026 plan names (same allotments as Apprentice / Artisan / Maestro) ──
+
+test('new plan names map to the same caps', () => {
+  const cases: Array<[string, number, string]> = [
+    ['ESSENTIAL', 4250, 'Essential'],
+    ['PREMIUM_V2', 12500, 'Premium'],
+    ['ULTIMATE', 30000, 'Ultimate'],
+  ];
+  for (const [plan, left, label] of cases) {
+    const snap = mapToSnapshot({ plan, subscriptionTokens: left, paidTokens: 0, rolloverTokens: 0 }, NOW);
+    assert.equal(snap.shortWindow.utilization, 50, plan);
+    assert.equal(snap.planLabel, label, plan);
+  }
+});
+
+test('unknown plan slug: title-case label, no cap (0%)', () => {
+  const snap = mapToSnapshot({ plan: 'SOMETHING_NEW', subscriptionTokens: 100 }, NOW);
+  assert.equal(snap.planLabel, 'Something');
+  assert.equal(snap.shortWindow.utilization, 0);
+});
+
+// ── Daily free top-up is not the monthly refill ─────────────
+
+test('renewal: a paid user at 0 who gets the 150 daily top-up is NOT anchored', () => {
+  let s = trackRenewal(null, 0, 0, T0 - HOUR, LEO_DAILY);
+  s = trackRenewal(s, 150, 0, T0, LEO_DAILY);
+  assert.equal(s.anchorMs, null);
+});
+
+test('renewal: a refill larger than the daily amount still anchors', () => {
+  let s = trackRenewal(null, 0, 0, T0 - HOUR, LEO_DAILY);
+  s = trackRenewal(s, 8500, 0, T0, LEO_DAILY);
+  assert.equal(s.anchorMs, T0);
 });

@@ -14,6 +14,11 @@ import { AuthError as UdioAuthError, fetchUdioUsage, RateLimitError as UdioRateL
 import { AuthError as PxAuthError, fetchPerplexityUsage, RateLimitError as PxRateLimitError } from './perplexity';
 import { AuthError as LeoAuthError, fetchLeonardoUsage, fetchLeonardoUsageWithApiKey, RateLimitError as LeoRateLimitError } from './leonardo';
 import { applyRenewal, trackRenewal } from './renewal';
+
+// Daily free top-ups that must not be mistaken for the monthly refill (see renewal.ts).
+const SUNO_DAILY_CREDITS = 50;
+const LEONARDO_DAILY_TOKENS = 150;
+
 import { mapToSnapshot as mapSunoSnapshot, toRenewalPoll as sunoRenewalPoll } from './suno';
 import type { ExtensionMessage, ExtensionResponse } from './messages';
 import type { ProviderUsageSnapshot } from './snapshot';
@@ -212,7 +217,7 @@ browser.runtime.onMessage.addListener(
       const poll = sunoRenewalPoll(msg.billing, now);
       let snapshot = mapSunoSnapshot(msg.billing, now);
       if (poll) {
-        const renewal = trackRenewal(await getRenewal('suno'), poll.balance, poll.purchased, now);
+        const renewal = trackRenewal(await getRenewal('suno'), poll.balance, poll.purchased, now, SUNO_DAILY_CREDITS);
         await setRenewal('suno', renewal);
         snapshot = applyRenewal(poll, renewal, now);
       }
@@ -591,7 +596,7 @@ export async function pollLeonardo(trigger: 'install' | 'alarm' | 'manual'): Pro
       ? await fetchLeonardoUsageWithApiKey(apiKey)
       : await fetchLeonardoUsage(creds?.idToken ?? '', creds?.userSub ?? '');
     const now = Date.now();
-    const renewal = trackRenewal(await getRenewal('leonardo'), poll.balance, poll.purchased, now);
+    const renewal = trackRenewal(await getRenewal('leonardo'), poll.balance, poll.purchased, now, LEONARDO_DAILY_TOKENS);
     await setRenewal('leonardo', renewal);
     const snapshot = applyRenewal(poll, renewal, now);
     await setLeonardoSnapshot(snapshot);

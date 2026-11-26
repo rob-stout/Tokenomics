@@ -14,10 +14,10 @@
  *               paidTokens, Suno: `credits`, the separately-bought credits)
  * A rise in `purchased` explains a rise in `balance`, so it is not a refill.
  *
- * Known limit: a service that refills daily (Suno Free is advertised as
- * "50 credits renew daily") would anchor on a daily refill and show a monthly
- * countdown that is wrong. We can't tell the two apart from balances alone;
- * the countdown is only shown once a refill has been seen.
+ * Daily top-ups: some services also hand out a small daily amount (Suno: 50,
+ * Leonardo: 150) to accounts that ran out, which looks like a refill but is not
+ * the monthly one. Callers pass that daily amount, and a rise no bigger than it
+ * is ignored. The countdown is only shown once a real refill has been seen.
  */
 
 import type { ProviderUsageSnapshot } from './snapshot';
@@ -50,11 +50,12 @@ export function trackRenewal(
   balance: number,
   purchased: number,
   now: number,
+  dailyAmount: number = 0,
 ): RenewalState {
   let anchorMs = prev?.anchorMs ?? null;
   if (
     prev &&
-    balance > prev.lastBalance &&
+    balance - prev.lastBalance > dailyAmount &&
     purchased <= prev.lastPurchased &&
     now - prev.lastSeenAt <= MAX_GAP_MS
   ) {
