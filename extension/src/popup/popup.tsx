@@ -8,6 +8,7 @@ import {
   computePace,
   formatTimeUntilReset,
   type ProviderUsageSnapshot,
+  type UsageCredits,
   type WindowUsage,
 } from '../snapshot';
 import {
@@ -105,8 +106,37 @@ function renderUsageBars(snapshot: ProviderUsageSnapshot) {
           />
         </>
       ) : null}
+      {(snapshot.extras.scopedWeekly ?? []).map((w) => (
+        <>
+          <div class="usage-stack__divider" />
+          <UsageBar
+            isLong
+            label={w.label}
+            utilization={w.utilization}
+            pace={computePace(w)}
+            sublabel={formatTimeUntilReset(w)}
+          />
+        </>
+      ))}
+      {snapshot.extras.usageCredits ? (
+        <>
+          <div class="usage-stack__divider" />
+          <div class="usage-bar">
+            <div class="usage-bar__header">
+              <span class="usage-bar__label">Usage credits</span>
+              <span class="usage-bar__value">{formatCredits(snapshot.extras.usageCredits)}</span>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
+}
+
+function formatCredits(c: UsageCredits): string {
+  const fmt = (n: number) =>
+    new Intl.NumberFormat(undefined, { style: 'currency', currency: c.currency }).format(n);
+  return c.limit !== null ? `${fmt(c.used)} of ${fmt(c.limit)}` : fmt(c.used);
 }
 
 function renderNativeBars(snap: BridgeSnapshot, showFooter = true) {

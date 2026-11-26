@@ -1,9 +1,10 @@
-import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
-import { getCachedOrgId, setCachedOrgId } from './storage';
+import type { ProviderUsageSnapshot } from './snapshot';
+import { clearCachedOrg, getCachedOrg, setCachedOrg } from './storage';
+import type { CachedClaudeOrg } from './storage';
+import { mapToSnapshot, pickChatOrg, planFromOrg } from './claude-map';
+import type { UsageResponse } from './claude-map';
 
 const API_BASE = 'https://claude.ai/api';
-const FIVE_HOUR_SEC = 5 * 3600;
-const SEVEN_DAY_SEC = 7 * 86400;
 
 export class AuthError extends Error {
   constructor() {
@@ -19,43 +20,36 @@ export class RateLimitError extends Error {
   }
 }
 
-interface OrganizationsResponse {
-  uuid: string;
-}
-
-interface UsageWindow {
-  utilization: number;
-  resets_at: string;
-}
-
-interface UsageResponse {
-  five_hour?: UsageWindow;
-  seven_day?: UsageWindow;
-  seven_day_opus?: UsageWindow;
-}
+// ── Public API ──────────────────────────────────────────────
 
 export async function fetchClaudeUsage(): Promise<ProviderUsageSnapshot> {
-  const orgId = await getOrgId();
-  const usage = await fetchUsage(orgId);
-  return mapToSnapshot(usage);
+  const org = await getOrg();
+  let usage: UsageResponse;
+  try {
+    usage = await fetchUsage(org.id);
+  } catch (err) {
+    // A cached org that now 403s may have been the wrong one; re-pick next poll.
+    if (err instanceof AuthError) await clearCachedOrg();
+    throw err;
+  }
+  return mapToSnapshot(usage, org.plan);
 }
 
-async function getOrgId(): Promise<string> {
-  const cached = await getCachedOrgId();
+async function getOrg(): Promise<CachedClaudeOrg> {
+  const cached = await getCachedOrg();
   if (cached) return cached;
 
   const res = await fetch(`${API_BASE}/organizations`, { credentials: 'include' });
   throwOnAuthOrRateLimit(res);
   if (!res.ok) throw new Error(`organizations fetch failed: ${res.status}`);
 
-  const data = (await res.json()) as OrganizationsResponse[];
-  if (!Array.isArray(data) || data.length === 0 || !data[0]?.uuid) {
-    throw new Error('No organizations on this account');
-  }
+  const chatOrg = pickChatOrg(await res.json());
+  // No chat-capable org means there is no claude.ai plan to read (API-only login).
+  if (!chatOrg?.uuid) throw new AuthError();
 
-  const orgId = data[0].uuid;
-  await setCachedOrgId(orgId);
-  return orgId;
+  const org = { id: chatOrg.uuid, plan: planFromOrg(chatOrg) };
+  await setCachedOrg(org);
+  return org;
 }
 
 async function fetchUsage(orgId: string): Promise<UsageResponse> {
@@ -72,45 +66,3 @@ function throwOnAuthOrRateLimit(res: Response): void {
   if (res.status === 429) throw new RateLimitError();
 }
 
-function mapToSnapshot(usage: UsageResponse): ProviderUsageSnapshot {
-  const shortWindow: WindowUsage = makeWindow('5-Hour Window', usage.five_hour, FIVE_HOUR_SEC) ?? {
-    label: '5-Hour Window',
-    utilization: 0,
-    resetsAt: '',
-    windowDurationSec: FIVE_HOUR_SEC,
-  };
-
-  const longWindow = makeWindow('7-Day Window', usage.seven_day, SEVEN_DAY_SEC);
-
-  const extras: ProviderUsageSnapshot['extras'] = {};
-  const opus = makeWindow('Opus 7-Day', usage.seven_day_opus, SEVEN_DAY_SEC);
-  if (opus) extras.opusSevenDay = opus;
-
-  return {
-    provider: 'claude',
-    shortWindow,
-    longWindow,
-    extras,
-    // TODO: derive plan from /organizations response (settings/capabilities).
-    // Defaulting to "Pro" matches the dominant consumer cohort for now.
-    planLabel: 'Pro',
-    capturedAt: Date.now(),
-  };
-}
-
-function makeWindow(
-  label: string,
-  raw: UsageWindow | undefined,
-  durationSec: number,
-): WindowUsage | null {
-  if (!raw || typeof raw.utilization !== 'number') return null;
-  return {
-    label,
-    // claude.ai's /usage endpoint returns utilization already as a percentage
-    // (0–100, e.g. `7` for 7%) — the plan doc's `0.36` example was wrong.
-    // No multiplier; just guard against negative and absurd values.
-    utilization: Math.max(0, raw.utilization),
-    resetsAt: raw.resets_at,
-    windowDurationSec: durationSec,
-  };
-}

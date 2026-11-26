@@ -13,11 +13,26 @@ export interface WindowUsage {
   sublabelOverride?: string;
 }
 
+export interface UsageCredits {
+  /** Major units (dollars), already scaled by the currency exponent. */
+  used: number;
+  /** null when the account has no spend cap. */
+  limit: number | null;
+  currency: string;
+}
+
 export interface ProviderUsageSnapshot {
   provider: ProviderId;
   shortWindow: WindowUsage;
   longWindow: WindowUsage | null;
-  extras: { opusSevenDay?: WindowUsage; labsRemaining?: WindowUsage };
+  extras: {
+    opusSevenDay?: WindowUsage;
+    labsRemaining?: WindowUsage;
+    /** Per-model weekly caps (Claude `weekly_scoped` limits), e.g. "Fable Weekly". */
+    scopedWeekly?: WindowUsage[];
+    /** Claude "usage credits" (pay-as-you-go overage). Only set when enabled. */
+    usageCredits?: UsageCredits;
+  };
   planLabel: string;
   capturedAt: number;
   /** True when the numbers come from a local counter rather than a

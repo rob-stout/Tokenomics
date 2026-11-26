@@ -67,6 +67,9 @@ const ORG_ID_TTL_MS = 24 * 60 * 60 * 1000;
 interface CachedOrgId {
   value: string;
   expiresAt: number;
+  /** Plan label for the cached org ('' = unknown). Absent on entries written
+   *  before 1.1.3, which are treated as a cache miss so the plan gets filled in. */
+  plan?: string;
 }
 
 // ── selectedTab ─────────────────────────────────────────────
@@ -127,17 +130,26 @@ export async function setPinnedProvider(provider: ProviderId | null): Promise<vo
 
 // ── Claude org id cache (24h TTL) ───────────────────────────
 
-export async function getCachedOrgId(): Promise<string | null> {
-  const result = await browser.storage.local.get(KEYS.claudeOrgId);
-  const raw = result[KEYS.claudeOrgId] as CachedOrgId | undefined;
-  if (!raw || typeof raw.value !== 'string') return null;
-  if (Date.now() > raw.expiresAt) return null;
-  return raw.value;
+export interface CachedClaudeOrg {
+  id: string;
+  plan: string;
 }
 
-export async function setCachedOrgId(value: string): Promise<void> {
-  const cached: CachedOrgId = { value, expiresAt: Date.now() + ORG_ID_TTL_MS };
+export async function getCachedOrg(): Promise<CachedClaudeOrg | null> {
+  const result = await browser.storage.local.get(KEYS.claudeOrgId);
+  const raw = result[KEYS.claudeOrgId] as CachedOrgId | undefined;
+  if (!raw || typeof raw.value !== 'string' || typeof raw.plan !== 'string') return null;
+  if (Date.now() > raw.expiresAt) return null;
+  return { id: raw.value, plan: raw.plan };
+}
+
+export async function setCachedOrg(org: CachedClaudeOrg): Promise<void> {
+  const cached: CachedOrgId = { value: org.id, plan: org.plan, expiresAt: Date.now() + ORG_ID_TTL_MS };
   await browser.storage.local.set({ [KEYS.claudeOrgId]: cached });
+}
+
+export async function clearCachedOrg(): Promise<void> {
+  await browser.storage.local.remove(KEYS.claudeOrgId);
 }
 
 // ── Claude snapshot ─────────────────────────────────────────
