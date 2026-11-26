@@ -13,7 +13,9 @@ concurrency:
 jobs:
   test:
     name: Build & Test
-    runs-on: macos-15
+    # The app uses macOS 27 SDK symbols (the extra-large portrait widget
+    # size), so CI needs the newest Xcode, not macos-15's default 16.4.
+    runs-on: macos-26
     timeout-minutes: 20
 
     env:
@@ -23,13 +25,27 @@ jobs:
         CODE_SIGN_IDENTITY=-
         CODE_SIGNING_REQUIRED=NO
         CODE_SIGNING_ALLOWED=NO
+      # A hung test fails by name after a minute instead of eating the
+      # whole job timeout with no clue which test it was.
+      TEST_TIMEOUT_FLAGS: >-
+        -test-timeouts-enabled YES
+        -default-test-execution-time-allowance 60
+        -maximum-test-execution-time-allowance 120
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+
       - name: Show Xcode version
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          swift --version
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -52,7 +68,8 @@ jobs:
             -project Tokenomics.xcodeproj \
             -scheme Tokenomics \
             -destination 'platform=macOS' \
-            $XCODEBUILD_FLAGS
+            $XCODEBUILD_FLAGS \
+            $TEST_TIMEOUT_FLAGS
 
       # Widget-sync tests use a temp file (no App Group entitlement needed),
       # so they run in CI alongside NotificationPostingTests. Set repository variable
@@ -64,4 +81,5 @@ jobs:
             -project Tokenomics.xcodeproj \
             -scheme TokenomicsIntegration \
             -destination 'platform=macOS' \
-            $XCODEBUILD_FLAGS
+            $XCODEBUILD_FLAGS \
+            $TEST_TIMEOUT_FLAGS

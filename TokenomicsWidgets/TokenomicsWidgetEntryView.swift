@@ -136,9 +136,11 @@ struct TokenomicsWidgetEntryView: View {
             MediumWidgetView(entry: entry)
         case .systemLarge:
             LargeWidgetView(entry: entry)
+        #if !PRE_MACOS27_SDK
         case .systemExtraLargePortrait:
             // Same layout as large, with room for every pool instead of "+N in app".
             LargeWidgetView(entry: entry, maxRows: 14)
+        #endif
         default:
             MediumWidgetView(entry: entry)
         }

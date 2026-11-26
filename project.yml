@@ -182,6 +182,11 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WIDGET_EXTENSION"
+        # The extra-large portrait widget size needs the macOS 27 SDK. Older
+        # SDKs (Xcode 16 and 26, e.g. on CI) either lack it or mark it
+        # unavailable on macOS, so those builds leave it out.
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=macosx15*]": "$(inherited) WIDGET_EXTENSION PRE_MACOS27_SDK"
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=macosx26*]": "$(inherited) WIDGET_EXTENSION PRE_MACOS27_SDK"
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
       configs:
         debug:

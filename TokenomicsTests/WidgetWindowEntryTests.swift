@@ -57,8 +57,12 @@ final class WidgetWindowEntryTests: XCTestCase {
             resetsAt: .distantFuture,
             windowDuration: 5 * 3600
         )
-        XCTAssertEqual(window.shortTimeUntilReset, "Sun",
-            "distantFuture's abbreviated weekday is Sun — why every nil-resetsAt window must set sublabelOverride")
+        // distantFuture's weekday depends on the time zone (Sun in US zones,
+        // Mon in UTC as on CI), so compare against the local weekday.
+        let weekday = DateFormatter()
+        weekday.dateFormat = "EEE"
+        XCTAssertEqual(window.shortTimeUntilReset, weekday.string(from: .distantFuture),
+            "distantFuture leaks an abbreviated weekday — why every nil-resetsAt window must set sublabelOverride")
     }
 
     /// With the override, shortTimeUntilReset returns it verbatim — no countdown
