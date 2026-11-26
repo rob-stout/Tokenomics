@@ -20,6 +20,7 @@ import type { ProviderUsageSnapshot } from './snapshot';
 import { sendBridgeBatch, scheduleBridgeSend, registerRefreshWebProvidersHandler } from './bridge';
 import {
   getBackoff,
+  clearChatGPTSnapshot,
   getChatGPTEvents,
   getChatGPTPlanEffective,
   getChatGPTSnapshot,
@@ -674,6 +675,13 @@ export async function recomputeChatGPTSnapshot(): Promise<void> {
     return;
   }
   const snapshot = deriveSnapshot(events, plan);
+  if (!snapshot) {
+    // Free/Go (unlimited chat) or an untracked plan: no estimated meter.
+    await clearChatGPTSnapshot();
+    scheduleBridgeSend('snapshot');
+    await updateBadge();
+    return;
+  }
   await setChatGPTSnapshot(snapshot);
   scheduleBridgeSend('snapshot');
   await updateBadge();

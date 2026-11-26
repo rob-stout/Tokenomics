@@ -191,6 +191,11 @@ export async function setChatGPTSnapshot(snapshot: ProviderUsageSnapshot): Promi
   await browser.storage.local.set({ [KEYS.chatgptSnapshot]: snapshot });
 }
 
+/** Drop a stale estimate (e.g. the plan turned out to have no message cap). */
+export async function clearChatGPTSnapshot(): Promise<void> {
+  await browser.storage.local.remove(KEYS.chatgptSnapshot);
+}
+
 // ── ChatGPT counter (rolling log of message events) ─────────
 
 export async function getChatGPTEvents(): Promise<ChatGPTMessageEvent[]> {
@@ -239,8 +244,12 @@ export async function getChatGPTPlanEffective(): Promise<ChatGPTPlan> {
   return override ?? auto;
 }
 
+const CHATGPT_PLANS: readonly string[] = [
+  'free', 'go', 'plus', 'prolite', 'pro', 'promax', 'team', 'business', 'enterprise', 'edu', 'unknown',
+];
+
 function isChatGPTPlan(value: unknown): value is ChatGPTPlan {
-  return value === 'free' || value === 'plus' || value === 'pro' || value === 'team' || value === 'unknown';
+  return typeof value === 'string' && CHATGPT_PLANS.includes(value);
 }
 
 // ── ElevenLabs Firebase token (from content script) ─────────

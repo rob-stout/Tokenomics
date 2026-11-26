@@ -88,3 +88,72 @@ test('utilization is clamped to 0–100 and rounded', () => {
   );
   assert.equal(over!.shortWindow.utilization, 100);
 });
+
+// ── Window classification by length, not slot ─────────────────
+test('weekly primary + 5-hour secondary: sorted by length, not slot', () => {
+  const data: WhamUsageResponse = {
+    plan_type: 'pro',
+    rate_limit: {
+      primary_window: { used_percent: 30, limit_window_seconds: 604800, reset_at: 1749340800 },
+      secondary_window: { used_percent: 8, limit_window_seconds: 18000, reset_at: 1748750400 },
+    },
+  };
+  const snap = mapWhamUsageToSnapshot(data, NOW);
+  assert.ok(snap);
+  assert.equal(snap!.shortWindow.label, '5-Hour Window');
+  assert.equal(snap!.shortWindow.utilization, 8);
+  assert.equal(snap!.longWindow?.label, 'Weekly');
+  assert.equal(snap!.longWindow?.utilization, 30);
+});
+
+test('a lone weekly window is the short window, labelled Weekly', () => {
+  const snap = mapWhamUsageToSnapshot(
+    { plan_type: 'plus', rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 604800, reset_at: 1749340800 } } },
+    NOW,
+  );
+  assert.equal(snap!.shortWindow.label, 'Weekly');
+  assert.equal(snap!.longWindow, null);
+});
+
+test('windows are marked as the Codex allowance', () => {
+  const snap = mapWhamUsageToSnapshot(
+    { plan_type: 'plus', rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 18000, reset_at: 1748750400 } } },
+    NOW,
+  );
+  assert.match(snap!.shortWindow.sublabelOverride ?? '', /^Codex allowance · resets in/);
+});
+
+test('a ~6h session window is labelled in hours', () => {
+  const snap = mapWhamUsageToSnapshot(
+    { plan_type: 'plus', rate_limit: { primary_window: { used_percent: 1, limit_window_seconds: 21600, reset_at: 1748750400 } } },
+    NOW,
+  );
+  assert.equal(snap!.shortWindow.label, '6-Hour Window');
+});
+
+// ── Plan label from plan_type ─────────────────────────────────
+test('plan_type → label table', () => {
+  const cases: Array<[string, string]> = [
+    ['free', 'Free'],
+    ['go', 'Go'],
+    ['plus', 'Plus'],
+    ['prolite', 'Pro 100'],
+    ['pro', 'Pro 200'],
+    ['promax', 'Pro 500'],
+    ['team', 'Team'],
+    ['business', 'Business'],
+    ['self_serve_business_usage_based', 'Business'],
+    ['enterprise', 'Enterprise'],
+    ['enterprise_cbp_usage_based', 'Enterprise'],
+    ['edu', 'Edu'],
+    ['education', 'Edu'],
+    ['something_new', ''],
+  ];
+  for (const [planType, label] of cases) {
+    const snap = mapWhamUsageToSnapshot(
+      { plan_type: planType, rate_limit: { primary_window: { used_percent: 1, limit_window_seconds: 18000, reset_at: 1748750400 } } },
+      NOW,
+    );
+    assert.equal(snap!.planLabel, label, planType);
+  }
+});
