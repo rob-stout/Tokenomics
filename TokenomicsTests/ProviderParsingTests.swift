@@ -136,6 +136,15 @@ final class CodexProviderParsingTests: XCTestCase {
         }
     }
 
+    /// A main-limit event with both windows null is windowless; the scan must keep looking.
+    func testCodexRateLimits_bothWindowsNull_hasNoWindow() throws {
+        let empty = try JSONDecoder().decode(CodexRateLimits.self, from: Data(#"{"limit_id":"codex","primary":null,"secondary":null,"plan_type":"pro"}"#.utf8))
+        XCTAssertFalse(empty.hasWindow)
+        XCTAssertTrue(empty.isMainLimit)
+        let full = try JSONDecoder().decode(CodexRateLimits.self, from: Data(#"{"primary":{"used_percent":1,"window_minutes":300,"resets_at":1}}"#.utf8))
+        XCTAssertTrue(full.hasWindow)
+    }
+
     /// Windows classify by window_minutes, not slot: session (< 1 day) first.
     func testCodexWindows_classifiedByMinutes_notSlot() throws {
         let body = #"{"primary":{"used_percent":80,"window_minutes":10080,"resets_at":1750000000},"secondary":{"used_percent":10,"window_minutes":300,"resets_at":1740000000}}"#

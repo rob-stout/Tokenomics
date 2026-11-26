@@ -27,7 +27,7 @@ enum GeminiPlan: String, CaseIterable, Codable, Sendable {
 
     /// Shown wherever the user connects or picks a Gemini CLI plan.
     static let personalAccountNotice =
-        "Personal Google accounts can no longer use Gemini CLI (they moved to Antigravity CLI in June 2026). You need a Gemini Code Assist Standard or Enterprise license, or a paid Gemini API key."
+        "Tokenomics tracks Gemini CLI when it's signed in with a Gemini Code Assist Standard or Enterprise license. Personal Google accounts no longer work with Gemini CLI (they moved to Antigravity CLI in June 2026)."
 
     var dailyLimit: Int {
         switch self {

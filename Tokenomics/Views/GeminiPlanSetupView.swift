@@ -15,7 +15,7 @@ struct GeminiPlanSetupView: View {
         self.currentPlan = currentPlan
         self.onConfirm = onConfirm
         self.onCancel = onCancel
-        self._selectedPlan = State(initialValue: currentPlan ?? .free)
+        self._selectedPlan = State(initialValue: currentPlan ?? .standard)
     }
 
     var body: some View {

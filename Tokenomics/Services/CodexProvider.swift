@@ -124,6 +124,7 @@ actor CodexProvider: UsageProvider {
 
         var tokenCount: CodexTokenCount?
         var rateLimits: CodexRateLimits?
+        var windowlessFallback: CodexRateLimits?
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -148,8 +149,14 @@ actor CodexProvider: UsageProvider {
                         let event = try decoder.decode(CodexSessionEvent.self, from: lineData)
                         // Model-specific limits (e.g. limit_id "codex_bengalfox") sit next to
                         // the main one and must not drive the main windows.
+                        // A windowless event (both null) must not end the backward scan; keep
+                        // it only as a fallback for plan_type / credits.
                         if let candidate = event.rateLimits, candidate.isMainLimit {
-                            rateLimits = candidate
+                            if candidate.hasWindow {
+                                rateLimits = candidate
+                            } else if windowlessFallback == nil {
+                                windowlessFallback = candidate
+                            }
                         }
                     } catch {
                         Self.log.error("Failed to decode rate_limits line in \(url.lastPathComponent): \(error.localizedDescription)")
@@ -160,6 +167,8 @@ actor CodexProvider: UsageProvider {
             // Found both — stop scanning
             if tokenCount != nil && rateLimits != nil { break }
         }
+
+        rateLimits = rateLimits ?? windowlessFallback
 
         // Need at least one source of data
         guard tokenCount != nil || rateLimits != nil else { return nil }
@@ -378,6 +387,8 @@ struct CodexRateLimits: Decodable, Sendable {
 
     /// Nil/absent id (older Codex versions) counts as the main limit.
     var isMainLimit: Bool { limitId == nil || limitId == "codex" }
+
+    var hasWindow: Bool { primary != nil || secondary != nil }
 
     enum CodingKeys: String, CodingKey {
         case primary, secondary, credits

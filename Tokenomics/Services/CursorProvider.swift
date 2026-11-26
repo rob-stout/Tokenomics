@@ -28,6 +28,9 @@ actor CursorProvider: UsageProvider {
     /// Cached user ID extracted from JWT to avoid re-parsing every poll
     private var cachedUserId: String?
 
+    /// Plan info only changes when the weekly pool resets, so reuse it until then.
+    private var cachedPlanInfo: CursorPlanInfoResponse?
+
     func checkConnection() async -> ProviderConnectionState {
         if let forced = DetectionScenario.current.forcedConnection { return forced }
         guard isCursorInstalled() else { return .notInstalled }
@@ -61,8 +64,10 @@ actor CursorProvider: UsageProvider {
         if summary.isUnified {
             // After the Cursor/X/Grok unification, usage-summary's plan numbers go stale
             // (it can report 0), so read the weekly pool from the dashboard service.
-            let usage = try await fetchCurrentPeriodUsage(token: token)
-            let plan = try await fetchPlanInfo(token: token)
+            async let usageRequest = fetchCurrentPeriodUsage(token: token)
+            async let planRequest = currentPlanInfo(token: token)
+            let usage = try await usageRequest
+            let plan = await planRequest
             return Self.mapUnifiedSnapshot(summary: summary, usage: usage, plan: plan)
         }
         return Self.mapToSnapshot(summary)
@@ -166,6 +171,11 @@ actor CursorProvider: UsageProvider {
         request.httpBody = Data("{}".utf8)
 
         let (data, response) = try await URLSession.shared.data(for: request)
+        // usage-summary (same token) already succeeded, so a 401/403 from api2 is a
+        // problem with this endpoint, not an expired sign-in.
+        if let http = response as? HTTPURLResponse, http.statusCode == 401 || http.statusCode == 403 {
+            throw AppError.httpError(statusCode: http.statusCode)
+        }
         try validateResponse(response)
         do {
             return try JSONDecoder().decode(T.self, from: data)
@@ -180,6 +190,18 @@ actor CursorProvider: UsageProvider {
 
     private func fetchPlanInfo(token: String) async throws -> CursorPlanInfoResponse {
         try await connectPost("GetPlanInfo", token: token, as: CursorPlanInfoResponse.self)
+    }
+
+    /// Plan info is a nicety (reset time); failure is non-fatal and falls back to
+    /// the usage response's own billing-cycle end.
+    private func currentPlanInfo(token: String) async -> CursorPlanInfoResponse? {
+        if let cached = cachedPlanInfo,
+           let resetsAt = cached.planInfo?.includedUsageResetsAt, resetsAt > Date() {
+            return cached
+        }
+        let fetched = try? await fetchPlanInfo(token: token)
+        cachedPlanInfo = fetched
+        return fetched
     }
 
     private func validateResponse(_ response: URLResponse) throws {
@@ -213,19 +235,20 @@ actor CursorProvider: UsageProvider {
     nonisolated static func mapUnifiedSnapshot(
         summary: CursorUsageSummary,
         usage: CursorCurrentPeriodUsage,
-        plan: CursorPlanInfoResponse
+        plan: CursorPlanInfoResponse?
     ) -> ProviderUsageSnapshot {
         let percent = max(0, usage.planUsage?.totalPercentUsed ?? 0)
-        let resetsAt = plan.planInfo?.includedUsageResetsAt
-            ?? usage.billingCycleEnd
-            ?? Date.distantFuture
-        let hasReset = resetsAt != Date.distantFuture
+        let weeklyReset = plan?.planInfo?.includedUsageResetsAt
+        let resetsAt = weeklyReset ?? usage.billingCycleEnd ?? Date.distantFuture
+        // Only claim a 7-day window when the reset really is the weekly one; a
+        // billing-cycle fallback would draw a misleading pace dot.
+        let isWeekly = weeklyReset != nil
         return ProviderUsageSnapshot(
             shortWindow: WindowUsage(
                 label: "Weekly Usage",
                 utilization: min(percent, 999),
                 resetsAt: resetsAt,
-                windowDuration: hasReset ? 7 * 24 * 3600 : 0,
+                windowDuration: isWeekly ? 7 * 24 * 3600 : 0,
                 sublabelOverride: String(format: "%.1f%% of weekly allowance used", percent)
             ),
             longWindow: nil,

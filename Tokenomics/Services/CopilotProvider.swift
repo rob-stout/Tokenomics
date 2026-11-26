@@ -163,12 +163,16 @@ actor CopilotProvider: UsageProvider {
     }
 
     private nonisolated static func mapFreeSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
-        let chatQuota = info.limitedUserQuotas?.chat ?? info.quotaSnapshots?.chat?.remaining ?? 0
         let chatLimit = info.monthlyQuotas?.chat ?? info.quotaSnapshots?.chat?.entitlement ?? 0
+        let chatQuota = info.limitedUserQuotas?.chat
+            ?? info.quotaSnapshots?.chat?.remainingCount(limit: chatLimit)
+            ?? chatLimit // nothing known: show 0% used, never a false 100%
         let chatUsed = chatLimit - chatQuota
 
-        let completionsQuota = info.limitedUserQuotas?.completions ?? info.quotaSnapshots?.completions?.remaining ?? 0
         let completionsLimit = info.monthlyQuotas?.completions ?? info.quotaSnapshots?.completions?.entitlement ?? 0
+        let completionsQuota = info.limitedUserQuotas?.completions
+            ?? info.quotaSnapshots?.completions?.remainingCount(limit: completionsLimit)
+            ?? completionsLimit
         let completionsUsed = completionsLimit - completionsQuota
 
         let chatUtilization = chatLimit > 0
@@ -248,7 +252,7 @@ actor CopilotProvider: UsageProvider {
             utilization = 0
             // Business/Enterprise seats: no cap, but credits_used is still reported.
             if isTokenBased, let credits = premium.creditsUsed, credits >= 0 {
-                sublabel = "\(Int(credits.rounded()).formatted()) credits used"
+                sublabel = "\(safeInt(credits).formatted()) credits used"
             } else {
                 sublabel = "Unlimited"
             }
@@ -269,9 +273,9 @@ actor CopilotProvider: UsageProvider {
 
             let used: Int
             if isTokenBased, let quotaRemaining = premium.quotaRemaining {
-                used = Int((Double(entitlement) - quotaRemaining).rounded())
+                used = safeInt(Double(entitlement) - quotaRemaining)
             } else {
-                used = Int((Double(entitlement) * utilization / 100).rounded())
+                used = safeInt(Double(entitlement) * utilization / 100)
             }
             let formatted = isTokenBased
                 ? "\(used.formatted()) / \(entitlement.formatted())"
@@ -303,6 +307,18 @@ private func decodeFlexibleDouble<K: CodingKey>(_ container: KeyedDecodingContai
     if let number = try? container.decodeIfPresent(Double.self, forKey: key) { return number }
     if let text = try? container.decodeIfPresent(String.self, forKey: key) { return Double(text) }
     return nil
+}
+
+/// Rounds and converts without trapping on inf / NaN / out-of-range input
+/// (a "1e400" string would otherwise crash `Int(_:)`). Nil when unrepresentable.
+private func exactInt(_ value: Double) -> Int? {
+    guard value.isFinite, abs(value) < 1e12 else { return nil }
+    return Int(value.rounded())
+}
+
+/// Same conversion, clamped to 0 when unrepresentable (display-only counts).
+func safeInt(_ value: Double) -> Int {
+    exactInt(value) ?? 0
 }
 
 struct CopilotUserInfo: Decodable {
@@ -355,8 +371,8 @@ struct CopilotUserInfo: Decodable {
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
-            entitlement = decodeFlexibleDouble(c, .entitlement).map { Int($0) }
-            remaining = decodeFlexibleDouble(c, .remaining).map { Int($0) }
+            entitlement = decodeFlexibleDouble(c, .entitlement).flatMap(exactInt)
+            remaining = decodeFlexibleDouble(c, .remaining).flatMap(exactInt)
             quotaRemaining = decodeFlexibleDouble(c, .quotaRemaining)
             percentRemaining = decodeFlexibleDouble(c, .percentRemaining)
             creditsUsed = decodeFlexibleDouble(c, .creditsUsed)
@@ -367,6 +383,15 @@ struct CopilotUserInfo: Decodable {
         }
 
         var isUnlimited: Bool { unlimited == true || entitlement == -1 }
+
+        /// Remaining count for counted (free) quotas: `remaining`, then
+        /// `quota_remaining`, then derived from `percent_remaining`. Nil if unknowable.
+        func remainingCount(limit: Int) -> Int? {
+            if let remaining { return remaining }
+            if let quotaRemaining { return exactInt(quotaRemaining) }
+            if let percentRemaining, limit > 0 { return exactInt(Double(limit) * percentRemaining / 100) }
+            return nil
+        }
 
         /// Snapshot reset time, when the server sets one (> 0).
         var resetDate: Date? {

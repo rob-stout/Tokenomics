@@ -56,4 +56,13 @@ final class CursorProviderTests: XCTestCase {
         XCTAssertEqual(snap.shortWindow.sublabelOverride, "100 / 500 used")
         XCTAssertEqual(snap.planLabel, "Pro")
     }
+
+    func testUnified_withoutPlanInfo_fallsBackAndHidesPace() throws {
+        let summary: CursorUsageSummary = try decode(unifiedSummary)
+        let usage: CursorCurrentPeriodUsage = try decode(#"{"billingCycleEnd":"1795333076119","planUsage":{"totalPercentUsed":10}}"#)
+        let snap = CursorProvider.mapUnifiedSnapshot(summary: summary, usage: usage, plan: nil)
+        XCTAssertEqual(snap.shortWindow.utilization, 10, accuracy: 0.001)
+        XCTAssertEqual(snap.shortWindow.resetsAt, Date(timeIntervalSince1970: 1_795_333_076.119))
+        XCTAssertEqual(snap.shortWindow.windowDuration, 0)
+    }
 }

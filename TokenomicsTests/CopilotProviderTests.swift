@@ -179,4 +179,37 @@ final class CopilotProviderTests: XCTestCase {
         XCTAssertEqual(try label("enterprise"), "Enterprise")
         XCTAssertEqual(try label("individual_edu"), "Edu")
     }
+
+    func testFree_missingRemaining_usesQuotaRemainingThenPercent_neverFalse100() throws {
+        let viaQuota = try snapshot(from: """
+        {"access_type_sku":"free_limited_copilot","quota_reset_date":"2026-12-01",
+         "quota_snapshots":{"chat":{"entitlement":200,"quota_remaining":150,"unlimited":false},
+           "completions":{"entitlement":2000,"percent_remaining":75,"unlimited":false},
+           "premium_interactions":{"entitlement":0,"unlimited":false}}}
+        """)
+        XCTAssertEqual(viaQuota.shortWindow.utilization, 25, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(viaQuota.longWindow).utilization, 25, accuracy: 0.01)
+
+        let unknown = try snapshot(from: """
+        {"access_type_sku":"free_limited_copilot","quota_reset_date":"2026-12-01",
+         "quota_snapshots":{"chat":{"entitlement":200,"unlimited":false},
+           "premium_interactions":{"entitlement":0,"unlimited":false}}}
+        """)
+        XCTAssertEqual(unknown.shortWindow.utilization, 0, accuracy: 0.01)
+    }
+
+    func testHugeOrInfiniteNumbers_doNotCrash() throws {
+        let snap = try snapshot(from: """
+        {"copilot_plan":"individual","token_based_billing":true,"quota_reset_date":"2026-12-01",
+         "quota_snapshots":{"premium_interactions":{"entitlement":"1e400","quota_remaining":"inf",
+           "percent_remaining":"nan","credits_used":"1e999","unlimited":false}}}
+        """)
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "Usage isn't available for this seat")
+
+        let unlimited = try snapshot(from: """
+        {"copilot_plan":"business","token_based_billing":true,"quota_reset_date":"2026-12-01",
+         "quota_snapshots":{"premium_interactions":{"unlimited":true,"entitlement":0,"credits_used":"1e999"}}}
+        """)
+        XCTAssertEqual(unlimited.shortWindow.sublabelOverride, "0 credits used")
+    }
 }
