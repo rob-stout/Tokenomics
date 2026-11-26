@@ -112,3 +112,136 @@ test('utilization clamps to 100 when remaining > total (unexpected data)', () =>
   // used = max(0, 20 - 25) = 0 → 0%
   assert.equal(snap.shortWindow.utilization, 0);
 });
+
+// ── Paid: subscriptions + gRPC-web credits pool ─────────────
+
+import {
+  decodeProto,
+  firstGrpcDataFrame,
+  mapPoolToSnapshot,
+  parseCreditsMessage,
+  parseSubscriptions,
+} from './grok';
+
+// Tiny protobuf encoders so fixtures match the documented wire layout.
+function varint(n: number): number[] {
+  const out: number[] = [];
+  let v = n;
+  while (v >= 0x80) {
+    out.push((v % 128) | 0x80);
+    v = Math.floor(v / 128);
+  }
+  out.push(v);
+  return out;
+}
+const tag = (field: number, wire: number) => varint(field * 8 + wire);
+function f32(field: number, value: number): number[] {
+  const b = new Uint8Array(4);
+  new DataView(b.buffer).setFloat32(0, value, true);
+  return [...tag(field, 5), ...b];
+}
+const vint = (field: number, value: number) => [...tag(field, 0), ...varint(value)];
+const lenDelim = (field: number, inner: number[]) => [...tag(field, 2), ...varint(inner.length), ...inner];
+function grpcFrame(message: number[], flag = 0): Uint8Array {
+  const len = message.length;
+  return new Uint8Array([flag, (len >>> 24) & 255, (len >>> 16) & 255, (len >>> 8) & 255, len & 255, ...message]);
+}
+
+const PERIOD_END_SEC = 1_795_000_000;
+
+function creditsMessage(opts: { percent?: number; end?: number; products?: Array<[number, number | null]> }): Uint8Array {
+  const config: number[] = [];
+  if (opts.percent !== undefined) config.push(...f32(1, opts.percent));
+  if (opts.end !== undefined) config.push(...lenDelim(5, vint(1, opts.end)));
+  for (const [id, pct] of opts.products ?? []) {
+    config.push(...lenDelim(7, [...vint(1, id), ...(pct === null ? [] : f32(2, pct))]));
+  }
+  return new Uint8Array(lenDelim(1, config));
+}
+
+test('parseSubscriptions: active tier → paid, SURFACE_DISPLAY wins', () => {
+  const info = parseSubscriptions({
+    subscriptions: [
+      { tier: 'SUBSCRIPTION_TIER_GROK_PRO', status: 'SUBSCRIPTION_STATUS_INACTIVE' },
+      { tier: 'SUBSCRIPTION_TIER_SUPER_GROK_PRO', status: 'SUBSCRIPTION_STATUS_ACTIVE' },
+    ],
+    dominantPlan: { surfaceNames: { SURFACE_DISPLAY: 'SuperGrok Heavy' } },
+  });
+  assert.deepEqual(info, { paid: true, planLabel: 'SuperGrok Heavy' });
+});
+
+test('parseSubscriptions: falls back to the tier name', () => {
+  const info = parseSubscriptions({
+    subscriptions: [{ tier: 'SUBSCRIPTION_TIER_GROK_PRO', status: 'SUBSCRIPTION_STATUS_ACTIVE' }],
+  });
+  assert.deepEqual(info, { paid: true, planLabel: 'SuperGrok' });
+});
+
+test('parseSubscriptions: no active subscription → free', () => {
+  assert.equal(parseSubscriptions({ subscriptions: [] }).paid, false);
+  assert.equal(
+    parseSubscriptions({ subscriptions: [{ tier: 'SUBSCRIPTION_TIER_GROK_PRO', status: 'SUBSCRIPTION_STATUS_INACTIVE' }] }).paid,
+    false,
+  );
+  assert.equal(parseSubscriptions({}).paid, false);
+});
+
+test('credits pool: percent, period end and known products decode', () => {
+  const pool = parseCreditsMessage(
+    creditsMessage({ percent: 42.5, end: PERIOD_END_SEC, products: [[2, 10], [4, 30], [5, 99]] }),
+  );
+  assert.ok(pool);
+  assert.equal(pool!.usedPercent, 42.5);
+  assert.equal(pool!.resetAtMs, PERIOD_END_SEC * 1000);
+  // Enum 5 is not mapped (sources disagree), so it is dropped.
+  assert.deepEqual(pool!.products, [
+    { name: 'Grok Build', percent: 10 },
+    { name: 'Chat', percent: 30 },
+  ]);
+});
+
+test('credits pool: missing percent is a genuine 0% (proto3 omits zeros)', () => {
+  const pool = parseCreditsMessage(creditsMessage({ end: PERIOD_END_SEC }));
+  assert.equal(pool!.usedPercent, 0);
+  assert.equal(pool!.resetAtMs, PERIOD_END_SEC * 1000);
+});
+
+test('credits pool: unrecognisable message → null, not a fake 0%', () => {
+  assert.equal(parseCreditsMessage(new Uint8Array([])), null);
+  assert.equal(parseCreditsMessage(new Uint8Array(lenDelim(1, []))), null);
+  assert.equal(parseCreditsMessage(new Uint8Array(lenDelim(9, vint(1, 5)))), null);
+});
+
+test('firstGrpcDataFrame skips trailer frames and reads the data frame', () => {
+  const msg = Array.from(creditsMessage({ percent: 7 }));
+  const trailer = grpcFrame([...new TextEncoder().encode('grpc-status: 0')], 0x80);
+  const body = new Uint8Array([...grpcFrame(msg), ...trailer]);
+  const frame = firstGrpcDataFrame(body);
+  assert.ok(frame);
+  assert.equal(parseCreditsMessage(frame!)!.usedPercent, 7);
+  assert.equal(firstGrpcDataFrame(trailer), null);
+  assert.equal(firstGrpcDataFrame(new Uint8Array(5)) !== null, true); // empty data frame = zero-length message
+});
+
+test('decodeProto handles multi-byte varints', () => {
+  const fields = decodeProto(new Uint8Array(vint(1, 1_795_000_000)));
+  assert.equal(fields.get(1)?.[0], 1_795_000_000);
+});
+
+test('mapPoolToSnapshot: one Weekly window with the period end as reset', () => {
+  const pool = parseCreditsMessage(creditsMessage({ percent: 41.6, end: PERIOD_END_SEC }))!;
+  const snap = mapPoolToSnapshot(pool, 'SuperGrok', NOW);
+  assert.equal(snap.provider, 'grok');
+  assert.equal(snap.planLabel, 'SuperGrok');
+  assert.equal(snap.shortWindow.label, 'Weekly');
+  assert.equal(snap.shortWindow.utilization, 42);
+  assert.equal(snap.shortWindow.resetsAt, new Date(PERIOD_END_SEC * 1000).toISOString());
+  assert.equal(snap.shortWindow.windowDurationSec, 7 * 86400);
+  assert.equal(snap.longWindow, null);
+  assert.equal(snap.estimated, false);
+});
+
+test('mapToSnapshot accepts a plan label for the free path', () => {
+  const snap = mapToSnapshot({ windowSizeSeconds: 86400, remainingQueries: 20, totalQueries: 20 }, NOW, 'Free');
+  assert.equal(snap.planLabel, 'Free');
+});
