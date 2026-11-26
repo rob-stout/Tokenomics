@@ -70,6 +70,24 @@ if (!w[GUARD_KEY]) {
     return typeof v === 'number' && Number.isFinite(v) ? v : 0;
   }
 
+  /**
+   * Utilization 0-1. Newer payloads carry the window's cap at index 6, which
+   * makes (cap - remaining) / cap exact; older ones only have the index1
+   * fraction, so fall back to that.
+   */
+  function utilizationFraction(win: unknown): number {
+    const w = win as unknown[] | null;
+    const remaining = w?.[0];
+    const cap = w?.[6];
+    if (
+      typeof cap === 'number' && Number.isFinite(cap) && cap > 0 &&
+      typeof remaining === 'number' && Number.isFinite(remaining)
+    ) {
+      return (cap - remaining) / cap;
+    }
+    return num(w?.[1]);
+  }
+
   const FIVE_HOUR_SEC = 5 * 3600;
   const WEEK_SEC = 7 * 86400;
   const PERIOD_LABEL: Record<number, string> = { 1: '5-Hour Window', 2: 'Weekly' };
@@ -92,7 +110,7 @@ if (!w[GUARD_KEY]) {
     let longWindow: unknown | null = null;
 
     for (const win of windows) {
-      const utilFraction = num((win as unknown[])?.[1]);
+      const utilFraction = utilizationFraction(win);
       const periodType = num((win as unknown[])?.[2]);
       const resetSec = num(((win as unknown[])?.[3] as unknown[][])?.[0]?.[0]);
 

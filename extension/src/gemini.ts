@@ -10,6 +10,9 @@
  * Payload shape (jSf9Qc inner payload, schema version 1):
  *   [schemaVer, [ [remaining, utilFraction, periodType, [[resetEpochSec, resetNanos]]], … ], boolFlag]
  *
+ * Since late Nov 2026 each window has 7 elements and index6 = the window's cap
+ * (e.g. [12096,0,2,[[secs,nanos]],null,null,12096]); see utilizationFraction().
+ *
  * periodType 1 = 5-Hour rolling window, periodType 2 = Weekly window.
  *   - index0 = remaining compute units (counts DOWN as you use Gemini)
  *   - index1 = utilization as a 0–1 fraction (i.e. used / cap)
@@ -89,7 +92,7 @@ export function mapToSnapshot(
   for (const w of windows) {
     // index0 is *remaining* units (not cap) — unused for the bar; index1 is the
     // utilization fraction (used / cap, 0–1). See the header note.
-    const utilFraction = num((w as unknown[])?.[1]);
+    const utilFraction = utilizationFraction(w);
     const periodType = num((w as unknown[])?.[2]);
     // Reset is in [[epochSec, nanos]] — we only need epochSec for the ISO timestamp.
     const resetSec = num(((w as unknown[])?.[3] as unknown[][])?.[0]?.[0]);
@@ -138,6 +141,24 @@ export function mapToSnapshot(
     // Real numbers from the endpoint — not a local counter like ChatGPT.
     estimated: false,
   };
+}
+
+/**
+ * Utilization 0-1. Newer payloads carry the window's cap at index 6, which
+ * makes (cap - remaining) / cap exact; older ones only have the index1
+ * fraction, so fall back to that.
+ */
+function utilizationFraction(win: unknown): number {
+  const w = win as unknown[] | null;
+  const remaining = w?.[0];
+  const cap = w?.[6];
+  if (
+    typeof cap === 'number' && Number.isFinite(cap) && cap > 0 &&
+    typeof remaining === 'number' && Number.isFinite(remaining)
+  ) {
+    return (cap - remaining) / cap;
+  }
+  return num(w?.[1]);
 }
 
 /** Safely coerce to a finite number; returns 0 for anything else. */
