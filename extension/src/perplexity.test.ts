@@ -37,7 +37,7 @@ test('real fixture: 5 pro remaining, no cap yet → 0% ring, remaining-only subl
   assert.equal(snap.shortWindow.label, 'Pro Searches');
   assert.equal(snap.shortWindow.utilization, 0); // no cap yet → 0
   assert.equal(snap.shortWindow.sublabelOverride, '5 Pro left');
-  assert.equal(snap.planLabel, 'Perplexity');
+  assert.equal(snap.planLabel, 'Free');
   assert.equal(snap.capturedAt, NOW);
   assert.equal(snap.estimated, false);
 });
@@ -154,5 +154,61 @@ test('remaining_labs > 0 → extras.labsRemaining populated', () => {
 
 test('remaining_labs = 0 → extras.labsRemaining not populated', () => {
   const snap = mapToSnapshot({ remaining_labs: 0 }, {}, NOW);
+  assert.equal(snap.extras.labsRemaining, undefined);
+});
+
+// ── Plan detection + paid display (no fabricated reset or cap) ──
+
+import { parsePlan } from './perplexity';
+
+test('parsePlan: pro and max tiers (active) are paid', () => {
+  assert.deepEqual(parsePlan({ subscription_tier: 'pro', subscription_status: 'active' }), { kind: 'paid', label: 'Pro' });
+  assert.deepEqual(parsePlan({ subscription_tier: 'max', subscription_status: 'active' }), { kind: 'paid', label: 'Max' });
+});
+
+test('parsePlan: none / canceled subscriptions are free', () => {
+  assert.deepEqual(parsePlan({ subscription_tier: 'none', subscription_status: 'none' }), { kind: 'free' });
+  assert.deepEqual(parsePlan({}), { kind: 'free' });
+  assert.deepEqual(parsePlan({ subscription_tier: 'pro', subscription_status: 'canceled' }), { kind: 'free' });
+});
+
+test('parsePlan: unknown tier is paid-style with no name', () => {
+  assert.deepEqual(parsePlan({ subscription_tier: 'enterprise_pro', subscription_status: 'active' }), { kind: 'paid', label: '' });
+});
+
+test('paid: no reset time, no duration, no inferred cap', () => {
+  const snap = mapToSnapshot(
+    { remaining_pro: 300, remaining_research: 7 },
+    { pro: 600, research: 10 }, // high-water-marks are ignored for paid
+    NOW,
+    { kind: 'paid', label: 'Pro' },
+  );
+  assert.equal(snap.planLabel, 'Pro');
+  assert.equal(snap.shortWindow.label, 'Pro Searches');
+  assert.equal(snap.shortWindow.resetsAt, '');
+  assert.equal(snap.shortWindow.windowDurationSec, 0);
+  assert.equal(snap.shortWindow.utilization, 0);
+  assert.equal(snap.shortWindow.sublabelOverride, '300 left · resets weekly');
+  assert.equal(snap.longWindow?.label, 'Deep Research');
+  assert.equal(snap.longWindow?.resetsAt, '');
+  assert.equal(snap.longWindow?.sublabelOverride, '7 left · monthly, recovers gradually');
+});
+
+test('unknown plan also claims no reset', () => {
+  const snap = mapToSnapshot({ remaining_pro: 5 }, {}, NOW, { kind: 'unknown' });
+  assert.equal(snap.shortWindow.resetsAt, '');
+  assert.equal(snap.planLabel, 'Perplexity');
+});
+
+test('free keeps the daily window', () => {
+  const snap = mapToSnapshot({ remaining_pro: 2 }, { pro: 3 }, NOW, { kind: 'free' });
+  assert.equal(snap.shortWindow.windowDurationSec, DAY_SEC);
+  assert.equal(snap.shortWindow.resetsAt, new Date(NOW + DAY_SEC * 1000).toISOString());
+  assert.equal(snap.shortWindow.utilization, 33);
+});
+
+test('paid plan with zero remaining shows 0 left, no reset', () => {
+  const snap = mapToSnapshot({ remaining_pro: 0, remaining_research: 0, remaining_labs: 0 }, {}, NOW, { kind: 'paid', label: 'Max' });
+  assert.equal(snap.shortWindow.sublabelOverride, '0 left · resets weekly');
   assert.equal(snap.extras.labsRemaining, undefined);
 });

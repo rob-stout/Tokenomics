@@ -479,3 +479,21 @@ test('order sync: no stored order sends none; an old Mac with no order field cha
   await sendBridgeBatch('settings');
   assert.equal(await readStoredOrder(), undefined);
 });
+
+test('toBridgeSnapshotSafe: count-only window (no reset, no duration) is sent with the capture time', () => {
+  const capturedAt = Date.UTC(2026, 10, 23);
+  const snap = {
+    provider: 'perplexity' as const,
+    shortWindow: { label: 'Pro Searches', utilization: 0, resetsAt: '', windowDurationSec: 0, sublabelOverride: '300 left · resets weekly' },
+    longWindow: { label: 'Deep Research', utilization: 0, resetsAt: '', windowDurationSec: 0, sublabelOverride: '7 left · monthly, recovers gradually' },
+    extras: {},
+    planLabel: 'Pro',
+    capturedAt,
+  };
+  const wire = toBridgeSnapshotSafe(snap);
+  assert.ok(wire);
+  assert.equal(wire.shortWindow.resetsAt, new Date(capturedAt).toISOString());
+  assert.equal(wire.shortWindow.windowDurationSec, 0);
+  assert.equal(wire.shortWindow.sublabelOverride, '300 left · resets weekly');
+  assert.equal(wire.longWindow?.label, 'Deep Research');
+});

@@ -143,9 +143,24 @@ function hasValidReset(w: WindowUsage): boolean {
  * snapshot whose main window has no valid reset is left out. Exported for tests.
  */
 export function toBridgeSnapshotSafe(snap: ProviderUsageSnapshot): BridgeSnapshot | null {
-  if (!hasValidReset(snap.shortWindow)) return null;
-  const longWindow = snap.longWindow && hasValidReset(snap.longWindow) ? snap.longWindow : null;
-  return toBridgeSnapshot({ ...snap, longWindow });
+  const shortWindow = withCountPlaceholderReset(snap.shortWindow, snap.capturedAt);
+  if (!hasValidReset(shortWindow)) return null;
+  const long = snap.longWindow ? withCountPlaceholderReset(snap.longWindow, snap.capturedAt) : null;
+  const longWindow = long && hasValidReset(long) ? long : null;
+  return toBridgeSnapshot({ ...snap, shortWindow, longWindow });
+}
+
+/**
+ * Count-only windows (Perplexity Pro/Max) have no reset time at all: empty
+ * resetsAt, zero duration, and the sublabel carries the message. The Mac needs
+ * a decodable date, so send the capture time; the zero duration keeps it from
+ * drawing a pace marker and the sublabel replaces the countdown.
+ */
+function withCountPlaceholderReset(w: WindowUsage, capturedAt: number): WindowUsage {
+  if (w.resetsAt === '' && w.windowDurationSec === 0 && w.sublabelOverride) {
+    return { ...w, resetsAt: new Date(capturedAt).toISOString() };
+  }
+  return w;
 }
 
 function toBridgeSnapshot(snap: ProviderUsageSnapshot): BridgeSnapshot {
