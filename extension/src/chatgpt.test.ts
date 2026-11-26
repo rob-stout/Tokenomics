@@ -11,6 +11,7 @@ import { strict as assert } from 'node:assert';
 
 import {
   deriveSnapshot,
+  type ChatGPTPlan,
   pruneEvents,
   type ChatGPTMessageEvent,
 } from './chatgpt';
@@ -25,69 +26,79 @@ function evt(offsetMs: number, model: string | null = 'gpt-5.5'): ChatGPTMessage
 
 // ── deriveSnapshot ───────────────────────────────────────────
 
+/** deriveSnapshot for a plan that has a counter; fails the test if it doesn't. */
+function derive(events: ChatGPTMessageEvent[], plan: ChatGPTPlan) {
+  const snap = deriveSnapshot(events, plan, NOW);
+  assert.ok(snap, `expected a counter snapshot for ${plan}`);
+  return snap;
+}
+
 test('deriveSnapshot returns chatgpt provider with estimated flag', () => {
   // The fallback counter routes to the ChatGPT pool (was mistakenly 'codex',
   // which collided with the real Codex CLI pool on the Mac side).
-  const snap = deriveSnapshot([], 'free', NOW);
+  const snap = derive([], 'plus');
   assert.equal(snap.provider, 'chatgpt');
   assert.equal(snap.estimated, true);
 });
 
-test('empty events on free plan → 0 / 10, longWindow null', () => {
-  const snap = deriveSnapshot([], 'free', NOW);
-  assert.equal(snap.shortWindow.utilization, 0);
-  assert.match(snap.shortWindow.sublabelOverride ?? '', /^0 of 10 msgs/);
-  assert.equal(snap.longWindow, null);
+test('Free and Go have unlimited chat: no estimated meter', () => {
+  const events = [evt(HOUR), evt(2 * HOUR)];
+  assert.equal(deriveSnapshot(events, 'free', NOW), null);
+  assert.equal(deriveSnapshot(events, 'go', NOW), null);
 });
 
-test('5 events in last 5h on free → 50% utilization', () => {
-  const events = [evt(HOUR), evt(2 * HOUR), evt(3 * HOUR), evt(4 * HOUR), evt(4.5 * HOUR)];
-  const snap = deriveSnapshot(events, 'free', NOW);
-  assert.equal(snap.shortWindow.utilization, 50);
-  assert.match(snap.shortWindow.sublabelOverride ?? '', /^5 of 10 msgs/);
+test('unknown / enterprise / edu plans have no counter table', () => {
+  assert.equal(deriveSnapshot([evt(HOUR)], 'unknown', NOW), null);
+  assert.equal(deriveSnapshot([evt(HOUR)], 'enterprise', NOW), null);
+  assert.equal(deriveSnapshot([evt(HOUR)], 'edu', NOW), null);
+});
+
+test('empty events on plus plan → 0 / 160', () => {
+  const snap = derive([], 'plus');
+  assert.equal(snap.shortWindow.utilization, 0);
+  assert.match(snap.shortWindow.sublabelOverride ?? '', /^0 of 160 msgs/);
+});
+
+test('16 events in last 3h on plus → 10% utilization', () => {
+  const events = Array.from({ length: 16 }, (_, i) => evt(HOUR + i * 60_000));
+  const snap = derive(events, 'plus');
+  assert.equal(snap.shortWindow.utilization, 10);
+  assert.match(snap.shortWindow.sublabelOverride ?? '', /^16 of 160 msgs/);
 });
 
 test('events older than the short window are ignored', () => {
   const events = [
-    evt(6 * HOUR),         // outside 5h window
+    evt(4 * HOUR),         // outside 3h window
     evt(7 * HOUR),         // outside
     evt(HOUR),             // inside
   ];
-  const snap = deriveSnapshot(events, 'free', NOW);
-  assert.equal(snap.shortWindow.utilization, 10);
-  assert.match(snap.shortWindow.sublabelOverride ?? '', /^1 of 10 msgs/);
+  const snap = derive(events, 'plus');
+  assert.match(snap.shortWindow.sublabelOverride ?? '', /^1 of 160 msgs/);
 });
 
 test('utilization clamps at 100', () => {
-  const events = Array.from({ length: 50 }, (_, i) => evt(i * 60 * 1000));
-  const snap = deriveSnapshot(events, 'free', NOW);
+  const events = Array.from({ length: 500 }, (_, i) => evt(i * 1000));
+  const snap = derive(events, 'plus');
   assert.equal(snap.shortWindow.utilization, 100);
 });
 
 test('reset = oldestInWindow.ts + windowMs', () => {
-  const oldestOffset = 4 * HOUR; // 4h ago
+  const oldestOffset = 2 * HOUR; // 2h ago
   const events = [evt(oldestOffset), evt(HOUR)];
-  const snap = deriveSnapshot(events, 'free', NOW);
+  const snap = derive(events, 'plus');
   const resetMs = new Date(snap.shortWindow.resetsAt).getTime();
-  // Oldest event was 4h ago, 5h window → resets in 1h.
-  assert.equal(resetMs, NOW - oldestOffset + 5 * HOUR);
+  // Oldest event was 2h ago, 3h window → resets in 1h.
+  assert.equal(resetMs, NOW - oldestOffset + 3 * HOUR);
 });
 
 test('reset = now + windowMs when no events in window', () => {
-  const snap = deriveSnapshot([], 'free', NOW);
+  const snap = derive([], 'plus');
   const resetMs = new Date(snap.shortWindow.resetsAt).getTime();
-  assert.equal(resetMs, NOW + 5 * HOUR);
-});
-
-test('unknown plan falls back to free quota', () => {
-  const events = [evt(HOUR)];
-  const snap = deriveSnapshot(events, 'unknown', NOW);
-  assert.equal(snap.shortWindow.utilization, 10); // 1/10 = 10%
-  assert.equal(snap.longWindow, null);
+  assert.equal(resetMs, NOW + 3 * HOUR);
 });
 
 test('plus plan exposes longWindow with thinking-msg label', () => {
-  const snap = deriveSnapshot([], 'plus', NOW);
+  const snap = derive([], 'plus');
   assert.ok(snap.longWindow);
   assert.equal(snap.longWindow!.label, 'Weekly Thinking');
   assert.match(snap.longWindow!.sublabelOverride ?? '', /^0 of 3000 thinking msgs/);
@@ -95,7 +106,7 @@ test('plus plan exposes longWindow with thinking-msg label', () => {
 
 test('plus plan: non-thinking models do NOT count in longWindow', () => {
   const events = [evt(DAY, 'gpt-5.5'), evt(2 * DAY, 'gpt-5.5')];
-  const snap = deriveSnapshot(events, 'plus', NOW);
+  const snap = derive(events, 'plus');
   assert.match(snap.longWindow!.sublabelOverride ?? '', /^0 of 3000 thinking msgs/);
 });
 
@@ -106,7 +117,7 @@ test('plus plan: thinking models DO count in longWindow', () => {
     evt(3 * DAY, 'gpt-5.5'),       // not thinking
     evt(4 * DAY, 'o1-mini-preview'), // matches startsWith('o1')
   ];
-  const snap = deriveSnapshot(events, 'plus', NOW);
+  const snap = derive(events, 'plus');
   assert.match(snap.longWindow!.sublabelOverride ?? '', /^3 of 3000 thinking msgs/);
 });
 
@@ -115,32 +126,38 @@ test('plus plan: thinking events older than 7d are dropped from longWindow', () 
     evt(6 * DAY, 'gpt-5-thinking'),  // inside week
     evt(8 * DAY, 'gpt-5-thinking'),  // outside week
   ];
-  const snap = deriveSnapshot(events, 'plus', NOW);
+  const snap = derive(events, 'plus');
   assert.match(snap.longWindow!.sublabelOverride ?? '', /^1 of 3000 thinking msgs/);
 });
 
 test('pro plan uses 5000-msg short cap and 15000 weekly', () => {
-  const snap = deriveSnapshot([], 'pro', NOW);
+  const snap = derive([], 'pro');
   assert.match(snap.shortWindow.sublabelOverride ?? '', /^0 of 5000 msgs/);
   assert.match(snap.longWindow!.sublabelOverride ?? '', /^0 of 15000 thinking msgs/);
 });
 
 test('team plan mirrors plus quotas', () => {
-  const snap = deriveSnapshot([], 'team', NOW);
+  const snap = derive([], 'team');
   assert.match(snap.shortWindow.sublabelOverride ?? '', /^0 of 160 msgs/);
   assert.match(snap.longWindow!.sublabelOverride ?? '', /^0 of 3000 thinking msgs/);
 });
 
 test('plan label maps cleanly', () => {
-  assert.equal(deriveSnapshot([], 'free', NOW).planLabel, 'Free');
-  assert.equal(deriveSnapshot([], 'plus', NOW).planLabel, 'Plus');
-  assert.equal(deriveSnapshot([], 'pro', NOW).planLabel, 'Pro');
-  assert.equal(deriveSnapshot([], 'team', NOW).planLabel, 'Team');
-  assert.equal(deriveSnapshot([], 'unknown', NOW).planLabel, '');
+  assert.equal(derive([], 'plus').planLabel, 'Plus');
+  assert.equal(derive([], 'prolite').planLabel, 'Pro 100');
+  assert.equal(derive([], 'pro').planLabel, 'Pro 200');
+  assert.equal(derive([], 'promax').planLabel, 'Pro 500');
+  assert.equal(derive([], 'team').planLabel, 'Team');
+  assert.equal(derive([], 'business').planLabel, 'Business');
+});
+
+test('prolite and promax reuse the Pro counter table', () => {
+  assert.match(derive([], 'prolite').shortWindow.sublabelOverride ?? '', /^0 of 5000 msgs/);
+  assert.match(derive([], 'promax').shortWindow.sublabelOverride ?? '', /^0 of 5000 msgs/);
 });
 
 test('sublabel includes a reset hint when there is one', () => {
-  const snap = deriveSnapshot([evt(HOUR)], 'free', NOW);
+  const snap = derive([evt(HOUR)], 'plus');
   assert.match(snap.shortWindow.sublabelOverride ?? '', /resets in/);
 });
 

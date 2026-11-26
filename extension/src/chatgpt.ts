@@ -1,11 +1,10 @@
 /**
- * ChatGPT usage — EXACT first, local-counter fallback.
+ * ChatGPT usage — EXACT (Codex allowance) first, local-counter fallback.
  *
- * The exact path reads /backend-api/wham/usage with an OAuth Bearer token. That
- * endpoint is NOT Codex-only: it just needs an access token, which the ChatGPT
- * web session exposes at /api/auth/session. Called that way it returns the real
- * rate-limit windows (used_percent + reset), so ChatGPT can be exact like every
- * other reader. (Every other tracker missed this — they hit the cookie 401 and
+ * The exact path reads /backend-api/wham/usage with an OAuth Bearer token from
+ * the ChatGPT web session (/api/auth/session). That endpoint reports the Codex
+ * allowance included with the plan (real used_percent + reset), NOT the chat
+ * message cap, so its windows are labelled "Codex …". (Every other tracker missed this — they hit the cookie 401 and
  * settled for local counting.)
  *
  * The local counter (observe /backend-api/conversation, count against the quota
@@ -17,7 +16,20 @@
 
 import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
 
-export type ChatGPTPlan = 'free' | 'plus' | 'pro' | 'team' | 'unknown';
+// Stored values must stay backward compatible: 'pro' is the original $200 Pro
+// tier, so the newer Pro tiers get their own ids ('prolite' $100, 'promax').
+export type ChatGPTPlan =
+  | 'free'
+  | 'go'
+  | 'plus'
+  | 'prolite'
+  | 'pro'
+  | 'promax'
+  | 'team'
+  | 'business'
+  | 'enterprise'
+  | 'edu'
+  | 'unknown';
 
 interface MeResponse {
   // The /me response has historically shaped its plan info under different
@@ -56,13 +68,20 @@ function extractPlan(data: MeResponse): string | undefined {
   return undefined;
 }
 
-function canonicalPlan(raw: string | undefined): ChatGPTPlan {
+/** Map OpenAI's `plan_type` strings to our plan ids. Exported for tests. */
+export function canonicalPlan(raw: string | undefined): ChatGPTPlan {
   if (!raw) return 'unknown';
-  const s = raw.toLowerCase();
+  const s = raw.toLowerCase().replace(/^chatgpt_/, '');
   if (s === 'free') return 'free';
-  if (s === 'plus' || s === 'chatgpt_plus') return 'plus';
-  if (s === 'pro' || s === 'chatgpt_pro') return 'pro';
-  if (s === 'team' || s === 'chatgpt_team') return 'team';
+  if (s === 'go') return 'go';
+  if (s === 'plus') return 'plus';
+  if (s === 'prolite') return 'prolite';
+  if (s === 'pro') return 'pro';
+  if (s === 'promax') return 'promax';
+  if (s === 'team') return 'team';
+  if (s === 'business' || s.startsWith('self_serve_business')) return 'business';
+  if (s.startsWith('enterprise')) return 'enterprise';
+  if (s.startsWith('edu')) return 'edu';
   return 'unknown';
 }
 
@@ -119,32 +138,39 @@ export async function fetchExactChatGPTSnapshot(
 
 /**
  * Pure mapper (unit-tested): /wham/usage response → snapshot, `estimated: false`.
- * Returns null if the primary window is missing/malformed so the caller can fall
- * back. `primary_window` is the dominant cap; `secondary_window` (when present,
- * e.g. Plus weekly) becomes the long window.
+ *
+ * IMPORTANT: this endpoint is the Codex allowance included with the ChatGPT
+ * plan (openai/codex rate_limit_status_payload.rs), not the chat message cap.
+ * Windows are classified by their length, not by the primary/secondary slot:
+ * a weekly window can be the primary one. The shortest window becomes the
+ * short window and the longest (if two) the long window. Each window's
+ * label starts with "Codex" so nobody reads it as a chat limit.
+ * Returns null if no window is usable so the caller can fall back.
  */
 export function mapWhamUsageToSnapshot(
   data: WhamUsageResponse,
   now: number = Date.now(),
 ): ProviderUsageSnapshot | null {
-  const primary = data.rate_limit?.primary_window;
-  if (!primary || typeof primary.used_percent !== 'number') return null;
-
-  const plan = canonicalPlan(data.plan_type);
-  const secondary = data.rate_limit?.secondary_window;
-  const longWindow =
-    secondary && typeof secondary.used_percent === 'number' ? whamWindow(secondary, now) : null;
+  const windows = [data.rate_limit?.primary_window, data.rate_limit?.secondary_window]
+    .filter((w): w is WhamWindow => !!w && typeof w.used_percent === 'number')
+    .map((w) => whamWindow(w, now))
+    .sort((a, b) => a.windowDurationSec - b.windowDurationSec);
+  const shortWindow = windows[0];
+  if (!shortWindow) return null;
+  const longWindow = windows.length > 1 ? windows[windows.length - 1]! : null;
 
   return {
     provider: 'chatgpt',
-    shortWindow: whamWindow(primary, now),
+    shortWindow,
     longWindow,
     extras: {},
-    planLabel: planDisplay(plan),
+    planLabel: planDisplay(canonicalPlan(data.plan_type)),
     capturedAt: now,
     estimated: false,
   };
 }
+
+const CODEX_PREFIX = 'Codex';
 
 function whamWindow(w: WhamWindow, now: number): WindowUsage {
   const durationSec = w.limit_window_seconds ?? 0;
@@ -154,7 +180,9 @@ function whamWindow(w: WhamWindow, now: number): WindowUsage {
       ? now + w.reset_after_seconds * 1000
       : now + durationSec * 1000;
   return {
-    label: whamWindowLabel(durationSec),
+    // "Codex" goes in the label (not a sublabel) so the Mac keeps computing the
+    // live countdown from resetsAt instead of freezing a baked-in string.
+    label: `${CODEX_PREFIX} ${whamWindowLabel(durationSec)}`,
     utilization: Math.min(100, Math.max(0, Math.round(w.used_percent ?? 0))),
     resetsAt: new Date(resetMs).toISOString(),
     windowDurationSec: durationSec,
@@ -165,13 +193,13 @@ function whamWindow(w: WhamWindow, now: number): WindowUsage {
 function whamWindowLabel(durationSec: number): string {
   const hours = durationSec / 3600;
   if (hours <= 1.5) return 'Hourly';
-  if (hours <= 5.5) return `${Math.round(hours)}-Hour Window`;
+  if (hours <= 6.5) return `${Math.round(hours)}-Hour Window`;
   if (durationSec >= 6 * 86400 && durationSec <= 8 * 86400) return 'Weekly';
   if (durationSec >= 28 * 86400) return 'Monthly';
   return `${Math.round(durationSec / 86400)}-Day Window`;
 }
 
-// ── Quota table (May 2026) ──────────────────────────────────
+// ── Quota table (May 2026; Plus/Pro/Team only) ───────────────
 // Values are documented OpenAI defaults. They shift quarterly — a routine
 // monthly check is configured outside this file to flag changes.
 //
@@ -188,12 +216,7 @@ interface PlanQuota {
   longWindowLabel?: string;
 }
 
-const QUOTA: Record<Exclude<ChatGPTPlan, 'unknown'>, PlanQuota> = {
-  free: {
-    shortWindowSec: 5 * 3600,
-    shortWindowLimit: 10,
-    shortWindowLabel: '5-Hour Window',
-  },
+const QUOTA: Partial<Record<ChatGPTPlan, PlanQuota>> = {
   plus: {
     shortWindowSec: 3 * 3600,
     shortWindowLimit: 160,
@@ -224,6 +247,24 @@ const QUOTA: Record<Exclude<ChatGPTPlan, 'unknown'>, PlanQuota> = {
   },
 };
 
+function quotaFor(plan: ChatGPTPlan): PlanQuota | null {
+  switch (plan) {
+    case 'plus':
+      return QUOTA.plus ?? null;
+    case 'pro':
+    case 'prolite':
+    case 'promax':
+      return QUOTA.pro ?? null;
+    case 'team':
+    case 'business':
+      return QUOTA.team ?? null;
+    // No published message cap to count against (free/go unlimited; enterprise,
+    // edu and unknown vary by contract).
+    default:
+      return null;
+  }
+}
+
 /** A timestamped message log entry. Persisted in chrome.storage.local. */
 export interface ChatGPTMessageEvent {
   ts: number; // Unix ms when the conversation POST was observed
@@ -248,13 +289,18 @@ function isThinking(model: string | null): boolean {
   return s.includes('thinking') || s.startsWith('o1') || s.startsWith('o3');
 }
 
+/**
+ * Local-counter estimate. Returns null when there is no meaningful message cap
+ * to count against: Free and Go have unlimited everyday chat (the old
+ * 10-per-5-hours table is gone), and unknown plans have no table at all.
+ */
 export function deriveSnapshot(
   events: ChatGPTMessageEvent[],
   plan: ChatGPTPlan,
   now: number = Date.now(),
-): ProviderUsageSnapshot {
-  const effectivePlan: Exclude<ChatGPTPlan, 'unknown'> = plan === 'unknown' ? 'free' : plan;
-  const quota = QUOTA[effectivePlan];
+): ProviderUsageSnapshot | null {
+  const quota = quotaFor(plan);
+  if (!quota) return null;
 
   const shortWindowMs = quota.shortWindowSec * 1000;
   const shortCount = events.filter((e) => now - e.ts <= shortWindowMs).length;
@@ -330,16 +376,28 @@ function formatResetCompact(resetMs: number, now: number): string {
   return `resets in ${minutes}m`;
 }
 
-function planDisplay(plan: ChatGPTPlan): string {
+export function planDisplay(plan: ChatGPTPlan): string {
   switch (plan) {
     case 'free':
       return 'Free';
+    case 'go':
+      return 'Go';
     case 'plus':
       return 'Plus';
+    case 'prolite':
+      return 'Pro 100';
     case 'pro':
-      return 'Pro';
+      return 'Pro 200';
+    case 'promax':
+      return 'Pro 500';
     case 'team':
       return 'Team';
+    case 'business':
+      return 'Business';
+    case 'enterprise':
+      return 'Enterprise';
+    case 'edu':
+      return 'Edu';
     case 'unknown':
       return '';
   }

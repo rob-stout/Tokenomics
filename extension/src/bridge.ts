@@ -132,8 +132,13 @@ function toBridgeWindow(w: WindowUsage): BridgeWindow {
  * Converts a ProviderUsageSnapshot (capturedAt as ms epoch, utilization 0-100)
  * to a BridgeSnapshot (capturedAt as ISO 8601, utilization 0-1).
  */
+/**
+ * Must be a real, non-empty ISO string: the Mac's resetsAt is a non-optional
+ * Date, so a null/empty value would make it reject the WHOLE batch.
+ */
 function hasValidReset(w: WindowUsage): boolean {
-  return w.resetsAt !== '' && !Number.isNaN(new Date(w.resetsAt).getTime());
+  const r: unknown = w.resetsAt;
+  return typeof r === 'string' && r !== '' && !Number.isNaN(new Date(r).getTime());
 }
 
 /**

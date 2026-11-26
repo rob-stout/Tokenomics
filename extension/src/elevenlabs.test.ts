@@ -39,7 +39,7 @@ test('Creator plan, 90% used → 90% utilization, correct planLabel', () => {
   assert.equal(snap.provider, 'elevenlabs');
   assert.equal(snap.planLabel, 'Creator');
   assert.equal(snap.shortWindow.utilization, 90);
-  assert.equal(snap.shortWindow.label, 'Characters');
+  assert.equal(snap.shortWindow.label, 'Credits');
   assert.equal(snap.longWindow, null);
   assert.equal(snap.estimated, false);
 });

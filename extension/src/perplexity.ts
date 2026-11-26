@@ -4,8 +4,12 @@
  * Polls GET https://www.perplexity.ai/rest/rate-limit/all from the service
  * worker with `credentials: 'include'` (cookie auth).
  *
+ * The plan comes from /rest/user/settings (subscription_tier pro|max); sign-in
+ * from /api/auth/session. Free accounts get a daily window (3 Pro Searches/day);
+ * Pro/Max get remaining counts only, because Perplexity publishes no reset time.
+ *
  * ── WHY THERE IS NO PLAN→CAP TABLE (unlike Leonardo) ─────────────────────────
- * This endpoint returns REMAINING counts only — no totals — AND, critically, no
+ * This endpoint returns REMAINING counts only — no totals — AND no
  * `plan`/`tier` field. So we cannot map a known plan to a fixed cap the way the
  * Leonardo reader does. Instead the cap is INFERRED as a high-water-mark: the
  * largest `remaining_*` value ever observed for each quota is treated as that
@@ -31,10 +35,43 @@
  *   }
  */
 
-import type { ProviderUsageSnapshot, WindowUsage } from './snapshot';
+import { isFresh, type CachedValue, type ProviderUsageSnapshot, type WindowUsage } from './snapshot';
 
 const RATE_LIMIT_URL = 'https://www.perplexity.ai/rest/rate-limit/all';
+const SESSION_URL = 'https://www.perplexity.ai/api/auth/session';
+const SETTINGS_URL = 'https://www.perplexity.ai/rest/user/settings';
 const DAY_SEC = 86400;
+
+/**
+ * 'free' = confirmed no paid subscription (Pro Searches are 3/day, so a daily
+ * window is right). 'paid' = Pro or Max: Perplexity publishes no reset time for
+ * these counts, so we show remaining numbers and describe the cadence in text.
+ * 'unknown' = settings couldn't be read; treated like paid (claim no reset).
+ */
+export type PerplexityPlan =
+  | { kind: 'free' }
+  | { kind: 'paid'; label: string }
+  | { kind: 'unknown' };
+
+interface UserSettingsResponse {
+  subscription_tier?: string;
+  subscription_status?: string;
+}
+
+const INACTIVE_STATUSES = new Set(['none', 'canceled', 'cancelled', 'inactive', 'expired', 'unpaid']);
+
+/** Pure (exported for tests): /rest/user/settings → plan. */
+export function parsePlan(raw: UserSettingsResponse): PerplexityPlan {
+  const tier = (raw.subscription_tier ?? 'none').toLowerCase();
+  const status = (raw.subscription_status ?? '').toLowerCase();
+  if (tier === 'pro' || tier === 'max') {
+    if (INACTIVE_STATUSES.has(status)) return { kind: 'free' };
+    return { kind: 'paid', label: tier === 'max' ? 'Max' : 'Pro' };
+  }
+  if (tier === 'none' || tier === '') return { kind: 'free' };
+  // A tier we don't know (e.g. enterprise): paid-style display, no plan name.
+  return { kind: 'paid', label: '' };
+}
 
 /**
  * Inferred per-quota caps (high-water-mark). Each field is the largest
@@ -73,6 +110,61 @@ interface RateLimitAllResponse {
 
 // ── Fetch layer ───────────────────────────────────────────────
 
+/**
+ * /rest/rate-limit/all answers 200 with all zeros when signed out, so the HTTP
+ * status can't tell "signed out" from "out of quota". /api/auth/session returns
+ * `{}` when signed out. If the check itself fails we carry on rather than
+ * report a false sign-out.
+ */
+async function assertSignedIn(): Promise<void> {
+  let data: unknown;
+  try {
+    const res = await fetch(SESSION_URL, { credentials: 'include' });
+    if (!res.ok) return;
+    data = await res.json();
+  } catch {
+    return;
+  }
+  const user = (data as { user?: unknown } | null)?.user;
+  if (!user) throw new AuthError(401);
+}
+
+async function fetchPlan(): Promise<PerplexityPlan | null> {
+  try {
+    const res = await fetch(SETTINGS_URL, { credentials: 'include' });
+    if (!res.ok) return null;
+    return parsePlan((await res.json()) as UserSettingsResponse);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Plan for this poll: the cached one while fresh (~6h), else a fresh lookup.
+ * A failed lookup keeps the last known plan; only a never-known plan is
+ * 'unknown'. Exported for tests.
+ */
+export async function resolvePlan(
+  prior: CachedValue<PerplexityPlan> | null,
+  now: number,
+  lookup: () => Promise<PerplexityPlan | null> = fetchPlan,
+): Promise<CachedValue<PerplexityPlan>> {
+  if (isFresh(prior, now)) return prior;
+  const found = await lookup();
+  if (found) return { value: found, at: now };
+  return prior ?? { value: { kind: 'unknown' }, at: now - 6 * 3600 * 1000 }; // unknown: retry next poll
+}
+
+/** All counts zero = either signed out or genuinely out of quota. */
+export function looksSignedOut(raw: RateLimitAllResponse): boolean {
+  return (
+    num(raw.remaining_pro) === 0 &&
+    num(raw.remaining_research) === 0 &&
+    num(raw.remaining_labs) === 0 &&
+    num(raw.remaining_agentic_research) === 0
+  );
+}
+
 async function fetchRateLimitAll(): Promise<RateLimitAllResponse> {
   const res = await fetch(RATE_LIMIT_URL, { credentials: 'include' });
 
@@ -94,11 +186,20 @@ async function fetchRateLimitAll(): Promise<RateLimitAllResponse> {
  */
 export async function fetchPerplexityUsage(
   priorCaps: PerplexityCaps = {},
-): Promise<{ snapshot: ProviderUsageSnapshot; caps: PerplexityCaps }> {
+  priorPlan: CachedValue<PerplexityPlan> | null = null,
+): Promise<{
+  snapshot: ProviderUsageSnapshot;
+  caps: PerplexityCaps;
+  plan: CachedValue<PerplexityPlan>;
+}> {
+  const now = Date.now();
   const raw = await fetchRateLimitAll();
+  // Only ask the session endpoint when the numbers could mean "signed out".
+  if (looksSignedOut(raw)) await assertSignedIn();
+  const plan = await resolvePlan(priorPlan, now);
   const caps = mergeCaps(raw, priorCaps);
-  const snapshot = mapToSnapshot(raw, caps, Date.now());
-  return { snapshot, caps };
+  const snapshot = mapToSnapshot(raw, caps, now, plan.value);
+  return { snapshot, caps, plan };
 }
 
 /**
@@ -132,12 +233,17 @@ export function mergeCaps(
  *               cap is unknown (0 / absent), the ring stays at 0 and the sublabel
  *               falls back to a remaining-only "X left" form.
  * @param now  - Current time in milliseconds (injectable for tests).
+ * @param plan - From /rest/user/settings. Free keeps the daily window; paid and
+ *               unknown show remaining counts only (no reset, no inferred cap).
  */
 export function mapToSnapshot(
   raw: RateLimitAllResponse,
   caps: PerplexityCaps = {},
   now: number = Date.now(),
+  plan: PerplexityPlan = { kind: 'free' },
 ): ProviderUsageSnapshot {
+  if (plan.kind !== 'free') return mapPaid(raw, caps, plan, now);
+
   const remainingPro = num(raw.remaining_pro);
   const remainingResearch = num(raw.remaining_research);
   const remainingLabs = num(raw.remaining_labs);
@@ -184,9 +290,66 @@ export function mapToSnapshot(
     shortWindow,
     longWindow,
     extras,
-    planLabel: 'Perplexity',
+    planLabel: 'Free',
     capturedAt: now,
     estimated: false,
+  };
+}
+
+function planName(plan: PerplexityPlan): string {
+  return plan.kind === 'free' ? 'Free' : plan.kind === 'paid' ? plan.label : '';
+}
+
+// Cadence text for paid plans; Perplexity gives no timestamps, so it stays text.
+const PRO_CADENCE = 'resets weekly';
+const RESEARCH_CADENCE = 'recovers monthly';
+const WEEK_MS = 7 * 86_400_000;
+const MONTH_MS = 30 * 86_400_000;
+
+/**
+ * Pro / Max: Perplexity publishes no reset time, so the numbers are ESTIMATED.
+ * Utilization uses the same high-water-mark cap as Free (highest remaining ever
+ * seen ~ cap), so the Mac's alerts can work; the snapshot is marked estimated.
+ * The reset is a far-future placeholder (a week / a month out) because the Mac
+ * drops a reading whose reset has passed; the sublabel is static text with no
+ * countdown and `windowDurationSec: 0` keeps the pace dot off.
+ */
+function mapPaid(
+  raw: RateLimitAllResponse,
+  caps: PerplexityCaps,
+  plan: PerplexityPlan,
+  now: number,
+): ProviderUsageSnapshot {
+  const countWindow = (
+    label: string,
+    remaining: number,
+    cap: number | undefined,
+    cadence: string,
+    placeholderMs: number,
+  ): WindowUsage => ({
+    label,
+    utilization: utilizationFor(remaining, cap),
+    resetsAt: new Date(now + placeholderMs).toISOString(),
+    windowDurationSec: 0,
+    sublabelOverride: `${remaining} left · ${cadence}`,
+  });
+
+  const extras: ProviderUsageSnapshot['extras'] = {};
+  if (typeof raw.remaining_labs === 'number' && raw.remaining_labs > 0) {
+    extras.labsRemaining = countWindow('Labs', raw.remaining_labs, caps.labs, RESEARCH_CADENCE, MONTH_MS);
+  }
+
+  return {
+    provider: 'perplexity',
+    shortWindow: countWindow('Pro Searches', num(raw.remaining_pro), caps.pro, PRO_CADENCE, WEEK_MS),
+    longWindow:
+      typeof raw.remaining_research === 'number'
+        ? countWindow('Deep Research', raw.remaining_research, caps.research, RESEARCH_CADENCE, MONTH_MS)
+        : null,
+    extras,
+    planLabel: planName(plan) || 'Perplexity',
+    capturedAt: now,
+    estimated: true,
   };
 }
 

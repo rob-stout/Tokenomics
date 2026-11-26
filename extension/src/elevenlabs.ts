@@ -153,7 +153,8 @@ export function mapToSnapshot(
   const resetsAt = nextMonthlyReset(resetSec > 0 ? resetSec * 1000 : 0, now);
 
   const shortWindow: WindowUsage = {
-    label: 'Characters',
+    // ElevenLabs renamed characters to credits; the value is unchanged.
+    label: 'Credits',
     utilization,
     resetsAt,
     windowDurationSec: THIRTY_DAY_SEC,

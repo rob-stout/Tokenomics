@@ -13,16 +13,44 @@ export interface WindowUsage {
   sublabelOverride?: string;
 }
 
+export interface UsageCredits {
+  /** Major units (dollars), already scaled by the currency exponent. */
+  used: number;
+  /** null when the account has no spend cap. */
+  limit: number | null;
+  currency: string;
+}
+
 export interface ProviderUsageSnapshot {
   provider: ProviderId;
   shortWindow: WindowUsage;
   longWindow: WindowUsage | null;
-  extras: { opusSevenDay?: WindowUsage; labsRemaining?: WindowUsage };
+  extras: {
+    opusSevenDay?: WindowUsage;
+    labsRemaining?: WindowUsage;
+    /** Per-model weekly caps (Claude `weekly_scoped` limits), e.g. "Fable Weekly". */
+    scopedWeekly?: WindowUsage[];
+    /** Claude "usage credits" (pay-as-you-go overage). Only set when enabled. */
+    usageCredits?: UsageCredits;
+  };
   planLabel: string;
   capturedAt: number;
   /** True when the numbers come from a local counter rather than a
    *  real usage endpoint (e.g. ChatGPT, eventually Gemini). */
   estimated?: boolean;
+}
+
+/** A value remembered with the time it was fetched (for plan lookups that rarely change). */
+export interface CachedValue<T> {
+  value: T;
+  at: number;
+}
+
+/** Plan lookups are cached this long to save a request per poll. */
+export const PLAN_CACHE_TTL_MS = 6 * 3600 * 1000;
+
+export function isFresh<T>(c: CachedValue<T> | null | undefined, now: number): c is CachedValue<T> {
+  return !!c && now - c.at < PLAN_CACHE_TTL_MS && now >= c.at;
 }
 
 export type AuthState = 'authenticated' | 'unauthenticated' | 'unknown';

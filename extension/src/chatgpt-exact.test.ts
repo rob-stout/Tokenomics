@@ -30,7 +30,7 @@ test('free: exact, not estimated; monthly primary; no long window', () => {
   assert.equal(snap!.estimated, false); // exact!
   assert.equal(snap!.planLabel, 'Free');
   assert.equal(snap!.shortWindow.utilization, 5);
-  assert.equal(snap!.shortWindow.label, 'Monthly');
+  assert.equal(snap!.shortWindow.label, 'Codex Monthly');
   assert.equal(snap!.shortWindow.windowDurationSec, 2592000);
   assert.equal(snap!.shortWindow.resetsAt, new Date(1783102293 * 1000).toISOString());
   assert.equal(snap!.longWindow, null);
@@ -50,9 +50,9 @@ test('plus: two windows mapped (5-hour + weekly)', () => {
   assert.equal(snap!.estimated, false);
   assert.equal(snap!.planLabel, 'Plus');
   assert.equal(snap!.shortWindow.utilization, 42);
-  assert.equal(snap!.shortWindow.label, '5-Hour Window');
+  assert.equal(snap!.shortWindow.label, 'Codex 5-Hour Window');
   assert.equal(snap!.longWindow?.utilization, 12);
-  assert.equal(snap!.longWindow?.label, 'Weekly');
+  assert.equal(snap!.longWindow?.label, 'Codex Weekly');
 });
 
 // ── reset_after_seconds fallback (no absolute reset_at) ───────
@@ -67,7 +67,7 @@ test('uses reset_after_seconds when reset_at is absent', () => {
   const snap = mapWhamUsageToSnapshot(data, NOW);
   assert.ok(snap);
   assert.equal(snap!.shortWindow.resetsAt, new Date(NOW + 3600 * 1000).toISOString());
-  assert.equal(snap!.shortWindow.label, '3-Hour Window');
+  assert.equal(snap!.shortWindow.label, 'Codex 3-Hour Window');
 });
 
 // ── Malformed → null so the caller falls back to the counter ──
@@ -87,4 +87,74 @@ test('utilization is clamped to 0–100 and rounded', () => {
     NOW,
   );
   assert.equal(over!.shortWindow.utilization, 100);
+});
+
+// ── Window classification by length, not slot ─────────────────
+test('weekly primary + 5-hour secondary: sorted by length, not slot', () => {
+  const data: WhamUsageResponse = {
+    plan_type: 'pro',
+    rate_limit: {
+      primary_window: { used_percent: 30, limit_window_seconds: 604800, reset_at: 1749340800 },
+      secondary_window: { used_percent: 8, limit_window_seconds: 18000, reset_at: 1748750400 },
+    },
+  };
+  const snap = mapWhamUsageToSnapshot(data, NOW);
+  assert.ok(snap);
+  assert.equal(snap!.shortWindow.label, 'Codex 5-Hour Window');
+  assert.equal(snap!.shortWindow.utilization, 8);
+  assert.equal(snap!.longWindow?.label, 'Codex Weekly');
+  assert.equal(snap!.longWindow?.utilization, 30);
+});
+
+test('a lone weekly window is the short window, labelled Weekly', () => {
+  const snap = mapWhamUsageToSnapshot(
+    { plan_type: 'plus', rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 604800, reset_at: 1749340800 } } },
+    NOW,
+  );
+  assert.equal(snap!.shortWindow.label, 'Codex Weekly');
+  assert.equal(snap!.longWindow, null);
+});
+
+test('Codex is in the label and no time-bearing sublabel is baked in', () => {
+  const snap = mapWhamUsageToSnapshot(
+    { plan_type: 'plus', rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 18000, reset_at: 1748750400 } } },
+    NOW,
+  );
+  assert.equal(snap!.shortWindow.label, 'Codex 5-Hour Window');
+  assert.equal(snap!.shortWindow.sublabelOverride, undefined);
+});
+
+test('a ~6h session window is labelled in hours', () => {
+  const snap = mapWhamUsageToSnapshot(
+    { plan_type: 'plus', rate_limit: { primary_window: { used_percent: 1, limit_window_seconds: 21600, reset_at: 1748750400 } } },
+    NOW,
+  );
+  assert.equal(snap!.shortWindow.label, 'Codex 6-Hour Window');
+});
+
+// ── Plan label from plan_type ─────────────────────────────────
+test('plan_type → label table', () => {
+  const cases: Array<[string, string]> = [
+    ['free', 'Free'],
+    ['go', 'Go'],
+    ['plus', 'Plus'],
+    ['prolite', 'Pro 100'],
+    ['pro', 'Pro 200'],
+    ['promax', 'Pro 500'],
+    ['team', 'Team'],
+    ['business', 'Business'],
+    ['self_serve_business_usage_based', 'Business'],
+    ['enterprise', 'Enterprise'],
+    ['enterprise_cbp_usage_based', 'Enterprise'],
+    ['edu', 'Edu'],
+    ['education', 'Edu'],
+    ['something_new', ''],
+  ];
+  for (const [planType, label] of cases) {
+    const snap = mapWhamUsageToSnapshot(
+      { plan_type: planType, rate_limit: { primary_window: { used_percent: 1, limit_window_seconds: 18000, reset_at: 1748750400 } } },
+      NOW,
+    );
+    assert.equal(snap!.planLabel, label, planType);
+  }
 });

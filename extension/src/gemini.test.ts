@@ -158,3 +158,38 @@ test('unknown periodType lands in shortWindow (not dropped)', () => {
   assert.equal(snap.shortWindow.utilization, 50);
   assert.match(snap.shortWindow.label, /Window 99/);
 });
+
+// ── 7-element windows: index6 = cap (live capture 2026-11-25, weekly first) ──
+
+test('capped payload (weekly first): routes by period type, 0% used', () => {
+  const inner = [1, [
+    [12096, 0, 2, [[1796255094, 930488000]], null, null, 12096],
+    [600, 0, 1, [[1795668294, 930485000]], null, null, 600],
+  ], false];
+  const snap = mapToSnapshot(inner, NOW);
+  assert.equal(snap.shortWindow.label, '5-Hour Window');
+  assert.equal(snap.shortWindow.utilization, 0);
+  assert.equal(snap.longWindow?.label, 'Weekly');
+  assert.equal(snap.longWindow?.utilization, 0);
+  assert.equal(snap.longWindow?.resetsAt, new Date(1796255094 * 1000).toISOString());
+});
+
+test('cap present: utilization = (cap - remaining) / cap', () => {
+  const inner = [1, [[373, 0.38, 1, [[1780432870, 0]], null, null, 600]], false];
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 38);
+});
+
+test('cap present but fraction missing: still computed from the cap', () => {
+  const inner = [1, [[9000, null, 2, [[1780432870, 0]], null, null, 12096]], false];
+  assert.equal(mapToSnapshot(inner, NOW).longWindow?.utilization, 26);
+});
+
+test('cap absent: falls back to the index1 fraction', () => {
+  const inner = [1, [[373, 0.38, 1, [[1780432870, 0]]]], false];
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 38);
+});
+
+test('remaining above cap clamps to 0%', () => {
+  const inner = [1, [[700, 0, 1, [[1780432870, 0]], null, null, 600]], false];
+  assert.equal(mapToSnapshot(inner, NOW).shortWindow.utilization, 0);
+});

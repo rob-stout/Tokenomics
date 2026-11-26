@@ -65,11 +65,16 @@ const ME_URL = 'https://cloud.leonardo.ai/api/rest/v1/me';
 // Free is confirmed live (150/day); paid tiers are the published monthly
 // allotments. Verified 2026-06-11: Free=150, Apprentice=8,500, Artisan=25,000,
 // Maestro=60,000.
+// Leonardo renamed the paid plans (Essential / Premium / Ultimate) with the same
+// allotments; both generations of names are accepted.
 const PLAN_CAPS: Record<string, number> = {
   FREE: 150,
   APPRENTICE: 8500,
   ARTISAN: 25000,
   MAESTRO: 60000,
+  ESSENTIAL: 8500,
+  PREMIUM: 25000,
+  ULTIMATE: 60000,
 };
 
 /** Look up the token cap for a plan slug (handles "_V2" suffixes). Returns 0 when unknown. */

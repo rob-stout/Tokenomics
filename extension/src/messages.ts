@@ -3,6 +3,7 @@
  * background service worker.
  */
 
+import type { ChatGPTPlan } from './chatgpt';
 import type { ProviderUsageSnapshot } from './snapshot';
 import type { SunoBilling } from './suno';
 
@@ -14,7 +15,7 @@ export type ExtensionMessage =
   | { kind: 'SYNC_NOW' }
   | { kind: 'CONSENT_GRANTED' }
   | { kind: 'CHATGPT_MESSAGE'; model: string | null; ts: number }
-  | { kind: 'CHATGPT_SET_PLAN'; plan: 'free' | 'plus' | 'pro' | 'team' | 'auto' }
+  | { kind: 'CHATGPT_SET_PLAN'; plan: Exclude<ChatGPTPlan, 'unknown'> | 'auto' }
   | { kind: 'GEMINI_USAGE'; snapshot: ProviderUsageSnapshot }
   /** Firebase ID token grabbed from IndexedDB on elevenlabs.io by the content script. */
   | { kind: 'ELEVENLABS_TOKEN'; token: string }

@@ -36,7 +36,9 @@ function applyTheme() {
  * Must match the CHATGPT_SET_PLAN message union — 'unknown' is intentionally
  * excluded because users cannot meaningfully choose it.
  */
-type PlanChoice = 'auto' | 'free' | 'plus' | 'pro' | 'team';
+type PlanChoice = 'auto' | 'free' | 'go' | 'plus' | 'prolite' | 'pro' | 'promax' | 'team';
+
+const OVERRIDE_PLANS: readonly string[] = ['free', 'go', 'plus', 'prolite', 'pro', 'promax', 'team'];
 
 interface RadioOption {
   value: PlanChoice;
@@ -80,9 +82,15 @@ const browserSaveVisibility = saveVisibility;
 function planDisplayName(plan: ChatGPTPlan): string {
   switch (plan) {
     case 'free': return 'Free';
+    case 'go': return 'Go';
     case 'plus': return 'Plus';
-    case 'pro': return 'Pro';
+    case 'prolite': return 'Pro 100';
+    case 'pro': return 'Pro 200';
+    case 'promax': return 'Pro 500';
     case 'team': return 'Team';
+    case 'business': return 'Business';
+    case 'enterprise': return 'Enterprise';
+    case 'edu': return 'Edu';
     case 'unknown': return 'Unknown';
   }
 }
@@ -102,7 +110,12 @@ function buildOptions(autoPlan: ChatGPTPlan): RadioOption[] {
     {
       value: 'free',
       label: 'Free',
-      helper: '10 messages / 5-hour window.',
+      helper: 'Unlimited everyday chat, so no message estimate is shown.',
+    },
+    {
+      value: 'go',
+      label: 'Go',
+      helper: 'Unlimited everyday chat, so no message estimate is shown.',
     },
     {
       value: 'plus',
@@ -110,8 +123,18 @@ function buildOptions(autoPlan: ChatGPTPlan): RadioOption[] {
       helper: '160 messages / 3-hour window · 3,000 Thinking messages / week.',
     },
     {
+      value: 'prolite',
+      label: 'Pro 100',
+      helper: 'Effectively uncapped on GPT-5.x · 15,000 Thinking messages / week.',
+    },
+    {
       value: 'pro',
-      label: 'Pro',
+      label: 'Pro 200',
+      helper: 'Effectively uncapped on GPT-5.x · 15,000 Thinking messages / week.',
+    },
+    {
+      value: 'promax',
+      label: 'Pro 500',
       helper: 'Effectively uncapped on GPT-5.x · 15,000 Thinking messages / week.',
     },
     {
@@ -497,9 +520,7 @@ function Options({ onStop }: { onStop: () => void }) {
         // getChatGPTPlanOverride already filters 'unknown' to null, but the
         // return type is ChatGPTPlan | null. Cast to our narrower type.
         const validOverride =
-          ov === 'free' || ov === 'plus' || ov === 'pro' || ov === 'team'
-            ? ov
-            : null;
+          ov !== null && OVERRIDE_PLANS.includes(ov) ? (ov as Exclude<PlanChoice, 'auto'>) : null;
         setOverride(validOverride);
       },
     );
@@ -559,9 +580,10 @@ function Options({ onStop }: { onStop: () => void }) {
           <h2 class="options-section__title">ChatGPT</h2>
         </div>
         <p class="options-section__description">
-          Override the plan Tokenomics uses to calculate your ChatGPT quotas.
-          Auto-detect reads your plan directly from the ChatGPT session — only
-          override if detection gets it wrong.
+          Override the plan Tokenomics uses to estimate your ChatGPT message
+          quotas (only used when exact usage isn't available). Auto-detect reads
+          your plan directly from the ChatGPT session — only override if
+          detection gets it wrong.
         </p>
 
         <div class="radio-group" role="radiogroup" aria-label="ChatGPT plan">

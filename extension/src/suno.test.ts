@@ -165,3 +165,15 @@ test('renewal: buying credits (purchased goes up) is not a refill', () => {
   s = trackRenewal(s, 520, 500, NOW);
   assert.equal(s.anchorMs, null);
 });
+
+test('renewal: a paid user at 0 who gets the 50 daily top-up is NOT anchored', () => {
+  let s = trackRenewal(null, 0, 0, NOW - HOUR, 50);
+  s = trackRenewal(s, 50, 0, NOW, 50);
+  assert.equal(s.anchorMs, null);
+});
+
+test('renewal: a refill bigger than the 50 daily amount still anchors', () => {
+  let s = trackRenewal(null, 0, 0, NOW - HOUR, 50);
+  s = trackRenewal(s, 2500, 0, NOW, 50);
+  assert.equal(s.anchorMs, NOW);
+});

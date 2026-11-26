@@ -112,3 +112,14 @@ test('fetch: subscriptions failing still yields usage, plan from tier', async ()
     stub.restore();
   }
 });
+
+test('paid limits come from the API, not a hard-coded table', () => {
+  const snap = mapToSnapshot(
+    { ...DATA, tier: 'pro', monthly_used: 600, monthly_limit: 2400, daily_used: 5, daily_throttle_limit: 20 },
+    { plan: 'pro' },
+    NOW,
+  );
+  assert.equal(snap.shortWindow.utilization, 25);
+  assert.equal(snap.longWindow?.utilization, 25);
+  assert.equal(snap.planLabel, 'Pro');
+});

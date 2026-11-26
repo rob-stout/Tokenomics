@@ -2,7 +2,7 @@ import browser from 'webextension-polyfill';
 import type { ChatGPTMessageEvent, ChatGPTPlan } from './chatgpt';
 import type { PerplexityCaps } from './perplexity';
 import { isProviderId, type ProviderId } from './types';
-import type { AuthState, BackoffState, ProviderUsageSnapshot } from './snapshot';
+import type { AuthState, BackoffState, CachedValue, ProviderUsageSnapshot } from './snapshot';
 import type { RenewalState } from './renewal';
 
 const KEYS = {
@@ -38,6 +38,7 @@ const KEYS = {
   // remaining-only with no totals and no plan field, so the cap is the max
   // remaining ever observed).
   perplexityCaps: 'perplexityCaps',
+  planCache: 'planCache',
   // Leonardo
   leonardoSnapshot: 'leonardoSnapshot',
   leonardoAuth: 'leonardoAuth',
@@ -67,6 +68,9 @@ const ORG_ID_TTL_MS = 24 * 60 * 60 * 1000;
 interface CachedOrgId {
   value: string;
   expiresAt: number;
+  /** Plan label for the cached org ('' = unknown). Absent on entries written
+   *  before 1.1.3, which are treated as a cache miss so the plan gets filled in. */
+  plan?: string;
 }
 
 // ── selectedTab ─────────────────────────────────────────────
@@ -127,17 +131,26 @@ export async function setPinnedProvider(provider: ProviderId | null): Promise<vo
 
 // ── Claude org id cache (24h TTL) ───────────────────────────
 
-export async function getCachedOrgId(): Promise<string | null> {
-  const result = await browser.storage.local.get(KEYS.claudeOrgId);
-  const raw = result[KEYS.claudeOrgId] as CachedOrgId | undefined;
-  if (!raw || typeof raw.value !== 'string') return null;
-  if (Date.now() > raw.expiresAt) return null;
-  return raw.value;
+export interface CachedClaudeOrg {
+  id: string;
+  plan: string;
 }
 
-export async function setCachedOrgId(value: string): Promise<void> {
-  const cached: CachedOrgId = { value, expiresAt: Date.now() + ORG_ID_TTL_MS };
+export async function getCachedOrg(): Promise<CachedClaudeOrg | null> {
+  const result = await browser.storage.local.get(KEYS.claudeOrgId);
+  const raw = result[KEYS.claudeOrgId] as CachedOrgId | undefined;
+  if (!raw || typeof raw.value !== 'string' || typeof raw.plan !== 'string') return null;
+  if (Date.now() > raw.expiresAt) return null;
+  return { id: raw.value, plan: raw.plan };
+}
+
+export async function setCachedOrg(org: CachedClaudeOrg): Promise<void> {
+  const cached: CachedOrgId = { value: org.id, plan: org.plan, expiresAt: Date.now() + ORG_ID_TTL_MS };
   await browser.storage.local.set({ [KEYS.claudeOrgId]: cached });
+}
+
+export async function clearCachedOrg(): Promise<void> {
+  await browser.storage.local.remove(KEYS.claudeOrgId);
 }
 
 // ── Claude snapshot ─────────────────────────────────────────
@@ -177,6 +190,11 @@ export async function getChatGPTSnapshot(): Promise<ProviderUsageSnapshot | null
 
 export async function setChatGPTSnapshot(snapshot: ProviderUsageSnapshot): Promise<void> {
   await browser.storage.local.set({ [KEYS.chatgptSnapshot]: snapshot });
+}
+
+/** Drop a stale estimate (e.g. the plan turned out to have no message cap). */
+export async function clearChatGPTSnapshot(): Promise<void> {
+  await browser.storage.local.remove(KEYS.chatgptSnapshot);
 }
 
 // ── ChatGPT counter (rolling log of message events) ─────────
@@ -227,8 +245,12 @@ export async function getChatGPTPlanEffective(): Promise<ChatGPTPlan> {
   return override ?? auto;
 }
 
+const CHATGPT_PLANS: readonly string[] = [
+  'free', 'go', 'plus', 'prolite', 'pro', 'promax', 'team', 'business', 'enterprise', 'edu', 'unknown',
+];
+
 function isChatGPTPlan(value: unknown): value is ChatGPTPlan {
-  return value === 'free' || value === 'plus' || value === 'pro' || value === 'team' || value === 'unknown';
+  return typeof value === 'string' && CHATGPT_PLANS.includes(value);
 }
 
 // ── ElevenLabs Firebase token (from content script) ─────────
@@ -312,6 +334,25 @@ export async function getPerplexityCaps(): Promise<PerplexityCaps> {
 
 export async function setPerplexityCaps(caps: PerplexityCaps): Promise<void> {
   await browser.storage.local.set({ [KEYS.perplexityCaps]: caps });
+}
+
+// ── Plan caches (Perplexity settings, Grok subscriptions) ───
+
+export async function getPlanCache<T>(provider: 'perplexity' | 'grok'): Promise<CachedValue<T> | null> {
+  const result = await browser.storage.local.get(KEYS.planCache);
+  const all = result[KEYS.planCache];
+  if (!all || typeof all !== 'object') return null;
+  const raw = (all as Record<string, unknown>)[provider];
+  if (!raw || typeof raw !== 'object') return null;
+  const c = raw as CachedValue<T>;
+  return typeof c.at === 'number' && c.value !== undefined ? c : null;
+}
+
+export async function setPlanCache<T>(provider: 'perplexity' | 'grok', value: CachedValue<T>): Promise<void> {
+  const result = await browser.storage.local.get(KEYS.planCache);
+  const existing = result[KEYS.planCache];
+  const all = existing && typeof existing === 'object' ? (existing as Record<string, unknown>) : {};
+  await browser.storage.local.set({ [KEYS.planCache]: { ...all, [provider]: value } });
 }
 
 // ── Leonardo snapshot ───────────────────────────────────────
