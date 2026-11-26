@@ -56,8 +56,8 @@ final class CodexProviderParsingTests: XCTestCase {
 
         let event = try JSONDecoder().decode(SessionEventMirror.self, from: jsonLine)
         let limits = try XCTUnwrap(event.payload.rateLimits)
-        XCTAssertEqual(limits.primary.usedPercent, 42.5, accuracy: 0.001)
-        XCTAssertEqual(limits.primary.windowMinutes, 300)
+        XCTAssertEqual(try XCTUnwrap(limits.primary).usedPercent, 42.5, accuracy: 0.001)
+        XCTAssertEqual(limits.primary?.windowMinutes, 300)
         XCTAssertEqual(limits.planType, "pro")
         XCTAssertEqual(limits.credits?.balance, "$12.34")
         XCTAssertTrue(limits.credits?.hasCredits == true)
@@ -118,31 +118,42 @@ final class CodexProviderParsingTests: XCTestCase {
 
         // Must not throw — extra fields are ignored by Swift's Decodable
         let event = try JSONDecoder().decode(SessionEventMirror.self, from: jsonLine)
-        let usedPercent = try XCTUnwrap(event.payload.rateLimits?.primary.usedPercent)
+        let usedPercent = try XCTUnwrap(event.payload.rateLimits?.primary?.usedPercent)
         XCTAssertEqual(usedPercent, 55.0, accuracy: 0.001)
     }
 
-    /// Regression: API shape changed — rate_limits missing the secondary window
-    func testCodexRateLimits_missingSecondaryWindow_decodesOrThrows() {
-        let jsonLine = """
-        {"type":"event_msg","payload":{"rate_limits":{"primary":{"used_percent":30.0,"window_minutes":300,"resets_at":1750000000.0}}}}
-        """.data(using: .utf8)!
-
-        struct SessionEventMirror: Decodable {
-            struct Payload: Decodable {
-                let rateLimits: CodexRateLimits?
-                enum CodingKeys: String, CodingKey { case rateLimits = "rate_limits" }
-            }
-            let payload: Payload
+    /// Pro plans can drop the 5-hour window: primary is weekly, secondary absent or null.
+    func testCodexRateLimits_missingOrNullSecondary_decodes() throws {
+        for body in [
+            #"{"primary":{"used_percent":30.0,"window_minutes":10080,"resets_at":1750000000.0}}"#,
+            #"{"primary":{"used_percent":30.0,"window_minutes":10080,"resets_at":1750000000.0},"secondary":null}"#
+        ] {
+            let limits = try JSONDecoder().decode(CodexRateLimits.self, from: Data(body.utf8))
+            XCTAssertNil(limits.secondary)
+            let windows = CodexProvider.orderedWindows(limits)
+            XCTAssertEqual(windows.count, 1)
+            XCTAssertEqual(CodexProvider.windowLabel(minutes: windows[0].windowMinutes), "Weekly")
         }
+    }
 
-        // CodexRateLimits has non-optional `secondary` — missing it throws.
-        // This is the "API shape changed" regression: test documents the current
-        // behavior so any future change to make secondary optional is visible.
-        XCTAssertThrowsError(
-            try JSONDecoder().decode(SessionEventMirror.self, from: jsonLine),
-            "Codex rate_limits missing secondary must throw (struct has non-optional secondary)"
-        )
+    /// Windows classify by window_minutes, not slot: session (< 1 day) first.
+    func testCodexWindows_classifiedByMinutes_notSlot() throws {
+        let body = #"{"primary":{"used_percent":80,"window_minutes":10080,"resets_at":1750000000},"secondary":{"used_percent":10,"window_minutes":300,"resets_at":1740000000}}"#
+        let limits = try JSONDecoder().decode(CodexRateLimits.self, from: Data(body.utf8))
+        let windows = CodexProvider.orderedWindows(limits)
+        XCTAssertEqual(windows.map(\.windowMinutes), [300, 10080])
+    }
+
+    /// Model-specific limits (limit_id "codex_bengalfox") never drive the main windows.
+    func testCodexLimitId_modelSpecificIsNotMainLimit() throws {
+        func limits(_ id: String?) throws -> CodexRateLimits {
+            let idField = id.map { #""limit_id":"\#($0)","# } ?? ""
+            let body = "{\(idField)\"primary\":{\"used_percent\":1,\"window_minutes\":300,\"resets_at\":1}}"
+            return try JSONDecoder().decode(CodexRateLimits.self, from: Data(body.utf8))
+        }
+        XCTAssertTrue(try limits("codex").isMainLimit)
+        XCTAssertTrue(try limits(nil).isMainLimit)
+        XCTAssertFalse(try limits("codex_bengalfox").isMainLimit)
     }
 
     /// Plan inference: unlimited credits → Pro

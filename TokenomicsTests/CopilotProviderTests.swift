@@ -37,7 +37,7 @@ final class CopilotProviderTests: XCTestCase {
         XCTAssertEqual(snap.shortWindow.utilization, 25, accuracy: 0.01)
         XCTAssertEqual(snap.shortWindow.sublabelOverride, "75 / 300 used")
         XCTAssertNil(snap.longWindow)
-        XCTAssertEqual(snap.planLabel, "Individual")
+        XCTAssertEqual(snap.planLabel, "Pro")
         XCTAssertNotEqual(snap.shortWindow.resetsAt, Date.distantFuture)
     }
 
@@ -59,26 +59,86 @@ final class CopilotProviderTests: XCTestCase {
         XCTAssertEqual(snap.shortWindow.sublabelOverride, "300 / 300 used")
     }
 
-    func testTokenBasedPaidPlan_showsAICredits() throws {
+    // MARK: - Token-based billing (2026)
+
+    /// Pro-style capped snapshot: string entitlement, percent_remaining drives the bar.
+    func testTokenBased_cappedSnapshot_stringEntitlement_usesPercentRemaining() throws {
         let snap = try snapshot(from: """
-        {"copilot_plan":"individual","token_based_billing":true,"quota_reset_date":"2026-12-01",
-         "quota_snapshots":{"premium_interactions":{"entitlement":1500,"remaining":1100,
-           "percent_remaining":73.3,"unlimited":false,"token_based_billing":true,"credits_used":400}}}
+        {"copilot_plan":"business","token_based_billing":true,"quota_reset_date":"2026-12-01",
+         "quota_snapshots":{
+           "chat":{"unlimited":true,"entitlement":"0"},
+           "completions":{"unlimited":true,"entitlement":"0"},
+           "premium_interactions":{"unlimited":false,"entitlement":"3900","percent_remaining":97.4,
+             "overage_permitted":true,"has_quota":false,"token_based_billing":true}}}
         """)
         XCTAssertEqual(snap.shortWindow.label, "AI Credits")
-        XCTAssertEqual(snap.shortWindow.utilization, 400.0 / 1500.0 * 100, accuracy: 0.01)
-        XCTAssertEqual(snap.shortWindow.sublabelOverride, "400 / 1500 used")
+        XCTAssertEqual(snap.shortWindow.utilization, 2.6, accuracy: 0.001)
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "101 / 3,900 credits used")
+        XCTAssertEqual(snap.planLabel, "Business")
         XCTAssertNotEqual(snap.shortWindow.resetsAt, Date.distantFuture)
     }
 
-    func testTokenBased_topLevelFlagOnly_withoutCreditsUsed_fallsBackToRemaining() throws {
+    /// credits_used has no denominator: percent and used come from percent_remaining / quota_remaining.
+    func testTokenBased_creditsUsedIsNotDividedByEntitlement() throws {
+        let snap = try snapshot(from: """
+        {"copilot_plan":"individual_max","token_based_billing":true,"quota_reset_date_utc":"2026-12-01T00:00:00.000Z",
+         "quota_snapshots":{"premium_interactions":{"unlimited":false,"entitlement":"20000",
+           "credits_used":499,"quota_remaining":1501,"percent_remaining":7.5}}}
+        """)
+        XCTAssertEqual(snap.shortWindow.utilization, 92.5, accuracy: 0.001)
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "18,499 / 20,000 credits used")
+        XCTAssertEqual(snap.planLabel, "Max")
+    }
+
+    func testTokenBased_topLevelFlagOnly_fallsBackToRemainingCount() throws {
         let snap = try snapshot(from: """
         {"copilot_plan":"individual","token_based_billing":true,"quota_reset_date":"2026-12-01",
          "quota_snapshots":{"premium_interactions":{"entitlement":1500,"remaining":1200,"unlimited":false}}}
         """)
         XCTAssertEqual(snap.shortWindow.label, "AI Credits")
         XCTAssertEqual(snap.shortWindow.utilization, 20, accuracy: 0.01)
-        XCTAssertEqual(snap.shortWindow.sublabelOverride, "300 / 1500 used")
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "300 / 1,500 credits used")
+    }
+
+    func testTokenBased_unlimitedWithCreditsUsed_showsUsedCountNoFill() throws {
+        let snap = try snapshot(from: """
+        {"copilot_plan":"business","token_based_billing":true,"quota_reset_date":"2026-12-01",
+         "quota_snapshots":{"premium_interactions":{"unlimited":true,"entitlement":0,"credits_used":31}}}
+        """)
+        XCTAssertEqual(snap.shortWindow.label, "AI Credits")
+        XCTAssertEqual(snap.shortWindow.utilization, 0)
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "31 credits used")
+    }
+
+    func testTokenBased_unlimitedNoCredits_showsUnlimited() throws {
+        let snap = try snapshot(from: """
+        {"copilot_plan":"enterprise","token_based_billing":true,"quota_reset_date":"2026-12-01",
+         "quota_snapshots":{"premium_interactions":{"entitlement":-1,"unlimited":false}}}
+        """)
+        XCTAssertEqual(snap.shortWindow.utilization, 0)
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "Unlimited")
+        XCTAssertEqual(snap.planLabel, "Enterprise")
+    }
+
+    func testMissingQuotaSnapshots_showsUnavailableNotZeroPercent() throws {
+        let snap = try snapshot(from: #"{"copilot_plan":"business","token_based_billing":true}"#)
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "Usage isn't available for this seat")
+        XCTAssertEqual(snap.shortWindow.resetsAt, Date.distantFuture)
+    }
+
+    func testSubscriptionEnded_showsEndedState() throws {
+        let snap = try snapshot(from: #"{"access_type_sku":"subscription_ended","copilot_plan":"individual"}"#)
+        XCTAssertEqual(snap.planLabel, "Subscription ended")
+        XCTAssertEqual(snap.shortWindow.sublabelOverride, "Subscription ended")
+    }
+
+    func testResetPrecedence_snapshotQuotaResetAtWins() throws {
+        let snap = try snapshot(from: """
+        {"copilot_plan":"individual","token_based_billing":true,"quota_reset_date":"2026-12-01",
+         "quota_snapshots":{"premium_interactions":{"entitlement":1500,"percent_remaining":50,
+           "unlimited":false,"quota_reset_at":1796083200}}}
+        """)
+        XCTAssertEqual(snap.shortWindow.resetsAt, Date(timeIntervalSince1970: 1_796_083_200))
     }
 
     func testLegacyPremiumRequests_snapshotFlagFalse_keepsPremiumRequests() throws {
@@ -91,7 +151,7 @@ final class CopilotProviderTests: XCTestCase {
         XCTAssertEqual(snap.shortWindow.sublabelOverride, "75 / 300 used")
     }
 
-    func testFreeTier_2026ResponseShape_usesChatAndCompletionsSnapshots() throws {
+    func testFreeTier_2026ResponseShape_skipsEmptyPremiumSnapshot() throws {
         let snap = try snapshot(from: """
         {"copilot_plan":"individual","access_type_sku":"free_limited_copilot","token_based_billing":true,
          "quota_reset_date":"2026-12-01","quota_reset_date_utc":"2026-12-01T00:00:00.000Z",
@@ -107,12 +167,16 @@ final class CopilotProviderTests: XCTestCase {
         XCTAssertNotEqual(snap.shortWindow.resetsAt, Date.distantFuture)
     }
 
-    func testTokenBased_unlimited_showsUnlimited() throws {
-        let snap = try snapshot(from: """
-        {"copilot_plan":"enterprise","token_based_billing":true,"quota_reset_date":"2026-12-01",
-         "quota_snapshots":{"premium_interactions":{"entitlement":0,"remaining":0,"unlimited":true,"token_based_billing":true}}}
-        """)
-        XCTAssertEqual(snap.shortWindow.utilization, 0)
-        XCTAssertEqual(snap.shortWindow.sublabelOverride, "Unlimited")
+    func testPlanLabels() throws {
+        func label(_ plan: String) throws -> String {
+            let info = try JSONDecoder().decode(CopilotUserInfo.self, from: Data(#"{"copilot_plan":"\#(plan)"}"#.utf8))
+            return info.planLabel
+        }
+        XCTAssertEqual(try label("individual"), "Pro")
+        XCTAssertEqual(try label("individual_pro"), "Pro+")
+        XCTAssertEqual(try label("individual_max"), "Max")
+        XCTAssertEqual(try label("business"), "Business")
+        XCTAssertEqual(try label("enterprise"), "Enterprise")
+        XCTAssertEqual(try label("individual_edu"), "Edu")
     }
 }

@@ -58,7 +58,14 @@ actor CursorProvider: UsageProvider {
         }
 
         let summary = try await fetchUsageSummary(token: token, userId: userId)
-        return mapToSnapshot(summary)
+        if summary.isUnified {
+            // After the Cursor/X/Grok unification, usage-summary's plan numbers go stale
+            // (it can report 0), so read the weekly pool from the dashboard service.
+            let usage = try await fetchCurrentPeriodUsage(token: token)
+            let plan = try await fetchPlanInfo(token: token)
+            return Self.mapUnifiedSnapshot(summary: summary, usage: usage, plan: plan)
+        }
+        return Self.mapToSnapshot(summary)
     }
 
     // MARK: - SQLite Token Reading
@@ -146,6 +153,35 @@ actor CursorProvider: UsageProvider {
         return try JSONDecoder().decode(CursorUsageSummary.self, from: data)
     }
 
+    /// Connect-protocol JSON POST, same shape openusage uses: bearer token,
+    /// `Connect-Protocol-Version: 1`, empty `{}` body.
+    private func connectPost<T: Decodable>(_ method: String, token: String, as type: T.Type) async throws -> T {
+        let url = URL(string: "https://api2.cursor.sh/aiserver.v1.DashboardService/\(method)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 10
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "Connect-Protocol-Version")
+        request.httpBody = Data("{}".utf8)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validateResponse(response)
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw AppError.decodingFailed(underlying: error)
+        }
+    }
+
+    private func fetchCurrentPeriodUsage(token: String) async throws -> CursorCurrentPeriodUsage {
+        try await connectPost("GetCurrentPeriodUsage", token: token, as: CursorCurrentPeriodUsage.self)
+    }
+
+    private func fetchPlanInfo(token: String) async throws -> CursorPlanInfoResponse {
+        try await connectPost("GetPlanInfo", token: token, as: CursorPlanInfoResponse.self)
+    }
+
     private func validateResponse(_ response: URLResponse) throws {
         guard let http = response as? HTTPURLResponse else { return }
         switch http.statusCode {
@@ -172,7 +208,34 @@ actor CursorProvider: UsageProvider {
 
     // MARK: - Mapping
 
-    private func mapToSnapshot(_ summary: CursorUsageSummary) -> ProviderUsageSnapshot {
+    /// One shared weekly pool for unified Cursor/X/Grok accounts. The monthly bars
+    /// are intentionally absent: after unification they no longer mean anything.
+    nonisolated static func mapUnifiedSnapshot(
+        summary: CursorUsageSummary,
+        usage: CursorCurrentPeriodUsage,
+        plan: CursorPlanInfoResponse
+    ) -> ProviderUsageSnapshot {
+        let percent = max(0, usage.planUsage?.totalPercentUsed ?? 0)
+        let resetsAt = plan.planInfo?.includedUsageResetsAt
+            ?? usage.billingCycleEnd
+            ?? Date.distantFuture
+        let hasReset = resetsAt != Date.distantFuture
+        return ProviderUsageSnapshot(
+            shortWindow: WindowUsage(
+                label: "Weekly Usage",
+                utilization: min(percent, 999),
+                resetsAt: resetsAt,
+                windowDuration: hasReset ? 7 * 24 * 3600 : 0,
+                sublabelOverride: String(format: "%.1f%% of weekly allowance used", percent)
+            ),
+            longWindow: nil,
+            planLabel: summary.planLabel,
+            extraUsage: nil,
+            creditsBalance: nil
+        )
+    }
+
+    nonisolated static func mapToSnapshot(_ summary: CursorUsageSummary) -> ProviderUsageSnapshot {
         let plan = summary.individualUsage?.plan
         let used = plan?.used ?? 0
         let limit = plan?.breakdown?.total ?? plan?.limit ?? 0
@@ -219,7 +282,56 @@ actor CursorProvider: UsageProvider {
 
 // MARK: - Response Models
 
-private struct CursorUsageSummary: Decodable {
+/// Connect/gRPC-JSON int64 fields arrive as strings ("1795333076119"); accept numbers too.
+private func decodeMillis<K: CodingKey>(_ container: KeyedDecodingContainer<K>, _ key: K) -> Date? {
+    guard let ms: Double = {
+        if let s = try? container.decodeIfPresent(String.self, forKey: key) { return Double(s) }
+        if let n = try? container.decodeIfPresent(Double.self, forKey: key) { return n }
+        return nil
+    }() else { return nil }
+    return Date(timeIntervalSince1970: ms / 1000)
+}
+
+/// `POST GetCurrentPeriodUsage` — `planUsage.totalPercentUsed` is already a percent.
+struct CursorCurrentPeriodUsage: Decodable {
+    let billingCycleEnd: Date?
+    let planUsage: PlanUsage?
+
+    struct PlanUsage: Decodable {
+        let totalPercentUsed: Double?
+    }
+
+    enum CodingKeys: String, CodingKey { case billingCycleEnd, planUsage }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        billingCycleEnd = decodeMillis(c, CodingKeys.billingCycleEnd)
+        planUsage = try c.decodeIfPresent(PlanUsage.self, forKey: .planUsage)
+    }
+}
+
+/// `POST GetPlanInfo` — `isMerged` marks a unified account.
+struct CursorPlanInfoResponse: Decodable {
+    let isMerged: Bool?
+    let planInfo: PlanInfo?
+
+    struct PlanInfo: Decodable {
+        let planName: String?
+        let includedUsagePeriod: String?
+        let includedUsageResetsAt: Date?
+
+        enum CodingKeys: String, CodingKey { case planName, includedUsagePeriod, includedUsageResetsAt }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            planName = try c.decodeIfPresent(String.self, forKey: .planName)
+            includedUsagePeriod = try c.decodeIfPresent(String.self, forKey: .includedUsagePeriod)
+            includedUsageResetsAt = decodeMillis(c, CodingKeys.includedUsageResetsAt)
+        }
+    }
+}
+
+struct CursorUsageSummary: Decodable {
     let membershipType: String?
     let isUnlimited: Bool?
     let individualUsage: IndividualUsage?
@@ -253,8 +365,14 @@ private struct CursorUsageSummary: Decodable {
         let limit: Int?
     }
 
+    /// "X Subscription" accounts report e.g. "unified_ultra".
+    var isUnified: Bool {
+        membershipType?.lowercased().hasPrefix("unified") == true
+    }
+
     var planLabel: String {
-        guard let membership = membershipType else { return "Free" }
+        guard var membership = membershipType else { return "Free" }
+        if isUnified { membership = String(membership.dropFirst("unified_".count)) }
         switch membership.lowercased() {
         case "free": return "Free"
         case "pro": return "Pro"
@@ -268,6 +386,16 @@ private struct CursorUsageSummary: Decodable {
         case membershipType, isUnlimited, individualUsage
         case billingCycleStart, billingCycleEnd
         case autoModelSelectedDisplayMessage
+    }
+
+    /// Memberwise init for tests.
+    init(membershipType: String?, isUnlimited: Bool? = nil) {
+        self.membershipType = membershipType
+        self.isUnlimited = isUnlimited
+        individualUsage = nil
+        billingCycleStart = nil
+        billingCycleEnd = nil
+        autoModelSelectedDisplayMessage = nil
     }
 
     init(from decoder: Decoder) throws {

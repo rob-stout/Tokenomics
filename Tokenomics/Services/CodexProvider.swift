@@ -146,7 +146,11 @@ actor CodexProvider: UsageProvider {
                 if let lineData = trimmed.data(using: .utf8) {
                     do {
                         let event = try decoder.decode(CodexSessionEvent.self, from: lineData)
-                        rateLimits = event.rateLimits
+                        // Model-specific limits (e.g. limit_id "codex_bengalfox") sit next to
+                        // the main one and must not drive the main windows.
+                        if let candidate = event.rateLimits, candidate.isMainLimit {
+                            rateLimits = candidate
+                        }
                     } catch {
                         Self.log.error("Failed to decode rate_limits line in \(url.lastPathComponent): \(error.localizedDescription)")
                     }
@@ -192,10 +196,22 @@ actor CodexProvider: UsageProvider {
         return "\(hours)-Hour Window"
     }
 
+    /// Windows ordered session-first, classified by `window_minutes` (< 1 day = session)
+    /// rather than by slot: Pro plans can send the weekly window as `primary` with
+    /// `secondary` null.
+    nonisolated static func orderedWindows(_ limits: CodexRateLimits?) -> [CodexRateLimitWindow] {
+        let windows = [limits?.primary, limits?.secondary].compactMap { $0 }
+        guard let sessionIndex = windows.firstIndex(where: { $0.windowMinutes < 1440 }) else { return windows }
+        return [windows[sessionIndex]] + windows.enumerated().filter { $0.offset != sessionIndex }.map(\.element)
+    }
+
     private func mapToSnapshot(_ data: SessionData) -> ProviderUsageSnapshot {
-        // Primary bar: 5-hour rate limit (drives menu bar % and inner ring)
+        let windows = Self.orderedWindows(data.rateLimits)
+
+        // Primary bar (drives menu bar % and inner ring): the session window when
+        // there is one, otherwise whatever single window the plan reports.
         let shortWindow: WindowUsage
-        if let primary = data.rateLimits?.primary {
+        if let primary = windows.first {
             shortWindow = WindowUsage(
                 label: Self.windowLabel(minutes: primary.windowMinutes),
                 utilization: primary.usedPercent,
@@ -214,13 +230,11 @@ actor CodexProvider: UsageProvider {
             )
         }
 
-        // Secondary bar: weekly rate limit. Parallels Claude's 7-Day window and
-        // ChatGPT's Weekly budget so every coding tool tells a consistent
-        // "5-hour + weekly" story. (`secondary` is OpenAI's weekly cap; it was
-        // previously decoded but never surfaced — the slot showed context-window
-        // tokens instead.)
+        // Secondary bar: the remaining (weekly) window, so every coding tool tells a
+        // consistent "5-hour + weekly" story.
         let longWindow: WindowUsage?
-        if let secondary = data.rateLimits?.secondary {
+        if windows.count > 1 {
+            let secondary = windows[1]
             longWindow = WindowUsage(
                 label: Self.windowLabel(minutes: secondary.windowMinutes),
                 utilization: secondary.usedPercent,
@@ -355,14 +369,20 @@ private struct CodexSessionEvent: Decodable {
 }
 
 struct CodexRateLimits: Decodable, Sendable {
-    let primary: CodexRateLimitWindow
-    let secondary: CodexRateLimitWindow
+    let primary: CodexRateLimitWindow?
+    let secondary: CodexRateLimitWindow?
     let credits: CodexCredits?
     let planType: String?
+    /// "codex" for the main limit; model-specific limits carry their own id.
+    var limitId: String?
+
+    /// Nil/absent id (older Codex versions) counts as the main limit.
+    var isMainLimit: Bool { limitId == nil || limitId == "codex" }
 
     enum CodingKeys: String, CodingKey {
         case primary, secondary, credits
         case planType = "plan_type"
+        case limitId = "limit_id"
     }
 }
 

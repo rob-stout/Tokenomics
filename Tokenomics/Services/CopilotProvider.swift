@@ -120,16 +120,49 @@ actor CopilotProvider: UsageProvider {
     // MARK: - Mapping
 
     /// Static so tests can exercise the mapping with fixture JSON.
+    /// Follows VS Code's chatEntitlementService quota parsing.
     nonisolated static func mapToSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
-        // Free accounts report counted quotas here; keep that path first so their
-        // behaviour is unchanged. Paid plans omit it and use `quota_snapshots`.
-        let freeFromSnapshots = info.isFreeViaSnapshots
-        if info.monthlyQuotas?.chat == nil, !freeFromSnapshots,
-           let premium = info.quotaSnapshots?.premiumInteractions {
-            return mapPaidSnapshot(info, premium: premium)
+        if info.accessTypeSku == "subscription_ended" {
+            return messageSnapshot(info, label: "Copilot", message: "Subscription ended")
         }
-        // Free accounts: prefer the legacy counted quotas, else the 2026 snapshots
-        // (premium has no quota there, chat/completions carry the limits).
+        // Free accounts report counted quotas (legacy `monthly_quotas`, or chat /
+        // completions snapshots in the 2026 shape); keep that path ahead of paid.
+        if info.monthlyQuotas?.chat != nil || info.isFreeViaSnapshots {
+            return mapFreeSnapshot(info)
+        }
+        guard let snapshots = info.quotaSnapshots else {
+            // Some Business seats get no quota data at all — say so instead of showing 0%.
+            return messageSnapshot(info, label: "Copilot Usage", message: "Usage isn't available for this seat")
+        }
+        guard let premium = snapshots.premiumInteractions,
+              premium.isUnlimited || (premium.entitlement ?? 0) > 0 else {
+            return messageSnapshot(info, label: "Copilot Usage", message: "Usage isn't available for this seat")
+        }
+        return mapPaidSnapshot(info, premium: premium)
+    }
+
+    /// A zero-fill bar carrying only a message (no usable usage numbers).
+    private nonisolated static func messageSnapshot(
+        _ info: CopilotUserInfo,
+        label: String,
+        message: String
+    ) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            shortWindow: WindowUsage(
+                label: label,
+                utilization: 0,
+                resetsAt: Date.distantFuture,
+                windowDuration: 0,
+                sublabelOverride: message
+            ),
+            longWindow: nil,
+            planLabel: info.planLabel,
+            extraUsage: nil,
+            creditsBalance: nil
+        )
+    }
+
+    private nonisolated static func mapFreeSnapshot(_ info: CopilotUserInfo) -> ProviderUsageSnapshot {
         let chatQuota = info.limitedUserQuotas?.chat ?? info.quotaSnapshots?.chat?.remaining ?? 0
         let chatLimit = info.monthlyQuotas?.chat ?? info.quotaSnapshots?.chat?.entitlement ?? 0
         let chatUsed = chatLimit - chatQuota
@@ -192,52 +225,63 @@ actor CopilotProvider: UsageProvider {
         )
     }
 
-    /// Paid plans (Pro, Pro+, Business, Enterprise): chat and completions are
-    /// unlimited, so the only meter that matters is AI credits (monthly plans) or
-    /// premium requests (annual Pro/Pro+).
+    /// Paid plans (Pro, Pro+, Max, Business, Enterprise): chat and completions are
+    /// unlimited, so the only meter is AI credits (token-based billing, June 2026)
+    /// or premium requests (legacy / annual plans).
     private nonisolated static func mapPaidSnapshot(
         _ info: CopilotUserInfo,
         premium: CopilotUserInfo.QuotaSnapshot
     ) -> ProviderUsageSnapshot {
-        let resetsAt = info.paidResetDate ?? Date.distantFuture
-        let cycleStart = Calendar.current.date(byAdding: .month, value: -1, to: resetsAt) ?? Date()
-        let cycleDuration = resetsAt.timeIntervalSince(cycleStart)
+        // The top-level flag is authoritative; per-snapshot `has_quota` is always
+        // false under token billing, so it is deliberately not consulted.
+        let isTokenBased = info.tokenBasedBilling ?? premium.tokenBasedBilling ?? false
+        let label = isTokenBased ? "AI Credits" : "Premium Requests"
+        let unit = isTokenBased ? "credits " : ""
 
-        // Monthly paid plans moved to token-based "AI credits" in June 2026; annual
-        // Pro/Pro+ keep premium requests. The snapshot flag wins over the top-level one.
-        let isTokenBased = premium.tokenBasedBilling ?? info.tokenBasedBilling ?? false
-        let entitlement = premium.entitlement ?? 0
+        let resetsAt = premium.resetDate ?? info.paidResetDate ?? Date.distantFuture
+        let cycleStart = Calendar.current.date(byAdding: .month, value: -1, to: resetsAt) ?? Date()
+        let cycleDuration = resetsAt == Date.distantFuture ? 0 : resetsAt.timeIntervalSince(cycleStart)
+
         let utilization: Double
         let sublabel: String
-        if premium.unlimited == true || entitlement <= 0 {
+        if premium.isUnlimited {
             utilization = 0
-            sublabel = "Unlimited"
-        } else {
-            // percent_remaining is fractional (e.g. 87.3) and more precise than the
-            // integer `remaining`; fall back to remaining when it is absent.
-            let usedPercent: Double
+            // Business/Enterprise seats: no cap, but credits_used is still reported.
             if isTokenBased, let credits = premium.creditsUsed, credits >= 0 {
-                usedPercent = credits / Double(entitlement) * 100
-            } else if let percentRemaining = premium.percentRemaining {
+                sublabel = "\(Int(credits.rounded()).formatted()) credits used"
+            } else {
+                sublabel = "Unlimited"
+            }
+        } else {
+            let entitlement = premium.entitlement ?? 0
+            // percent_remaining is fractional (e.g. 87.3) and more precise than the
+            // integer counts. Credits have no denominator of their own, so
+            // `credits_used / entitlement` is deliberately never computed.
+            let usedPercent: Double
+            if let percentRemaining = premium.percentRemaining {
                 usedPercent = 100 - percentRemaining
-            } else if let remaining = premium.remaining {
-                usedPercent = Double(entitlement - remaining) / Double(entitlement) * 100
+            } else if let remaining = premium.quotaRemaining ?? premium.remaining.map(Double.init) {
+                usedPercent = (Double(entitlement) - remaining) / Double(entitlement) * 100
             } else {
                 usedPercent = 0
             }
             utilization = max(0, usedPercent)
+
             let used: Int
-            if isTokenBased, let credits = premium.creditsUsed, credits >= 0 {
-                used = Int(credits.rounded())
+            if isTokenBased, let quotaRemaining = premium.quotaRemaining {
+                used = Int((Double(entitlement) - quotaRemaining).rounded())
             } else {
                 used = Int((Double(entitlement) * utilization / 100).rounded())
             }
-            sublabel = "\(used) / \(entitlement) used"
+            let formatted = isTokenBased
+                ? "\(used.formatted()) / \(entitlement.formatted())"
+                : "\(used) / \(entitlement)"
+            sublabel = "\(formatted) \(unit)used"
         }
 
         return ProviderUsageSnapshot(
             shortWindow: WindowUsage(
-                label: isTokenBased ? "AI Credits" : "Premium Requests",
+                label: label,
                 utilization: min(utilization, 999),
                 resetsAt: resetsAt,
                 windowDuration: cycleDuration,
@@ -252,6 +296,14 @@ actor CopilotProvider: UsageProvider {
 }
 
 // MARK: - Response Model
+
+/// Decodes a number that may arrive as a JSON number or a numeric string
+/// (`"entitlement": "3900"`). Returns nil when absent or unparseable.
+private func decodeFlexibleDouble<K: CodingKey>(_ container: KeyedDecodingContainer<K>, _ key: K) -> Double? {
+    if let number = try? container.decodeIfPresent(Double.self, forKey: key) { return number }
+    if let text = try? container.decodeIfPresent(String.self, forKey: key) { return Double(text) }
+    return nil
+}
 
 struct CopilotUserInfo: Decodable {
     let login: String?
@@ -278,32 +330,63 @@ struct CopilotUserInfo: Decodable {
     }
 
     struct QuotaSnapshot: Decodable {
+        /// -1 means unlimited. Arrives as a number or a string.
         let entitlement: Int?
         let remaining: Int?
+        let quotaRemaining: Double?
         let percentRemaining: Double?
         let unlimited: Bool?
         let hasQuota: Bool?
         // Added with token-based billing (June 2026); absent on older responses.
         let tokenBasedBilling: Bool?
         let creditsUsed: Double?
+        /// Unix seconds; 0 when unset.
+        let quotaResetAt: Double?
 
         enum CodingKeys: String, CodingKey {
             case entitlement, remaining, unlimited
+            case quotaRemaining = "quota_remaining"
+            case percentRemaining = "percent_remaining"
             case hasQuota = "has_quota"
             case tokenBasedBilling = "token_based_billing"
             case creditsUsed = "credits_used"
-            case percentRemaining = "percent_remaining"
+            case quotaResetAt = "quota_reset_at"
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            entitlement = decodeFlexibleDouble(c, .entitlement).map { Int($0) }
+            remaining = decodeFlexibleDouble(c, .remaining).map { Int($0) }
+            quotaRemaining = decodeFlexibleDouble(c, .quotaRemaining)
+            percentRemaining = decodeFlexibleDouble(c, .percentRemaining)
+            creditsUsed = decodeFlexibleDouble(c, .creditsUsed)
+            quotaResetAt = decodeFlexibleDouble(c, .quotaResetAt)
+            unlimited = try? c.decodeIfPresent(Bool.self, forKey: .unlimited)
+            hasQuota = try? c.decodeIfPresent(Bool.self, forKey: .hasQuota)
+            tokenBasedBilling = try? c.decodeIfPresent(Bool.self, forKey: .tokenBasedBilling)
+        }
+
+        var isUnlimited: Bool { unlimited == true || entitlement == -1 }
+
+        /// Snapshot reset time, when the server sets one (> 0).
+        var resetDate: Date? {
+            guard let raw = quotaResetAt, raw > 0 else { return nil }
+            // Tolerate milliseconds just in case.
+            return Date(timeIntervalSince1970: raw > 100_000_000_000 ? raw / 1000 : raw)
         }
     }
 
     /// Free accounts in the 2026 response shape: no premium quota, but counted
-    /// chat/completions snapshots.
+    /// chat/completions snapshots. Also covers the free SKUs explicitly.
     var isFreeViaSnapshots: Bool {
+        if accessTypeSku == "free_limited_copilot" || accessTypeSku == "free_educational_quota" {
+            return (quotaSnapshots?.chat?.entitlement ?? 0) > 0
+        }
         guard let snaps = quotaSnapshots,
-              snaps.premiumInteractions?.hasQuota == false,
-              snaps.premiumInteractions?.unlimited != true,
-              snaps.chat?.unlimited != true,
-              (snaps.chat?.entitlement ?? 0) > 0 else { return false }
+              let premium = snaps.premiumInteractions,
+              !premium.isUnlimited, (premium.entitlement ?? 0) <= 0,
+              let chat = snaps.chat, !chat.isUnlimited,
+              (chat.entitlement ?? 0) > 0 else { return false }
         return true
     }
 
@@ -324,15 +407,23 @@ struct CopilotUserInfo: Decodable {
     }
 
     var planLabel: String {
-        guard let sku = accessTypeSku else { return "Free" }
-        switch sku {
-        case "free_limited_copilot": return "Free"
-        case "copilot_for_individual", "copilot_individual": return "Individual"
+        if accessTypeSku == "free_limited_copilot" || accessTypeSku == "free_educational_quota" { return "Free" }
+        if accessTypeSku == "subscription_ended" { return "Subscription ended" }
+        switch copilotPlan?.lowercased() {
+        case "individual": return "Pro"
+        case "individual_pro": return "Pro+"
+        case "individual_max": return "Max"
+        case "business": return "Business"
+        case "enterprise": return "Enterprise"
+        case "individual_edu": return "Edu"
+        default: break
+        }
+        switch accessTypeSku {
         case "copilot_for_business", "copilot_business": return "Business"
         case "copilot_enterprise": return "Enterprise"
+        case "copilot_for_individual", "copilot_individual": return "Pro"
         default:
-            // Fall back to copilot_plan field
-            if let plan = copilotPlan {
+            if let plan = copilotPlan, !plan.isEmpty {
                 return plan.prefix(1).uppercased() + plan.dropFirst()
             }
             return "Free"
