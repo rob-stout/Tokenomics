@@ -40,13 +40,23 @@ interface MeResponse {
   plan?: string;
 }
 
-/** Hit /backend-api/me from the SW with the user's session cookie. */
+/**
+ * The signed-in plan. /backend-api/me now answers cookie-only requests with an
+ * anonymous profile (no plan), so read it from the web session first
+ * (`account.planType`), then ask /me with the session's Bearer token.
+ */
 export async function detectChatGPTPlan(): Promise<ChatGPTPlan> {
   try {
+    const sessionRes = await fetch('https://chatgpt.com/api/auth/session', { credentials: 'include' });
+    if (!sessionRes.ok) return 'unknown';
+    const session = (await sessionRes.json()) as { accessToken?: string; account?: { planType?: string } };
+    const fromSession = canonicalPlan(session.account?.planType);
+    if (fromSession !== 'unknown' || !session.accessToken) return fromSession;
+
     const res = await fetch('https://chatgpt.com/backend-api/me', {
       credentials: 'include',
+      headers: { Authorization: `Bearer ${session.accessToken}` },
     });
-    if (res.status === 401 || res.status === 403) return 'unknown';
     if (!res.ok) return 'unknown';
     const data = (await res.json()) as MeResponse;
     return canonicalPlan(extractPlan(data));

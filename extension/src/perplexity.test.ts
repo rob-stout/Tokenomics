@@ -262,3 +262,13 @@ test('looksSignedOut: only when every count is zero/absent', () => {
   assert.equal(looksSignedOut({}), true);
   assert.equal(looksSignedOut({ remaining_pro: 3 }), false);
 });
+
+test('free account with no Deep Research quota (0 left, no cap seen) → no empty bar', () => {
+  const snap = mapToSnapshot({ remaining_pro: 5, remaining_research: 0 }, { pro: 5, research: 0 }, NOW);
+  assert.equal(snap.longWindow, null);
+});
+
+test('Deep Research used up (0 left, cap seen) → full bar, not hidden', () => {
+  const snap = mapToSnapshot({ remaining_research: 0 }, { research: 3 }, NOW);
+  assert.equal(snap.longWindow?.utilization, 100);
+});
