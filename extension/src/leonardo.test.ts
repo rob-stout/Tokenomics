@@ -176,7 +176,7 @@ test('clamp: FREE with subscriptionTokens 150 + paidTokens 100 (totalLeft 250 > 
 
 // ── API key path (/api/rest/v1/me) ──────────────────────────
 
-import { AuthError, fetchLeonardoUsageWithApiKey, mapMeToSnapshot } from './leonardo';
+import { AuthError, fetchLeonardoSessionCredentials, fetchLeonardoUsageWithApiKey, mapMeToSnapshot } from './leonardo';
 import { applyRenewal, trackRenewal } from './renewal';
 
 function stubFetch(status: number, body: unknown = {}) {
@@ -322,4 +322,25 @@ test('renewal: a refill larger than the daily amount still anchors', () => {
   let s = trackRenewal(null, 0, 0, T0 - HOUR, LEO_DAILY);
   s = trackRenewal(s, 8500, 0, T0, LEO_DAILY);
   assert.equal(s.anchorMs, T0);
+});
+
+// ── Session credentials (/api/auth/get-session, live shape 2026-11-27) ──
+
+test('session credentials: accessToken + cognitoSub from get-session', async () => {
+  const stub = stubFetch(200, { session: { accessToken: 'tok', cognitoSub: 'sub-uuid', userId: 'x' }, user: {} });
+  try {
+    const creds = await fetchLeonardoSessionCredentials();
+    assert.deepEqual(creds, { idToken: 'tok', userSub: 'sub-uuid' });
+    assert.equal(stub.calls[0]?.url, 'https://app.leonardo.ai/api/auth/get-session');
+  } finally { stub.restore(); }
+});
+
+test('session credentials: signed out (null body) → null', async () => {
+  const stub = stubFetch(200, null);
+  try { assert.equal(await fetchLeonardoSessionCredentials(), null); } finally { stub.restore(); }
+});
+
+test('session credentials: non-200 → null', async () => {
+  const stub = stubFetch(401, {});
+  try { assert.equal(await fetchLeonardoSessionCredentials(), null); } finally { stub.restore(); }
 });

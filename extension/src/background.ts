@@ -12,7 +12,7 @@ import { AuthError as ELAuthError, fetchElevenLabsUsage, RateLimitError as ELRat
 import { AuthError as GrokAuthError, fetchGrokUsage, RateLimitError as GrokRateLimitError, type GrokPlanInfo } from './grok';
 import { AuthError as UdioAuthError, fetchUdioUsage, RateLimitError as UdioRateLimitError } from './udio';
 import { AuthError as PxAuthError, fetchPerplexityUsage, RateLimitError as PxRateLimitError, type PerplexityPlan } from './perplexity';
-import { AuthError as LeoAuthError, fetchLeonardoUsage, fetchLeonardoUsageWithApiKey, RateLimitError as LeoRateLimitError } from './leonardo';
+import { AuthError as LeoAuthError, fetchLeonardoSessionCredentials, fetchLeonardoUsage, fetchLeonardoUsageWithApiKey, RateLimitError as LeoRateLimitError } from './leonardo';
 import { applyRenewal, trackRenewal } from './renewal';
 
 // Daily free top-ups that must not be mistaken for the monthly refill (see renewal.ts).
@@ -98,6 +98,7 @@ const PERPLEXITY_ALARM = 'perplexity-poll';
 const LEONARDO_ALARM = 'leonardo-poll';
 const UDIO_ALARM = 'udio-poll';
 const PLAN_REDETECT_ALARM = 'chatgpt-plan-redetect';
+const CHATGPT_ALARM = 'chatgpt-poll';
 const BRIDGE_HEARTBEAT_ALARM = 'bridgeHeartbeat';
 const POLL_PERIOD_MIN = 5;
 const MIDJOURNEY_POLL_PERIOD_MIN = 10; // less frequent — billing data changes slowly
@@ -107,6 +108,9 @@ const PERPLEXITY_POLL_PERIOD_MIN = 5;  // daily window
 const UDIO_POLL_PERIOD_MIN = 10;       // daily/monthly counters change slowly
 const LEONARDO_POLL_PERIOD_MIN = 10;   // token balance changes slowly; gated on cached creds
 const PLAN_REDETECT_PERIOD_MIN = 60 * 24; // re-check plan once a day
+// Codex usage changes from the CLI/IDE too, not only from chats on chatgpt.com,
+// so re-read /wham/usage on a timer instead of waiting for a chat message.
+const CHATGPT_POLL_PERIOD_MIN = 10;
 
 // Exponential backoff: 5m → 10m → 20m → 40m → 60m (cap)
 const BACKOFF_INITIAL_MS = 5 * 60_000;
@@ -169,6 +173,7 @@ browser.alarms.onAlarm.addListener(async (alarm) => {
   else if (alarm.name === LEONARDO_ALARM) void pollLeonardo('alarm');
   else if (alarm.name === UDIO_ALARM) void pollUdio('alarm');
   else if (alarm.name === PLAN_REDETECT_ALARM) void redetectChatGPTPlan('alarm');
+  else if (alarm.name === CHATGPT_ALARM) void recomputeChatGPTSnapshot();
   else if (alarm.name === BRIDGE_HEARTBEAT_ALARM) void sendBridgeBatch('heartbeat').catch(() => undefined);
 });
 
@@ -333,6 +338,7 @@ async function scheduleAlarms(): Promise<void> {
     browser.alarms.create(LEONARDO_ALARM, { periodInMinutes: LEONARDO_POLL_PERIOD_MIN }),
     browser.alarms.create(UDIO_ALARM, { periodInMinutes: UDIO_POLL_PERIOD_MIN }),
     browser.alarms.create(PLAN_REDETECT_ALARM, { periodInMinutes: PLAN_REDETECT_PERIOD_MIN }),
+    browser.alarms.create(CHATGPT_ALARM, { periodInMinutes: CHATGPT_POLL_PERIOD_MIN }),
     browser.alarms.create(BRIDGE_HEARTBEAT_ALARM, { periodInMinutes: 1 }),
   ]);
 }
@@ -591,10 +597,11 @@ export async function pollLeonardo(trigger: 'install' | 'alarm' | 'manual'): Pro
   }
 
   const apiKey = await getApiKey('leonardo');
-  const creds = apiKey ? null : await getLeonardoCredentials();
+  // Session endpoint first (fresh token, works without visiting the page);
+  // credentials captured by the content script are the fallback.
+  const creds = apiKey ? null : (await fetchLeonardoSessionCredentials()) ?? (await getLeonardoCredentials());
   if (!apiKey && !creds) {
-    // No credentials yet — the content script hasn't run (user hasn't visited app.leonardo.ai).
-    console.log('[tokenomics] leonardo: no cognito credentials cached yet, skipping poll');
+    console.log('[tokenomics] leonardo: not signed in or no credentials yet, skipping poll');
     return;
   }
 

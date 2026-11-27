@@ -239,6 +239,27 @@ export function mapMeToSnapshot(
 // ── Public API ────────────────────────────────────────────────
 
 /**
+ * Credentials from Leonardo's own session endpoint (live-verified 2026-11-27).
+ * Leonardo moved its web login to a cookie session; the page no longer sends
+ * the GetUserTokensFromSub query the content script waited for, so the
+ * captured credentials never arrived. /api/auth/get-session returns a fresh
+ * access token plus the cognitoSub our query needs. Null when signed out or on
+ * any failure, so the caller can fall back to captured credentials.
+ */
+export async function fetchLeonardoSessionCredentials(): Promise<{ idToken: string; userSub: string } | null> {
+  try {
+    const res = await fetch('https://app.leonardo.ai/api/auth/get-session', { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { session?: { accessToken?: string; cognitoSub?: string } } | null;
+    const idToken = data?.session?.accessToken;
+    const userSub = data?.session?.cognitoSub;
+    return idToken && userSub ? { idToken, userSub } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch Leonardo token balance using an Auth0 Bearer token.
  *
  * @param idToken - The Auth0 access token captured by the MAIN-world leonardo-main content script.

@@ -256,11 +256,11 @@ export function mapToSnapshot(
     sublabelOverride: remainingSublabel(remainingPro, caps.pro, 'Pro left'),
   };
 
-  // Only include the Deep Research long window if we received an explicit field,
-  // so the UI doesn't show a second empty bar when the account has no deep
-  // research quota at all.
+  // Only include the Deep Research long window once we've seen a quota for it.
+  // Free accounts report remaining_research: 0 with no quota at all, which
+  // would otherwise show an empty bar reading "0 left".
   const longWindow: WindowUsage | null =
-    typeof raw.remaining_research === 'number'
+    typeof raw.remaining_research === 'number' && (remainingResearch > 0 || (caps.research ?? 0) > 0)
       ? {
           label: 'Deep Research',
           utilization: utilizationFor(remainingResearch, caps.research),

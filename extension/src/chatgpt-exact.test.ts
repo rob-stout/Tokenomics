@@ -158,3 +158,44 @@ test('plan_type → label table', () => {
     assert.equal(snap!.planLabel, label, planType);
   }
 });
+
+// ── Plan detection (live 2026-11-27: cookie-only /backend-api/me is anonymous) ──
+
+import { detectChatGPTPlan } from './chatgpt';
+
+function stubFetchSeq(responses: { status: number; body: unknown }[]) {
+  const calls: { url: string; headers: Record<string, string> }[] = [];
+  const original = globalThis.fetch;
+  let i = 0;
+  globalThis.fetch = (async (url: string, init?: { headers?: Record<string, string> }) => {
+    calls.push({ url, headers: init?.headers ?? {} });
+    const r = responses[Math.min(i++, responses.length - 1)]!;
+    return { status: r.status, ok: r.status >= 200 && r.status < 300, json: async () => r.body };
+  }) as unknown as typeof fetch;
+  return { calls, restore: () => { globalThis.fetch = original; } };
+}
+
+test('detectChatGPTPlan: reads account.planType from the web session', async () => {
+  const stub = stubFetchSeq([{ status: 200, body: { accessToken: 't', account: { planType: 'free' } } }]);
+  try {
+    assert.equal(await detectChatGPTPlan(), 'free');
+    assert.equal(stub.calls.length, 1);
+  } finally { stub.restore(); }
+});
+
+test('detectChatGPTPlan: no planType → asks /me with the Bearer token', async () => {
+  const stub = stubFetchSeq([
+    { status: 200, body: { accessToken: 'tok' } },
+    { status: 200, body: { account: { plan_type: 'plus' } } },
+  ]);
+  try {
+    assert.equal(await detectChatGPTPlan(), 'plus');
+    assert.equal(stub.calls[1]?.url, 'https://chatgpt.com/backend-api/me');
+    assert.equal(stub.calls[1]?.headers.Authorization, 'Bearer tok');
+  } finally { stub.restore(); }
+});
+
+test('detectChatGPTPlan: signed out → unknown', async () => {
+  const stub = stubFetchSeq([{ status: 200, body: {} }]);
+  try { assert.equal(await detectChatGPTPlan(), 'unknown'); } finally { stub.restore(); }
+});
