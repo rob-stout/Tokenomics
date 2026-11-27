@@ -114,6 +114,27 @@ async function grabAndSend(): Promise<void> {
   }
 }
 
+/**
+ * Refresh soon after a generation instead of waiting for the 10-minute poll.
+ * Resource-timing entries are shared with the isolated world, so we can see
+ * the page's own generation requests finish without touching them. ElevenLabs
+ * usually posts the charge within seconds, but live (2026-11-27) a generation
+ * that also started a new billing month read 0 at +8s and 572 later, so read
+ * again at +45s. Sending the token makes the service worker poll right away.
+ */
+const GENERATION_URL = /elevenlabs\.io\/v1\/(text-to-speech|speech-to-speech|sound-generation|text-to-sound-effects|music|text-to-voice|voice-generation|audio-isolation|speech-to-text|dubbing)\b/;
+const AFTER_GENERATION_MS = [8_000, 45_000];
+let generationTimers: number[] = [];
+try {
+  new PerformanceObserver((list) => {
+    if (!list.getEntries().some((e) => GENERATION_URL.test(e.name))) return;
+    generationTimers.forEach((t) => window.clearTimeout(t));
+    generationTimers = AFTER_GENERATION_MS.map((ms) => window.setTimeout(() => void grabAndSend(), ms));
+  }).observe({ type: 'resource', buffered: false });
+} catch {
+  // PerformanceObserver unavailable — the periodic poll still covers it.
+}
+
 // Initial grab + periodic refresh to catch token renewals.
 void grabAndSend();
 const timerId = window.setInterval(() => void grabAndSend(), POLL_INTERVAL_MS);
